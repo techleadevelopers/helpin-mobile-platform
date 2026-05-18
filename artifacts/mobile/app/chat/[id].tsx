@@ -3,6 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Platform,
   StyleSheet,
@@ -18,6 +19,7 @@ import { Avatar } from '@/components/Avatar';
 import { MOCK_CONVERSATIONS } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
+import { createZooHelpApi } from '@/services/zoohelpApi';
 
 interface Message {
   id: string;
@@ -67,6 +69,21 @@ export default function ChatRoomScreen() {
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
+  React.useEffect(() => {
+    if (!id) return;
+    createZooHelpApi()
+      ?.chatMessages(id)
+      .then((items) => {
+        setMessages(items.map((item) => ({
+          id: item.id,
+          text: item.body,
+          sender: item.senderId === 'me' || item.senderId === user?.id ? 'me' as const : 'other' as const,
+          time: item.createdAt,
+        })).reverse());
+      })
+      .catch(() => {});
+  }, [id, user?.id]);
+
   function sendMessage() {
     if (!text.trim()) return;
     const now = new Date();
@@ -77,6 +94,7 @@ export default function ChatRoomScreen() {
       time: `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`,
     };
     setMessages((prev) => [newMsg, ...prev]);
+    createZooHelpApi()?.sendChatMessage(id as string, newMsg.text).catch(() => {});
     setText('');
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
@@ -138,7 +156,10 @@ export default function ChatRoomScreen() {
             </Text>
           )}
         </View>
-        <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity
+          onPress={() => Alert.alert('Opções do chat', 'Denunciar, bloquear e arquivar serão integrados à moderação.')}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
           <MaterialCommunityIcons name="dots-vertical" size={22} color={colors.foreground} />
         </TouchableOpacity>
       </View>
