@@ -1,4 +1,4 @@
-# ZooHelp
+# <img src="https://res.cloudinary.com/limpeja/image/upload/v1779071066/Gemini_Generated_Image_v5ufmcv5ufmcv5uf-removebg-preview_lcxvg8.png" alt="ZooHelp Logo" width="58" align="center"> ZooHelp Mobile Platform
 
 ### Global Animal Rescue, Adoption & Social Impact Mobile Platform
 
