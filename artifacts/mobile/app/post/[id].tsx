@@ -43,10 +43,10 @@ export default function PostDetailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { likedPosts, toggleLike } = useApp();
+  const { likedPosts, toggleLike, posts } = useApp();
   const [liked, setLiked] = useState(false);
 
-  const post = MOCK_POSTS.find((p) => p.id === id);
+  const post = posts.find((p) => p.id === id) ?? MOCK_POSTS.find((p) => p.id === id);
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
 
   if (!post) {
