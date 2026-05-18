@@ -1,16 +1,16 @@
-import { ExpoConfig, ConfigContext } from "expo/config";
+﻿import { ExpoConfig, ConfigContext } from "expo/config";
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const devDomain = process.env.EXPO_PUBLIC_DOMAIN;
   const externalPort = process.env.EXPO_EXTERNAL_PORT || "3000";
-  const origin = devDomain
-    ? `https://${devDomain}:${externalPort}`
-    : "https://replit.com/";
+  const isProduction = process.env.APP_ENV === "production";
+  const origin = devDomain ? `https://${devDomain}:${externalPort}` : "https://zoohelp.app";
 
   return {
     ...config,
     name: "ZooHelp",
     slug: "mobile",
+    owner: process.env.EXPO_OWNER,
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
@@ -25,7 +25,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ios: {
       supportsTablet: false,
       bundleIdentifier: "com.zoohelp.app",
-      buildNumber: "1",
+      buildNumber: process.env.IOS_BUILD_NUMBER || "1",
       requireFullScreen: false,
       infoPlist: {
         NSCameraUsageDescription:
@@ -39,7 +39,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         NSLocationAlwaysAndWhenInUseUsageDescription:
           "O ZooHelp usa sua localização para mostrar animais próximos e enviar alertas de emergência na sua região.",
         NSMicrophoneUsageDescription:
-          "O ZooHelp pode precisar do microfone para gravação de áudio nas publicações.",
+          "O ZooHelp pode precisar do microfone para gravação de áudio ou vídeo nas publicações.",
       },
     },
     android: {
@@ -64,7 +64,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       [
         "expo-router",
         {
-          origin,
+          origin: isProduction ? "https://zoohelp.app" : origin,
         },
       ],
       "expo-font",
