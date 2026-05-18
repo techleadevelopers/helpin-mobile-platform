@@ -1,0 +1,181 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import {
+  FlatList,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { Avatar } from '@/components/Avatar';
+import { EmptyState } from '@/components/EmptyState';
+import { ChatConversation, MOCK_CONVERSATIONS } from '@/constants/data';
+import { useColors } from '@/hooks/useColors';
+
+export default function ChatScreen() {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+
+  const topPad = Platform.OS === 'web' ? 67 : insets.top;
+
+  function renderConversation({ item }: { item: ChatConversation }) {
+    return (
+      <TouchableOpacity
+        style={[styles.convRow, { backgroundColor: colors.card, shadowColor: colors.shadow }]}
+        onPress={() => router.push(`/chat/${item.id}`)}
+        activeOpacity={0.92}
+      >
+        <View style={{ position: 'relative' }}>
+          <Avatar name={item.participant.name} size={52} verified={item.participant.verified} />
+          {item.unread > 0 && (
+            <View style={[styles.unreadBadge, { backgroundColor: colors.primary, shadowColor: colors.primary }]}>
+              <Text style={styles.unreadText}>{item.unread}</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.convInfo}>
+          <View style={styles.convHeader}>
+            <Text
+              style={[
+                styles.convName,
+                { color: colors.foreground, fontFamily: item.unread > 0 ? 'Inter_700Bold' : 'Inter_500Medium' },
+              ]}
+              numberOfLines={1}
+            >
+              {item.participant.name}
+            </Text>
+            <Text style={[styles.convTime, { color: colors.mutedForeground }]}>
+              {item.lastMessageTime}
+            </Text>
+          </View>
+          <Text style={[styles.postTitle, { color: colors.primary }]} numberOfLines={1}>
+            {item.postTitle}
+          </Text>
+          <Text
+            style={[
+              styles.lastMessage,
+              {
+                color: item.unread > 0 ? colors.foreground : colors.mutedForeground,
+                fontFamily: item.unread > 0 ? 'Inter_500Medium' : 'Inter_400Regular',
+              },
+            ]}
+            numberOfLines={1}
+          >
+            {item.lastMessage}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { paddingTop: topPad + 12 }]}>
+        <Text style={[styles.title, { color: colors.foreground }]}>Mensagens</Text>
+        <TouchableOpacity
+          style={[
+            styles.composeBtn,
+            {
+              backgroundColor: colors.primary + '14',
+              borderColor: colors.primary + '45',
+              shadowColor: colors.primary,
+            },
+          ]}
+        >
+          <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.primary} />
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={MOCK_CONVERSATIONS}
+        renderItem={renderConversation}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: Platform.OS === 'web' ? 100 : insets.bottom + 65 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => (
+          <View style={[styles.separator, { backgroundColor: colors.border }]} />
+        )}
+        ListEmptyComponent={
+          <EmptyState
+            icon="message-outline"
+            title="Nenhuma conversa ainda"
+            subtitle="Quando você demonstrar interesse em adotar ou ajudar, as conversas aparecerão aqui."
+            iconColor="#2F80ED"
+          />
+        }
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  title: { fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
+  composeBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  listContent: { paddingTop: 4 },
+  convRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  unreadBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  unreadText: { fontSize: 10, fontFamily: 'Inter_700Bold', color: '#FFFFFF' },
+  convInfo: { flex: 1, gap: 3 },
+  convHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  convName: { fontSize: 15, flex: 1, marginRight: 8 },
+  convTime: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  postTitle: { fontSize: 11, fontFamily: 'Inter_500Medium' },
+  lastMessage: { fontSize: 13, lineHeight: 18 },
+  separator: { height: 1, marginLeft: 80 },
+});
