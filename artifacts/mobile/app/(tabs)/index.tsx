@@ -134,6 +134,7 @@ export default function FeedScreen() {
           <View style={styles.headerRight}>
             <TouchableOpacity
               style={[styles.iconBtn, { backgroundColor: colors.muted }]}
+              onPress={() => router.push('/notifications')}
               activeOpacity={0.75}
             >
               <MaterialCommunityIcons name="bell-outline" size={18} color={colors.foreground} />
@@ -154,6 +155,7 @@ export default function FeedScreen() {
             styles.searchPill,
             { backgroundColor: colors.card, borderColor: colors.border },
           ]}
+          onPress={() => router.push('/search')}
           activeOpacity={0.75}
         >
           <MaterialCommunityIcons name="magnify" size={16} color={colors.mutedForeground} />
