@@ -21,6 +21,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { AUTHOR_TO_ONG, MOCK_POSTS, POST_TYPE_CONFIG } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
+import { shareZooHelpItem } from '@/services/share';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -58,39 +59,44 @@ export default function PostDetailScreen() {
     );
   }
 
+  const activePost = post;
   const cfg = POST_TYPE_CONFIG[post.type];
   const imageUri = ANIMAL_PLACEHOLDERS[post.animalType];
   const isLiked = likedPosts.includes(post.id) || liked;
 
   function handleLike() {
     setLiked(!isLiked);
-    toggleLike(post.id);
+    toggleLike(activePost.id);
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
   function handleContact() {
-    if (!post.contact) {
+    if (!activePost.contact) {
       Alert.alert('Contato', 'Entre em contato pelo chat do aplicativo.');
       return;
     }
-    const phone = post.contact.replace(/\D/g, '');
+    const phone = activePost.contact.replace(/\D/g, '');
     Linking.openURL(`https://wa.me/55${phone}`).catch(() => {
-      Linking.openURL(`tel:${post.contact}`);
+      Linking.openURL(`tel:${activePost.contact}`);
     });
   }
 
   function handleOpenChat() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(
-      `/chat/${post.author.id}?postName=${encodeURIComponent(post.name)}&authorName=${encodeURIComponent(post.author.name)}&chatType=adoption`
+      `/chat/${activePost.author.id}?postName=${encodeURIComponent(activePost.name)}&authorName=${encodeURIComponent(activePost.author.name)}&chatType=adoption`
     );
   }
 
+  function handleShare() {
+    shareZooHelpItem(activePost.name, `${activePost.name} no ZooHelp: ${activePost.description}`);
+  }
+
   const actionLabel =
-    post.type === 'adoption' ? 'Quero adotar ❤️' :
-    post.type === 'emergency' ? 'Quero ajudar 🚨' :
-    post.type === 'campaign' ? 'Fazer doação 💚' :
-    post.type === 'lost' ? 'Vi esse animal 🔍' : 'Entrar em contato';
+    activePost.type === 'adoption' ? 'Quero adotar ❤️' :
+    activePost.type === 'emergency' ? 'Quero ajudar 🚨' :
+    activePost.type === 'campaign' ? 'Fazer doação 💚' :
+    activePost.type === 'lost' ? 'Vi esse animal 🔍' : 'Entrar em contato';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -117,6 +123,7 @@ export default function PostDetailScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.shareFloatBtn, { backgroundColor: 'rgba(0,0,0,0.42)', top: (Platform.OS === 'web' ? 67 : insets.top) + 12 }]}
+            onPress={handleShare}
           >
             <MaterialCommunityIcons name="share-variant-outline" size={20} color="#FFFFFF" />
           </TouchableOpacity>
@@ -185,7 +192,7 @@ export default function PostDetailScreen() {
                     elevation: isOrg ? 2 : 0,
                   },
                 ]}
-                onPress={() => ongId && router.push(`/ong/${post.author.id}`)}
+                onPress={() => ongId && router.push(`/ong/${ongId}`)}
                 activeOpacity={ongId ? 0.85 : 1}
               >
                 <Avatar name={post.author.name} size={44} verified={post.author.verified} type={post.author.type} />
@@ -284,6 +291,7 @@ export default function PostDetailScreen() {
       >
         <TouchableOpacity
           style={[styles.shareBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
+          onPress={handleShare}
           activeOpacity={0.8}
         >
           <MaterialCommunityIcons name="share-variant-outline" size={21} color={colors.foreground} />
@@ -291,7 +299,7 @@ export default function PostDetailScreen() {
 
         {post.type === 'adoption' && (
           <TouchableOpacity
-            style={[styles.chatBtn, { backgroundColor: '#2F80ED12', borderColor: '#2F80ED30' }]}
+            style={[styles.bottomChatBtn, { backgroundColor: '#2F80ED12', borderColor: '#2F80ED30' }]}
             onPress={handleOpenChat}
             activeOpacity={0.8}
           >
@@ -441,7 +449,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   mainActionText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: '#FFFFFF' },
-  chatBtn: {
+  bottomChatBtn: {
     height: 50,
     paddingHorizontal: 16,
     borderRadius: 14,
