@@ -1,8 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Platform,
   ScrollView,
@@ -24,6 +26,7 @@ import { Avatar } from '@/components/Avatar';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MOCK_POSTS, Post, POST_TYPE_CONFIG, PostType } from '@/constants/data';
 import { useColors } from '@/hooks/useColors';
+import { createZooHelpApi, mapPost } from '@/services/zoohelpApi';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -35,6 +38,7 @@ const TYPE_ICONS: Record<PostType, MCIcon> = {
   lost:      'magnify',
   found:     'check-circle',
   campaign:  'heart-multiple',
+  post:      'pencil-outline',
 };
 
 type FilterValue = PostType | 'all' | 'urgent' | 'ong';
@@ -172,17 +176,45 @@ export default function MapScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState<FilterValue>('all');
+  const [nearbyPosts, setNearbyPosts] = useState<Post[]>(MOCK_POSTS);
+  const [locationLabel, setLocationLabel] = useState('São Paulo, SP');
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
-  const filteredPosts = MOCK_POSTS.filter((p) => {
+  useEffect(() => {
+    let mounted = true;
+    async function loadNearby() {
+      try {
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (permission.status !== 'granted') return;
+        const position = await Location.getCurrentPositionAsync({});
+        if (!mounted) return;
+        setLocationLabel('Perto de você');
+        const api = createZooHelpApi();
+        const nearby = await api?.nearby({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          radiusKm: 30,
+        });
+        if (nearby && mounted) setNearbyPosts(nearby.map((item) => mapPost(item.post)));
+      } catch {
+        // Local fallback keeps the map usable without GPS/API.
+      }
+    }
+    loadNearby();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const filteredPosts = nearbyPosts.filter((p) => {
     if (activeFilter === 'all') return true;
     if (activeFilter === 'urgent') return p.urgent;
     if (activeFilter === 'ong') return p.author.type === 'ong';
     return p.type === (activeFilter as PostType);
   });
 
-  const urgentCount = MOCK_POSTS.filter((p) => p.urgent).length;
+  const urgentCount = nearbyPosts.filter((p) => p.urgent).length;
   const nearbyCount = filteredPosts.length;
 
   const renderCase = useCallback(
@@ -209,7 +241,7 @@ export default function MapScreen() {
           ]}
         >
           <MaterialCommunityIcons name="navigation-variant" size={12} color={colors.primary} />
-          <Text style={[styles.locationLabel, { color: colors.primary }]}>São Paulo, SP</Text>
+          <Text style={[styles.locationLabel, { color: colors.primary }]}>{locationLabel}</Text>
         </View>
       </View>
 
@@ -248,6 +280,7 @@ export default function MapScreen() {
           {/* Expand CTA */}
           <TouchableOpacity
             style={[styles.expandBtn, { backgroundColor: '#FFFFFF', shadowColor: '#000' }]}
+            onPress={() => Alert.alert('Mapa em tempo real', 'Os casos próximos abaixo usam GPS quando autorizado. Mapa nativo completo será plugado nesta tela.')}
             activeOpacity={0.8}
           >
             <MaterialCommunityIcons name="fullscreen" size={14} color={colors.foreground} />
