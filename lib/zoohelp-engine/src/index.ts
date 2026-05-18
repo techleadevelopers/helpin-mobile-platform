@@ -12,6 +12,116 @@ export interface CoreCapability {
   reason: string;
 }
 
+export type AccountType = "person" | "ong" | "vet";
+export type AnimalType = "dog" | "cat" | "other";
+export type PostType = "adoption" | "lost" | "found" | "emergency" | "campaign" | "post";
+
+export interface AuthorContract {
+  id: string;
+  name: string;
+  avatar: string | null;
+  verified: boolean;
+  type: AccountType;
+}
+
+export interface UserContract extends AuthorContract {
+  email: string;
+  bio: string;
+  postsCount: number;
+  helpedCount: number;
+  adoptionsCount: number;
+}
+
+export interface PostContract {
+  id: string;
+  type: PostType;
+  animalType: AnimalType;
+  name: string;
+  breed: string;
+  age: string;
+  description: string;
+  location: string;
+  neighborhood: string;
+  image: string | null;
+  textOnly: boolean;
+  author: AuthorContract;
+  likes: number;
+  comments: number;
+  shares: number;
+  urgent: boolean;
+  createdAt: string;
+  contact: string;
+  tags: string[];
+}
+
+export interface OngContract {
+  id: string;
+  name: string;
+  shortName: string;
+  description: string;
+  mission: string;
+  location: string;
+  city: string;
+  state: string;
+  verified: boolean;
+  animalsRescued: number;
+  activeCases: number;
+  adoptions: number;
+  animalTypes: string[];
+  followers: number;
+  since: string;
+  cnpj: string;
+  contact: string;
+  cause: string;
+}
+
+export interface ChatConversationContract {
+  id: string;
+  postId: string;
+  participant: AuthorContract;
+  lastMessage: string;
+  lastMessageTime: string;
+  unread: number;
+  postTitle: string;
+}
+
+export interface ChatMessageContract {
+  id: string;
+  senderId: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface AuthResponseContract {
+  user: UserContract;
+  accessToken: string;
+  tokenType: "Bearer";
+}
+
+export interface CreatePostResponseContract {
+  post: PostContract;
+  moderationStatus: "queued" | "approved" | "rejected" | "needs_review";
+  fraudRisk: number;
+}
+
+export interface NearbyCaseContract {
+  post: PostContract;
+  distanceKm: number;
+}
+
+export interface SearchResponseContract {
+  posts: PostContract[];
+  ongs: OngContract[];
+}
+
+export interface DonationIntentContract {
+  id: string;
+  ongId: string;
+  amountCents: number;
+  currency: string;
+  status: string;
+}
+
 export const CORE_CAPABILITIES: CoreCapability[] = [
   { domain: "api", owner: "rust", reason: "baixa latencia e contratos publicos" },
   { domain: "auth", owner: "rust", reason: "seguranca, sessao e autorizacao" },
@@ -60,6 +170,102 @@ export class ZooHelpEngine {
   }
 
   feed() {
-    return this.request<Array<{ id: string; kind: string; title: string; urgency: number }>>("/v1/feed");
+    return this.request<PostContract[]>("/v1/feed");
+  }
+
+  login(email: string, password: string) {
+    return this.request<AuthResponseContract>("/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+  }
+
+  register(input: { name: string; email: string; password: string; accountType?: AccountType }) {
+    return this.request<AuthResponseContract>("/v1/auth/register", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  createPost(input: {
+    name?: string;
+    postType: PostType;
+    animalType: AnimalType;
+    breed?: string;
+    age?: string;
+    description: string;
+    location: string;
+    neighborhood?: string;
+    image?: string | null;
+    urgent?: boolean;
+    contact?: string;
+    tags?: string[];
+  }) {
+    return this.request<CreatePostResponseContract>("/v1/posts", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  post(id: string) {
+    return this.request<PostContract>(`/v1/posts/${encodeURIComponent(id)}`);
+  }
+
+  likePost(id: string) {
+    return this.request<{ postId: string; liked: boolean }>(`/v1/posts/${encodeURIComponent(id)}/like`, {
+      method: "POST",
+    });
+  }
+
+  ongs() {
+    return this.request<OngContract[]>("/v1/ongs");
+  }
+
+  ong(id: string) {
+    return this.request<OngContract>(`/v1/ongs/${encodeURIComponent(id)}`);
+  }
+
+  followOng(id: string) {
+    return this.request<{ ongId: string; following: boolean }>(`/v1/ongs/${encodeURIComponent(id)}/follow`, {
+      method: "POST",
+    });
+  }
+
+  chatRooms() {
+    return this.request<ChatConversationContract[]>("/v1/chat/rooms");
+  }
+
+  chatMessages(roomId: string) {
+    return this.request<ChatMessageContract[]>(`/v1/chat/rooms/${encodeURIComponent(roomId)}/messages`);
+  }
+
+  sendChatMessage(roomId: string, body: string) {
+    return this.request<{ message: ChatMessageContract }>(
+      `/v1/chat/rooms/${encodeURIComponent(roomId)}/messages`,
+      {
+        method: "POST",
+        body: JSON.stringify({ body }),
+      },
+    );
+  }
+
+  nearby(input: { lat?: number; lng?: number; radiusKm?: number } = {}) {
+    const params = new URLSearchParams();
+    if (input.lat != null) params.set("lat", String(input.lat));
+    if (input.lng != null) params.set("lng", String(input.lng));
+    if (input.radiusKm != null) params.set("radius_km", String(input.radiusKm));
+    const suffix = params.toString() ? `?${params}` : "";
+    return this.request<NearbyCaseContract[]>(`/v1/geo/nearby${suffix}`);
+  }
+
+  search(q: string) {
+    return this.request<SearchResponseContract>(`/v1/search?q=${encodeURIComponent(q)}`);
+  }
+
+  createDonationIntent(input: { ongId: string; amountCents: number; currency?: string }) {
+    return this.request<DonationIntentContract>("/v1/donations/intents", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
   }
 }
