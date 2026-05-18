@@ -43,6 +43,7 @@ export interface PostContract {
   location: string;
   neighborhood: string;
   image: string | null;
+  images: PostMediaContract[];
   textOnly: boolean;
   author: AuthorContract;
   likes: number;
@@ -52,6 +53,16 @@ export interface PostContract {
   createdAt: string;
   contact: string;
   tags: string[];
+}
+
+export interface PostMediaContract {
+  id: string;
+  url: string;
+  contentType: "image/jpeg" | "image/png" | "image/webp" | string;
+  width?: number | null;
+  height?: number | null;
+  sizeBytes?: number | null;
+  moderationStatus: "queued" | "approved" | "rejected" | "needs_review" | string;
 }
 
 export interface OngContract {
@@ -110,8 +121,29 @@ export interface AuthResponseContract {
 
 export interface CreatePostResponseContract {
   post: PostContract;
+  media: PostMediaContract[];
   moderationStatus: "queued" | "approved" | "rejected" | "needs_review";
   fraudRisk: number;
+}
+
+export interface MediaUploadIntentContract {
+  provider: "cloudinary" | string;
+  uploadId: string;
+  objectKey: string;
+  uploadUrl: string;
+  publicUrl: string;
+  resourceType: "image" | "video" | string;
+  expiresInSeconds: number;
+  maxSizeBytes: number;
+  allowedContentTypes: string[];
+  cloudinary: {
+    cloudName: string;
+    apiKey: string;
+    signature: string;
+    timestamp: number;
+    folder: string;
+    publicId: string;
+  };
 }
 
 export interface NearbyCaseContract {
@@ -130,6 +162,18 @@ export interface DonationIntentContract {
   amountCents: number;
   currency: string;
   status: string;
+}
+
+export interface NotificationContract {
+  id: string;
+  title: string;
+  read: boolean;
+}
+
+export interface MarketplaceItemContract {
+  id: string;
+  title: string;
+  itemType: string;
 }
 
 export const CORE_CAPABILITIES: CoreCapability[] = [
@@ -224,11 +268,33 @@ export class ZooHelpEngine {
     location: string;
     neighborhood?: string;
     image?: string | null;
+    images?: Array<{
+      objectKey?: string;
+      publicUrl?: string;
+      url?: string;
+      contentType?: string;
+      width?: number;
+      height?: number;
+      sizeBytes?: number;
+      checksumSha256?: string;
+    }>;
     urgent?: boolean;
     contact?: string;
     tags?: string[];
   }) {
     return this.request<CreatePostResponseContract>("/v1/posts", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  createMediaUploadIntent(input: {
+    fileName: string;
+    contentType: "image/jpeg" | "image/png" | "image/webp" | "video/mp4" | "video/quicktime" | "video/webm" | string;
+    sizeBytes: number;
+    checksumSha256?: string;
+  }) {
+    return this.request<MediaUploadIntentContract>("/v1/media/upload-intents", {
       method: "POST",
       body: JSON.stringify(input),
     });
@@ -294,5 +360,13 @@ export class ZooHelpEngine {
       method: "POST",
       body: JSON.stringify(input),
     });
+  }
+
+  notifications() {
+    return this.request<NotificationContract[]>("/v1/notifications");
+  }
+
+  marketplaceItems() {
+    return this.request<MarketplaceItemContract[]>("/v1/marketplace/items");
   }
 }
