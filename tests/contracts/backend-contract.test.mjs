@@ -24,6 +24,7 @@ const samplePost = {
   location: "Sao Paulo, SP",
   neighborhood: "Vila Mariana",
   image: null,
+  images: [],
   textOnly: false,
   author: sampleAuthor,
   likes: 127,
@@ -91,6 +92,8 @@ function expectPost(value, prefix = "post") {
     expectString(value[field], `${prefix}.${field}`);
   }
   expectNullableString(value.image, `${prefix}.image`);
+  assert.ok(Array.isArray(value.images), `${prefix}.images must be array`);
+  value.images.forEach((image, index) => expectPostMedia(image, `${prefix}.images[${index}]`));
   expectBoolean(value.textOnly, `${prefix}.textOnly`);
   expectAuthor(value.author, `${prefix}.author`);
   for (const field of ["likes", "comments", "shares"]) {
@@ -99,6 +102,26 @@ function expectPost(value, prefix = "post") {
   expectBoolean(value.urgent, `${prefix}.urgent`);
   assert.ok(Array.isArray(value.tags), `${prefix}.tags must be array`);
   value.tags.forEach((tag, index) => expectString(tag, `${prefix}.tags[${index}]`));
+}
+
+function expectPostMedia(value, prefix = "media") {
+  assert.equal(typeof value, "object", `${prefix} must be object`);
+  expectString(value.id, `${prefix}.id`);
+  expectString(value.url, `${prefix}.url`);
+  expectString(value.contentType, `${prefix}.contentType`);
+  assert.ok(
+    value.width === null || value.width === undefined || typeof value.width === "number",
+    `${prefix}.width must be number or null`,
+  );
+  assert.ok(
+    value.height === null || value.height === undefined || typeof value.height === "number",
+    `${prefix}.height must be number or null`,
+  );
+  assert.ok(
+    value.sizeBytes === null || value.sizeBytes === undefined || typeof value.sizeBytes === "number",
+    `${prefix}.sizeBytes must be number or null`,
+  );
+  expectString(value.moderationStatus, `${prefix}.moderationStatus`);
 }
 
 function expectOng(value, prefix = "ong") {
@@ -319,6 +342,33 @@ test("live backend contract, when ZOOHELP_BACKEND_URL is provided", async (t) =>
   expectPost(post);
   assert.equal(post.id, "1");
 
+  const uploadIntent = await expectOkJson(baseUrl, "/v1/media/upload-intents", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      fileName: "resgate.webp",
+      contentType: "image/webp",
+      sizeBytes: 420000,
+    }),
+  });
+  expectString(uploadIntent.uploadId, "uploadIntent.uploadId");
+  assert.equal(uploadIntent.provider, "cloudinary");
+  expectString(uploadIntent.objectKey, "uploadIntent.objectKey");
+  expectString(uploadIntent.uploadUrl, "uploadIntent.uploadUrl");
+  expectString(uploadIntent.publicUrl, "uploadIntent.publicUrl");
+  expectString(uploadIntent.resourceType, "uploadIntent.resourceType");
+  expectNumber(uploadIntent.expiresInSeconds, "uploadIntent.expiresInSeconds");
+  expectNumber(uploadIntent.maxSizeBytes, "uploadIntent.maxSizeBytes");
+  assert.ok(Array.isArray(uploadIntent.allowedContentTypes));
+  assert.equal(uploadIntent.resourceType, "image");
+  assert.ok(uploadIntent.uploadUrl.includes("api.cloudinary.com"));
+  expectString(uploadIntent.cloudinary.cloudName, "uploadIntent.cloudinary.cloudName");
+  expectString(uploadIntent.cloudinary.apiKey, "uploadIntent.cloudinary.apiKey");
+  expectString(uploadIntent.cloudinary.signature, "uploadIntent.cloudinary.signature");
+  expectNumber(uploadIntent.cloudinary.timestamp, "uploadIntent.cloudinary.timestamp");
+  expectString(uploadIntent.cloudinary.folder, "uploadIntent.cloudinary.folder");
+  expectString(uploadIntent.cloudinary.publicId, "uploadIntent.cloudinary.publicId");
+
   const createdPost = await expectOkJson(baseUrl, "/v1/posts", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -331,9 +381,20 @@ test("live backend contract, when ZOOHELP_BACKEND_URL is provided", async (t) =>
       neighborhood: "Vila Mariana",
       contact: "(11) 99999-0001",
       tags: ["vacinado"],
+      images: [{
+        objectKey: uploadIntent.objectKey,
+        publicUrl: uploadIntent.publicUrl,
+        contentType: "image/webp",
+        width: 1080,
+        height: 1080,
+        sizeBytes: 420000,
+      }],
     }),
   });
   expectPost(createdPost.post, "createdPost.post");
+  assert.equal(createdPost.post.image, uploadIntent.publicUrl);
+  assert.equal(createdPost.post.images[0].url, uploadIntent.publicUrl);
+  expectPostMedia(createdPost.media[0], "createdPost.media[0]");
   assert.equal(createdPost.moderationStatus, "queued");
   expectNumber(createdPost.fraudRisk, "createdPost.fraudRisk");
 
