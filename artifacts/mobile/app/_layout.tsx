@@ -57,6 +57,14 @@ function RootLayoutNav() {
           animation: "slide_from_bottom",
         }}
       />
+      <Stack.Screen name="notifications" />
+      <Stack.Screen name="search" />
+      <Stack.Screen name="favorites" />
+      <Stack.Screen name="verification" />
+      <Stack.Screen name="support" />
+      <Stack.Screen name="privacy" />
+      <Stack.Screen name="settings" />
+      <Stack.Screen name="marketplace" />
     </Stack>
   );
 }
