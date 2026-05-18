@@ -90,6 +90,7 @@ export default function PublishScreen() {
       location: location.trim(),
       neighborhood: location.trim(),
       image: imageUri,
+      textOnly: !imageUri,
       author: user
         ? { id: user.id, name: user.name, avatar: null, verified: user.verified, type: user.type }
         : MOCK_AUTHORS[0],
@@ -102,21 +103,26 @@ export default function PublishScreen() {
       tags: [],
     };
 
-    addPost(newPost);
-    setSubmitting(false);
+    try {
+      await addPost(newPost);
 
-    Alert.alert('Publicado!', 'Seu caso foi publicado com sucesso.', [
-      { text: 'Ver no feed', onPress: () => router.push('/(tabs)') },
-    ]);
+      Alert.alert('Publicado!', 'Seu caso foi publicado com sucesso.', [
+        { text: 'Ver no feed', onPress: () => router.push('/(tabs)') },
+      ]);
 
-    setName('');
-    setBreed('');
-    setAge('');
-    setDescription('');
-    setLocation('');
-    setContact('');
-    setUrgent(false);
-    setImageUri(null);
+      setName('');
+      setBreed('');
+      setAge('');
+      setDescription('');
+      setLocation('');
+      setContact('');
+      setUrgent(false);
+      setImageUri(null);
+    } catch {
+      Alert.alert('Erro ao publicar', 'Não foi possível publicar agora. Tente novamente.');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const selectedTypeConfig = POST_TYPES.find((t) => t.type === selectedType)!;
