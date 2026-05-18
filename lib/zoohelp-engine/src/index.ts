@@ -94,7 +94,17 @@ export interface ChatMessageContract {
 
 export interface AuthResponseContract {
   user: UserContract;
+  ongProfile?: {
+    legalName: string;
+    ongType?: string | null;
+    cnpj?: string | null;
+    phone?: string | null;
+    city?: string | null;
+    state?: string | null;
+    verificationStatus: string;
+  } | null;
   accessToken: string;
+  refreshToken: string;
   tokenType: "Bearer";
 }
 
@@ -169,8 +179,15 @@ export class ZooHelpEngine {
     return this.request<{ status: string; service: string }>("/healthz");
   }
 
-  feed() {
-    return this.request<PostContract[]>("/v1/feed");
+  feed(input: { lat?: number; lng?: number; radiusKm?: number; type?: PostType; authorType?: AccountType } = {}) {
+    const params = new URLSearchParams();
+    if (input.lat != null) params.set("lat", String(input.lat));
+    if (input.lng != null) params.set("lng", String(input.lng));
+    if (input.radiusKm != null) params.set("radius_km", String(input.radiusKm));
+    if (input.type) params.set("type", input.type);
+    if (input.authorType) params.set("author_type", input.authorType);
+    const suffix = params.toString() ? `?${params}` : "";
+    return this.request<PostContract[]>(`/v1/feed${suffix}`);
   }
 
   login(email: string, password: string) {
@@ -180,7 +197,17 @@ export class ZooHelpEngine {
     });
   }
 
-  register(input: { name: string; email: string; password: string; accountType?: AccountType }) {
+  register(input: {
+    name: string;
+    email: string;
+    password: string;
+    accountType?: AccountType;
+    ongType?: string;
+    cnpj?: string;
+    phone?: string;
+    city?: string;
+    state?: string;
+  }) {
     return this.request<AuthResponseContract>("/v1/auth/register", {
       method: "POST",
       body: JSON.stringify(input),
