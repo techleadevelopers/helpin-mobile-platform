@@ -22,6 +22,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { AUTHOR_TO_ONG, MOCK_ONGS, MOCK_POSTS } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
+import { shareZooHelpItem } from '@/services/share';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -49,7 +50,7 @@ export default function OngProfileScreen() {
   const ong = MOCK_ONGS.find((o) => o.id === ongId);
   const ongPosts = MOCK_POSTS.filter((p) => AUTHOR_TO_ONG[p.author.id] === ongId);
 
-  const { followedOngs, toggleFollowOng } = useApp();
+  const { followedOngs, toggleFollowOng, donateToOng } = useApp();
   const following = followedOngs.includes(ongId);
   const [donated, setDonated] = useState(false);
 
@@ -89,7 +90,12 @@ export default function OngProfileScreen() {
   function handleDonate() {
     setDonated(true);
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    donateToOng(ongId).catch(() => {});
     setTimeout(() => setDonated(false), 2800);
+  }
+
+  function handleShare() {
+    shareZooHelpItem(ong?.name ?? 'ZooHelp', `Ajude ${ong?.name ?? 'uma ONG'} no ZooHelp.`);
   }
 
   function handleContact() {
@@ -153,7 +159,7 @@ export default function OngProfileScreen() {
               </TouchableOpacity>
 
               {/* Share button */}
-              <TouchableOpacity style={styles.shareBtn} activeOpacity={0.8}>
+              <TouchableOpacity style={styles.shareBtn} onPress={handleShare} activeOpacity={0.8}>
                 <MaterialCommunityIcons name="share-variant-outline" size={20} color="#FFFFFF" />
               </TouchableOpacity>
 
