@@ -1,7 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+﻿import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { MOCK_POSTS, Post } from '@/constants/data';
+import { AUTH_TOKEN_KEY, createZooHelpApi, mapPost, uploadLocalImageToCloudinary } from '@/services/zoohelpApi';
 
 interface User {
   id: string;
@@ -24,13 +25,20 @@ interface AppContextType {
   likedPosts: string[];
   followedOngs: string[];
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, type?: 'person' | 'ong') => Promise<void>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    type?: 'person' | 'ong',
+    profile?: { ongType?: string; cnpj?: string; phone?: string; city?: string; state?: string },
+  ) => Promise<void>;
   logout: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
   toggleLike: (postId: string) => void;
   toggleFollowOng: (ongId: string) => void;
-  addPost: (post: Post) => void;
-  refreshPosts: () => void;
+  addPost: (post: Post) => Promise<void>;
+  refreshPosts: () => Promise<void>;
+  donateToOng: (ongId: string, amountCents?: number) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -41,7 +49,7 @@ const DEFAULT_USER: User = {
   name: 'Você',
   email: 'voce@zoohelp.com',
   avatar: null,
-  bio: 'Apaixonada por animais 🐾',
+  bio: 'Apaixonada por animais',
   type: 'person',
   verified: false,
   postsCount: 3,
@@ -57,6 +65,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [likedPosts, setLikedPosts] = useState<string[]>([]);
   const [followedOngs, setFollowedOngs] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const api = useMemo(
+    () => createZooHelpApi(() => AsyncStorage.getItem(AUTH_TOKEN_KEY)),
+    [],
+  );
 
   useEffect(() => {
     loadStoredData();
@@ -75,39 +88,86 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setUser(JSON.parse(storedUser));
         setIsAuthenticated(true);
       }
-      if (storedOnboarding === 'true') {
-        setHasSeenOnboarding(true);
-      }
-      if (storedLikes) {
-        setLikedPosts(JSON.parse(storedLikes));
-      }
-      if (storedFollows) {
-        setFollowedOngs(JSON.parse(storedFollows));
-      }
-    } catch (e) {
+      if (storedOnboarding === 'true') setHasSeenOnboarding(true);
+      if (storedLikes) setLikedPosts(JSON.parse(storedLikes));
+      if (storedFollows) setFollowedOngs(JSON.parse(storedFollows));
+
+      await refreshPostsFromBackend();
+    } catch {
+      // Keep local mock fallback available in development/offline mode.
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function login(email: string, _password: string) {
-    const newUser = { ...DEFAULT_USER, email, name: email.split('@')[0] };
-    setUser(newUser);
+  async function persistUser(nextUser: User) {
+    setUser(nextUser);
     setIsAuthenticated(true);
-    await AsyncStorage.setItem('user', JSON.stringify(newUser));
+    await AsyncStorage.setItem('user', JSON.stringify(nextUser));
   }
 
-  async function register(name: string, email: string, _password: string, type: 'person' | 'ong' = 'person') {
-    const newUser = { ...DEFAULT_USER, name, email, type };
-    setUser(newUser);
-    setIsAuthenticated(true);
-    await AsyncStorage.setItem('user', JSON.stringify(newUser));
+  async function login(email: string, password: string) {
+    if (api) {
+      const response = await api.login(email, password);
+      await AsyncStorage.setItem(AUTH_TOKEN_KEY, response.accessToken);
+      await AsyncStorage.setItem('refreshToken', response.refreshToken);
+      await persistUser({
+        id: response.user.id,
+        name: response.user.name,
+        email: response.user.email,
+        avatar: response.user.avatar,
+        bio: response.user.bio,
+        type: response.user.type,
+        verified: response.user.verified,
+        postsCount: response.user.postsCount,
+        helpedCount: response.user.helpedCount,
+        adoptionsCount: response.user.adoptionsCount,
+      });
+      return;
+    }
+
+    await persistUser({ ...DEFAULT_USER, email, name: email.split('@')[0] });
+  }
+
+  async function register(
+    name: string,
+    email: string,
+    password: string,
+    type: 'person' | 'ong' = 'person',
+    profile: { ongType?: string; cnpj?: string; phone?: string; city?: string; state?: string } = {},
+  ) {
+    if (api) {
+      const response = await api.register({
+        name,
+        email,
+        password,
+        accountType: type,
+        ...profile,
+      });
+      await AsyncStorage.setItem(AUTH_TOKEN_KEY, response.accessToken);
+      await AsyncStorage.setItem('refreshToken', response.refreshToken);
+      await persistUser({
+        id: response.user.id,
+        name: response.user.name,
+        email: response.user.email,
+        avatar: response.user.avatar,
+        bio: response.user.bio,
+        type: response.user.type,
+        verified: response.user.verified,
+        postsCount: response.user.postsCount,
+        helpedCount: response.user.helpedCount,
+        adoptionsCount: response.user.adoptionsCount,
+      });
+      return;
+    }
+
+    await persistUser({ ...DEFAULT_USER, name, email, type });
   }
 
   async function logout() {
     setUser(null);
     setIsAuthenticated(false);
-    await AsyncStorage.removeItem('user');
+    await AsyncStorage.multiRemove(['user', AUTH_TOKEN_KEY, 'refreshToken']);
   }
 
   async function completeOnboarding() {
@@ -117,30 +177,69 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   function toggleLike(postId: string) {
     setLikedPosts((prev) => {
-      const next = prev.includes(postId)
-        ? prev.filter((id) => id !== postId)
-        : [...prev, postId];
+      const next = prev.includes(postId) ? prev.filter((id) => id !== postId) : [...prev, postId];
       AsyncStorage.setItem('likedPosts', JSON.stringify(next));
       return next;
     });
+    api?.likePost(postId).catch(() => {});
   }
 
   function toggleFollowOng(ongId: string) {
     setFollowedOngs((prev) => {
-      const next = prev.includes(ongId)
-        ? prev.filter((id) => id !== ongId)
-        : [...prev, ongId];
+      const next = prev.includes(ongId) ? prev.filter((id) => id !== ongId) : [...prev, ongId];
       AsyncStorage.setItem('followedOngs', JSON.stringify(next));
       return next;
     });
+    api?.followOng(ongId).catch(() => {});
   }
 
-  function addPost(post: Post) {
+  async function addPost(post: Post) {
+    if (api) {
+      const uploadedImage =
+        post.image && !post.image.startsWith('http')
+          ? await uploadLocalImageToCloudinary(api, post.image)
+          : null;
+      const publicImage = uploadedImage?.publicUrl ?? post.image;
+      const response = await api.createPost({
+        name: post.name,
+        postType: post.type,
+        animalType: post.animalType,
+        breed: post.breed,
+        age: post.age,
+        description: post.description,
+        location: post.location,
+        neighborhood: post.neighborhood,
+        image: publicImage,
+        images: uploadedImage ? [uploadedImage] : [],
+        urgent: post.urgent,
+        contact: post.contact,
+        tags: post.tags,
+      });
+      setPosts((prev) => [mapPost(response.post), ...prev]);
+      return;
+    }
+
     setPosts((prev) => [post, ...prev]);
   }
 
-  function refreshPosts() {
-    setPosts([...MOCK_POSTS]);
+  async function refreshPostsFromBackend() {
+    if (!api) return;
+    const feed = await api.feed();
+    setPosts(feed.map(mapPost));
+  }
+
+  async function refreshPosts() {
+    try {
+      await refreshPostsFromBackend();
+    } catch {
+      setPosts([...MOCK_POSTS]);
+    }
+  }
+
+  async function donateToOng(ongId: string, amountCents = 1000) {
+    if (api) {
+      await api.createDonationIntent({ ongId, amountCents, currency: 'BRL' });
+    }
   }
 
   return (
@@ -160,6 +259,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         toggleFollowOng,
         addPost,
         refreshPosts,
+        donateToOng,
         isLoading,
       }}
     >
