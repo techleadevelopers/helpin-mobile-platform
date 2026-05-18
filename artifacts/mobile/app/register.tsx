@@ -154,7 +154,13 @@ export default function RegisterScreen() {
       if (accountType === 'person') {
         await register(name.trim(), email.trim(), password, 'person');
       } else {
-        await register(ongName.trim(), ongEmail.trim(), ongPassword, 'ong');
+        await register(ongName.trim(), ongEmail.trim(), ongPassword, 'ong', {
+          ongType,
+          cnpj: ongCnpj,
+          phone: ongPhone,
+          city: ongCity,
+          state: ongState,
+        });
       }
       router.replace('/(tabs)');
     } catch {
