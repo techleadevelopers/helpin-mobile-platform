@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  Alert,
   FlatList,
   Image,
   ImageBackground,
@@ -19,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MOCK_ONGS, ONG } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
+import { shareZooHelpItem } from '@/services/share';
 
 const STATE_FILTERS = ['Todos', 'SP', 'RJ', 'MG', 'RS'];
 
@@ -150,6 +152,7 @@ function ONGCard({ item, following, onFollow, onPress, index }: {
         <View style={S.actionBtns}>
           <TouchableOpacity
             style={[S.helpBtn, { backgroundColor: '#4CAF50' }]}
+            onPress={onPress}
             activeOpacity={0.85}
           >
             <MaterialCommunityIcons name="hand-heart" size={13} color="#fff" />
@@ -157,12 +160,14 @@ function ONGCard({ item, following, onFollow, onPress, index }: {
           </TouchableOpacity>
           <TouchableOpacity
             style={[S.sqBtn, { backgroundColor: '#1565C014', borderColor: '#1565C030' }]}
+            onPress={onPress}
             activeOpacity={0.8}
           >
             <MaterialCommunityIcons name="message-outline" size={15} color="#1565C0" />
           </TouchableOpacity>
           <TouchableOpacity
             style={[S.sqBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
+            onPress={() => shareZooHelpItem(item.name, `Ajude ${item.name} no ZooHelp.`)}
             activeOpacity={0.8}
           >
             <MaterialCommunityIcons name="share-variant-outline" size={15} color={colors.foreground} />
@@ -207,7 +212,10 @@ export default function ONGsScreen() {
           <Text style={[S.title, { color: colors.foreground }]}>ONGs Verificadas</Text>
           <Text style={S.subtitle}>{MOCK_ONGS.length} organizações · confiança verificada</Text>
         </View>
-        <TouchableOpacity style={[S.circ, { backgroundColor: colors.muted }]}>
+        <TouchableOpacity
+          style={[S.circ, { backgroundColor: colors.muted }]}
+          onPress={() => Alert.alert('Filtros', 'Use busca e estados para filtrar ONGs verificadas.')}
+        >
           <MaterialCommunityIcons name="tune-variant" size={16} color={colors.foreground} />
         </TouchableOpacity>
       </View>
