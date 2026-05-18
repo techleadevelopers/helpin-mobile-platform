@@ -479,6 +479,10 @@ export default function ComposeScreen() {
             </Text>
             <TouchableOpacity
               style={[styles.autoLocBtn, { backgroundColor: currentType.color }]}
+              onPress={() => {
+                setLocation('São Paulo, SP');
+                Alert.alert('Localização definida', 'Usando localização aproximada. A integração GPS completa usa /v1/geo/nearby no mapa.');
+              }}
               activeOpacity={0.85}
             >
               <MaterialCommunityIcons name="navigation-variant" size={12} color="#FFFFFF" />
@@ -562,10 +566,10 @@ export default function ComposeScreen() {
         <View style={styles.dockIcons}>
           {[
             { icon: 'image-outline'       as MCIcon, color: '#4CAF50', label: 'Foto',  onPress: pickImage },
-            { icon: 'microphone-outline'  as MCIcon, color: '#2F80ED', label: 'Áudio', onPress: () => {} },
-            { icon: 'map-marker-outline'  as MCIcon, color: '#FF9800', label: 'Local', onPress: () => {} },
-            { icon: 'tag-outline'         as MCIcon, color: '#9B59B6', label: 'Tag',   onPress: () => {} },
-            { icon: 'dots-horizontal'     as MCIcon, color: '#6E6E73', label: 'Mais',  onPress: () => {} },
+            { icon: 'microphone-outline'  as MCIcon, color: '#2F80ED', label: 'Áudio', onPress: () => Alert.alert('Áudio', 'Upload de áudio será liberado junto com moderação de mídia.') },
+            { icon: 'map-marker-outline'  as MCIcon, color: '#FF9800', label: 'Local', onPress: () => setLocation('São Paulo, SP') },
+            { icon: 'tag-outline'         as MCIcon, color: '#9B59B6', label: 'Tag',   onPress: () => Alert.alert('Tags', 'Selecione características na seção acima.') },
+            { icon: 'dots-horizontal'     as MCIcon, color: '#6E6E73', label: 'Mais',  onPress: () => Alert.alert('Mais opções', 'Recursos avançados serão ativados conforme moderação e backend evoluírem.') },
           ].map(({ icon, color, label, onPress }) => (
             <TouchableOpacity key={icon} style={styles.dockBtn} onPress={onPress} activeOpacity={0.7}>
               <View style={[styles.dockIcon, { backgroundColor: color + '18', borderColor: color + '30', shadowColor: color }]}>
