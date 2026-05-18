@@ -167,7 +167,39 @@ export interface DonationIntentContract {
 export interface NotificationContract {
   id: string;
   title: string;
+  body?: string;
   read: boolean;
+  kind?: "system" | "rescue_alert" | string;
+  postId?: string | null;
+  imageUrl?: string | null;
+  distanceKm?: number | null;
+  critical?: boolean;
+  createdAt?: string;
+}
+
+export interface RegisterPushTokenResponseContract {
+  status: string;
+  subscribers: number;
+}
+
+export interface RescueAlertContract {
+  id: string;
+  postId: string;
+  title: string;
+  body: string;
+  imageUrl?: string | null;
+  lat: number;
+  lng: number;
+  radiusKm: number;
+  critical: boolean;
+  recipients: Array<{
+    userId: string;
+    pushToken: string;
+    platform: "ios" | "android" | "expo" | "web" | string;
+    distanceKm: number;
+    deliveryStatus: string;
+  }>;
+  createdAt: string;
 }
 
 export interface MarketplaceItemContract {
@@ -281,6 +313,8 @@ export class ZooHelpEngine {
     urgent?: boolean;
     contact?: string;
     tags?: string[];
+    latitude?: number;
+    longitude?: number;
   }) {
     return this.request<CreatePostResponseContract>("/v1/posts", {
       method: "POST",
@@ -366,7 +400,60 @@ export class ZooHelpEngine {
     return this.request<NotificationContract[]>("/v1/notifications");
   }
 
+  registerPushToken(input: {
+    userId: string;
+    pushToken: string;
+    platform: "ios" | "android" | "expo" | "web";
+    lat: number;
+    lng: number;
+    radiusKm?: number;
+    criticalAlerts?: boolean;
+  }) {
+    return this.request<RegisterPushTokenResponseContract>("/v1/notifications/push-token", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  previewRescueAlert(postId: string) {
+    return this.request<{ alert: RescueAlertContract }>(
+      `/v1/notifications/rescue-alerts/${encodeURIComponent(postId)}/preview`,
+      { method: "POST" },
+    );
+  }
+
   marketplaceItems() {
     return this.request<MarketplaceItemContract[]>("/v1/marketplace/items");
+  }
+
+  requestPasswordReset(email: string) {
+    return this.request<{ status: string }>("/v1/auth/password-reset", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  deleteAccount() {
+    return this.request<{ status: string }>("/v1/me", { method: "DELETE" });
+  }
+
+  commentPost(postId: string, body: string) {
+    return this.request<{ id: string; postId: string; body: string; createdAt: string }>(
+      `/v1/posts/${encodeURIComponent(postId)}/comments`,
+      {
+        method: "POST",
+        body: JSON.stringify({ body }),
+      },
+    );
+  }
+
+  reportPost(postId: string, reason: string, details?: string) {
+    return this.request<{ id: string; postId: string; status: string }>(
+      `/v1/posts/${encodeURIComponent(postId)}/report`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reason, details }),
+      },
+    );
   }
 }
