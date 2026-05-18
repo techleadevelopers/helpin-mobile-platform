@@ -1,7 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Platform,
   StyleSheet,
@@ -15,13 +16,19 @@ import { Avatar } from '@/components/Avatar';
 import { EmptyState } from '@/components/EmptyState';
 import { ChatConversation, MOCK_CONVERSATIONS } from '@/constants/data';
 import { useColors } from '@/hooks/useColors';
+import { createZooHelpApi } from '@/services/zoohelpApi';
 
 export default function ChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const [conversations, setConversations] = useState<ChatConversation[]>(MOCK_CONVERSATIONS);
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
+
+  useEffect(() => {
+    createZooHelpApi()?.chatRooms().then(setConversations).catch(() => {});
+  }, []);
 
   function renderConversation({ item }: { item: ChatConversation }) {
     return (
@@ -87,13 +94,14 @@ export default function ChatScreen() {
               shadowColor: colors.primary,
             },
           ]}
+          onPress={() => Alert.alert('Novo chat', 'Abra um caso ou ONG para iniciar uma conversa contextual.')}
         >
           <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
       <FlatList
-        data={MOCK_CONVERSATIONS}
+        data={conversations}
         renderItem={renderConversation}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[
