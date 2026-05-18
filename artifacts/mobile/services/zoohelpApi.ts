@@ -4,7 +4,7 @@ import type { Author, Post } from '@/constants/data';
 
 declare const process: { env?: Record<string, string | undefined> };
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+const API_BASE_URL = process.env?.EXPO_PUBLIC_API_BASE_URL;
 const AUTH_TOKEN_KEY = 'authToken';
 
 export const backendEnabled = Boolean(API_BASE_URL);
