@@ -17,25 +17,26 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { MOCK_POSTS } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
+import { shareZooHelpItem } from '@/services/share';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 const MENU_ITEMS: Array<{ icon: MCIcon; label: string; badge?: string; color: string; route?: string }> = [
   { icon: 'lightning-bolt-outline',   label: 'Minha atividade',                    color: '#FF9800', route: '/activity' },
-  { icon: 'bell-badge-outline',       label: 'Notificações',           badge: '3', color: '#FF3B30' },
-  { icon: 'heart-outline',            label: 'Meus favoritos',                     color: '#FF6B6B' },
-  { icon: 'certificate-outline',      label: 'Verificação de conta',               color: '#9B59B6' },
+  { icon: 'bell-badge-outline',       label: 'Notificações',           badge: '3', color: '#FF3B30', route: '/notifications' },
+  { icon: 'heart-outline',            label: 'Meus favoritos',                     color: '#FF6B6B', route: '/favorites' },
+  { icon: 'certificate-outline',      label: 'Verificação de conta',               color: '#9B59B6', route: '/verification' },
   { icon: 'account-multiple-outline', label: 'Convidar amigos',                    color: '#2F80ED' },
-  { icon: 'help-circle-outline',      label: 'Suporte',                            color: '#4CAF50' },
-  { icon: 'shield-check-outline',     label: 'Privacidade e segurança',            color: '#2F80ED' },
-  { icon: 'cog-outline',              label: 'Configurações',                      color: '#6E6E73' },
+  { icon: 'help-circle-outline',      label: 'Suporte',                            color: '#4CAF50', route: '/support' },
+  { icon: 'shield-check-outline',     label: 'Privacidade e segurança',            color: '#2F80ED', route: '/privacy' },
+  { icon: 'cog-outline',              label: 'Configurações',                      color: '#6E6E73', route: '/settings' },
 ];
 
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, logout } = useApp();
+  const { user, logout, deleteAccount } = useApp();
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -67,7 +68,7 @@ export default function ProfileScreen() {
                 {
                   text: 'Sim, excluir conta',
                   style: 'destructive',
-                  onPress: () => logout(),
+                  onPress: () => deleteAccount(),
                 },
               ]
             );
@@ -177,7 +178,12 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.menuItem}
               activeOpacity={0.85}
-              onPress={() => item.route && router.push(item.route as any)}
+              onPress={() => {
+                if (item.route) router.push(item.route as any);
+                else if (item.label === 'Convidar amigos') {
+                  shareZooHelpItem('ZooHelp', 'Conheça o ZooHelp e ajude animais perto de você.');
+                }
+              }}
             >
               <View
                 style={[
