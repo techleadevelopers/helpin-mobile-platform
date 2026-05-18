@@ -201,9 +201,14 @@ export default function ComposeScreen() {
       tags: healthTags,
     };
 
-    addPost(newPost);
-    setSubmitting(false);
-    router.back();
+    try {
+      await addPost(newPost);
+      router.back();
+    } catch {
+      Alert.alert('Erro ao publicar', 'Não foi possível publicar agora. Tente novamente.');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const inputAnimStyle = useAnimatedStyle(() => ({
@@ -374,7 +379,7 @@ export default function ComposeScreen() {
                       }}
                       activeOpacity={0.85}
                     >
-                      <Text style={styles.animalEmoji}>{a.emoji}</Text>
+                      <MaterialCommunityIcons name={a.icon} size={26} color={isActive ? currentType.color : colors.mutedForeground} />
                       <Text style={[styles.animalLabel, { color: isActive ? currentType.color : colors.mutedForeground }]}>
                         {a.label}
                       </Text>
