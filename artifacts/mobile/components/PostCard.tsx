@@ -16,6 +16,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { AUTHOR_TO_ONG, Post } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
+import { shareZooHelpItem } from '@/services/share';
 
 const CARD_IMAGE_HEIGHT = 180;
 
@@ -92,6 +93,10 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     router.push(`/post/${post.id}`);
   }
 
+  function handleShare() {
+    shareZooHelpItem(post.name, `${post.name} no ZooHelp: ${post.description}`);
+  }
+
   const imageUri = ANIMAL_PLACEHOLDERS[post.animalType];
   const distance = DISTANCES[index % DISTANCES.length];
   const ctaLabel = CTA_LABELS[post.type] ?? 'Ver mais';
@@ -120,7 +125,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                     color={saved ? ctaColor : colors.mutedForeground}
                   />
                 </TouchableOpacity>
-                <TouchableOpacity activeOpacity={0.7} style={styles.iconCircle}>
+                <TouchableOpacity activeOpacity={0.7} style={styles.iconCircle} onPress={handleShare}>
                   <MaterialCommunityIcons name="share-variant-outline" size={15} color={colors.mutedForeground} />
                 </TouchableOpacity>
               </View>
@@ -131,7 +136,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
               style={styles.authorRow}
               onPress={() => {
                 const ongId = AUTHOR_TO_ONG[post.author.id];
-                if (ongId) router.push(`/ong/${post.author.id}`);
+                if (ongId) router.push(`/ong/${ongId}`);
               }}
               activeOpacity={AUTHOR_TO_ONG[post.author.id] ? 0.75 : 1}
             >
@@ -243,6 +248,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.floatingBtn, { backgroundColor: 'rgba(0,0,0,0.38)' }]}
+                onPress={handleShare}
                 activeOpacity={0.8}
               >
                 <MaterialCommunityIcons name="share-variant-outline" size={16} color="#FFFFFF" />
@@ -271,7 +277,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
             style={styles.authorRow}
             onPress={() => {
               const ongId = AUTHOR_TO_ONG[post.author.id];
-              if (ongId) router.push(`/ong/${post.author.id}`);
+              if (ongId) router.push(`/ong/${ongId}`);
             }}
             activeOpacity={AUTHOR_TO_ONG[post.author.id] ? 0.75 : 1}
           >
@@ -335,7 +341,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
               <Text style={[styles.actionCount, { color: colors.mutedForeground }]}>{post.comments}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.actionBtn} onPress={handleShare} activeOpacity={0.7}>
               <MaterialCommunityIcons name="share-variant-outline" size={19} color={colors.mutedForeground} />
             </TouchableOpacity>
 
