@@ -116,6 +116,7 @@ function expectOng(value, prefix = "ong") {
 function expectAuthResponse(value) {
   assert.equal(typeof value, "object", "auth response must be object");
   expectString(value.accessToken, "accessToken");
+  expectString(value.refreshToken, "refreshToken");
   assert.equal(value.tokenType, "Bearer");
   expectAuthor(value.user, "user");
   expectString(value.user.email, "user.email");
@@ -123,6 +124,17 @@ function expectAuthResponse(value) {
   for (const field of ["postsCount", "helpedCount", "adoptionsCount"]) {
     expectNumber(value.user[field], `user.${field}`);
   }
+}
+
+function expectOngRegistrationProfile(value) {
+  assert.equal(typeof value, "object", "ongProfile must be object");
+  expectString(value.legalName, "ongProfile.legalName");
+  expectString(value.verificationStatus, "ongProfile.verificationStatus");
+  assert.ok(value.ongType === null || value.ongType === undefined || typeof value.ongType === "string");
+  assert.ok(value.cnpj === null || value.cnpj === undefined || typeof value.cnpj === "string");
+  assert.ok(value.phone === null || value.phone === undefined || typeof value.phone === "string");
+  assert.ok(value.city === null || value.city === undefined || typeof value.city === "string");
+  assert.ok(value.state === null || value.state === undefined || typeof value.state === "string");
 }
 
 function expectChatConversation(value, prefix = "conversation") {
@@ -166,6 +178,50 @@ async function expectOkJson(baseUrl, path, init) {
     `${init?.method ?? "GET"} ${path} expected ok, got ${result.response.status}: ${JSON.stringify(result.body)}`,
   );
   return result.body;
+}
+
+async function expectWebSocketEcho(baseUrl, roomId) {
+  if (typeof WebSocket === "undefined") {
+    return;
+  }
+
+  const wsUrl = baseUrl.replace(/^http/, "ws") + `/v1/chat/rooms/${roomId}/ws`;
+  const payload = `ws contrato ${Date.now()}`;
+
+  await new Promise((resolve, reject) => {
+    const socket = new WebSocket(wsUrl);
+    const timeout = setTimeout(() => {
+      socket.close();
+      reject(new Error("websocket contract timed out"));
+    }, 5000);
+
+    socket.addEventListener("open", () => {
+      socket.send(payload);
+    });
+
+    socket.addEventListener("message", (event) => {
+      const message = JSON.parse(event.data);
+      try {
+        assert.equal(message.roomId, roomId);
+        assert.equal(message.body, payload);
+        expectString(message.messageId, "ws.messageId");
+        expectString(message.senderId, "ws.senderId");
+        expectString(message.createdAt, "ws.createdAt");
+        clearTimeout(timeout);
+        socket.close();
+        resolve();
+      } catch (error) {
+        clearTimeout(timeout);
+        socket.close();
+        reject(error);
+      }
+    });
+
+    socket.addEventListener("error", (event) => {
+      clearTimeout(timeout);
+      reject(event.error ?? new Error("websocket contract failed"));
+    });
+  });
 }
 
 test("frontend fixture contract matches backend post shape", () => {
@@ -213,6 +269,7 @@ test("live backend contract, when ZOOHELP_BACKEND_URL is provided", async (t) =>
   });
   expectAuthResponse(personAuth);
   assert.equal(personAuth.user.type, "person");
+  assert.equal(personAuth.ongProfile, null);
 
   const ongAuth = await expectOkJson(baseUrl, "/v1/auth/register", {
     method: "POST",
@@ -222,10 +279,21 @@ test("live backend contract, when ZOOHELP_BACKEND_URL is provided", async (t) =>
       email: "ong@zoohelp.com",
       password: "senha-segura",
       accountType: "ong",
+      ongType: "rescue",
+      cnpj: "12.345.678/0001-90",
+      phone: "(11) 99999-0001",
+      city: "Sao Paulo",
+      state: "SP",
     }),
   });
   expectAuthResponse(ongAuth);
   assert.equal(ongAuth.user.type, "ong");
+  expectOngRegistrationProfile(ongAuth.ongProfile);
+  assert.equal(ongAuth.ongProfile.ongType, "rescue");
+  assert.equal(ongAuth.ongProfile.cnpj, "12.345.678/0001-90");
+  assert.equal(ongAuth.ongProfile.phone, "(11) 99999-0001");
+  assert.equal(ongAuth.ongProfile.city, "Sao Paulo");
+  assert.equal(ongAuth.ongProfile.state, "SP");
 
   const feed = await expectOkJson(baseUrl, "/v1/feed");
   assert.ok(Array.isArray(feed));
@@ -237,6 +305,10 @@ test("live backend contract, when ZOOHELP_BACKEND_URL is provided", async (t) =>
   assert.ok(emergencyFeed.length > 0);
   expectPost(emergencyFeed[0], "emergencyFeed[0]");
   assert.equal(emergencyFeed[0].type, "emergency");
+
+  const localizedFeed = await expectOkJson(baseUrl, "/v1/feed?lat=-23.5614&lng=-46.6559&radius_km=20");
+  assert.ok(Array.isArray(localizedFeed));
+  assert.equal(localizedFeed[0].id, "2");
 
   const ongFeed = await expectOkJson(baseUrl, "/v1/feed?author_type=ong");
   assert.ok(Array.isArray(ongFeed));
@@ -302,6 +374,8 @@ test("live backend contract, when ZOOHELP_BACKEND_URL is provided", async (t) =>
   });
   expectChatMessage(sent.message, "sent.message");
   assert.equal(sent.message.body, "Mensagem de contrato frontend/backend");
+
+  await expectWebSocketEcho(baseUrl, rooms[0].id);
 
   const nearby = await expectOkJson(baseUrl, "/v1/geo/nearby?lat=-23.5505&lng=-46.6333&radius_km=30");
   assert.ok(Array.isArray(nearby));
