@@ -33,6 +33,7 @@ interface AppContextType {
     profile?: { ongType?: string; cnpj?: string; phone?: string; city?: string; state?: string },
   ) => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
   toggleLike: (postId: string) => void;
   toggleFollowOng: (ongId: string) => void;
@@ -170,6 +171,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.multiRemove(['user', AUTH_TOKEN_KEY, 'refreshToken']);
   }
 
+  async function deleteAccount() {
+    await api?.deleteAccount().catch(() => {});
+    await logout();
+  }
+
   async function completeOnboarding() {
     setHasSeenOnboarding(true);
     await AsyncStorage.setItem('hasSeenOnboarding', 'true');
@@ -254,6 +260,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         logout,
+        deleteAccount,
         completeOnboarding,
         toggleLike,
         toggleFollowOng,
