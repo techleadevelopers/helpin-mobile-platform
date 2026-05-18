@@ -1,5 +1,7 @@
 # <img src="https://res.cloudinary.com/limpeja/image/upload/v1779071066/Gemini_Generated_Image_v5ufmcv5ufmcv5uf-removebg-preview_lcxvg8.png" alt="ZooHelp Logo" width="58" align="center"> ZooHelp Mobile - Help the animals near you.
 
+> Helping vulnerable animals has always meant a lot to me, and seeing technology used to create real-world compassion, rescue, and community impact is something I genuinely respect. 💚
+
 ### Global Animal Rescue, Adoption & Social Impact Mobile Platform
 
 ZooHelp is a scalable mobile-first platform building trusted digital infrastructure for animal rescue, adoption, NGO networking, veterinary collaboration, and community-driven protection ecosystems.
