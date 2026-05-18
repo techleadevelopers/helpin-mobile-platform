@@ -11,7 +11,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 
 function NativeTabLayout() {
-  const router = useRouter();
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
@@ -22,7 +21,7 @@ function NativeTabLayout() {
         <Icon sf={{ default: 'map', selected: 'map.fill' }} />
         <Label>Mapa</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="publish" onPress={() => router.push('/compose')}>
+      <NativeTabs.Trigger name="publish">
         <Icon sf={{ default: 'plus.circle', selected: 'plus.circle.fill' }} />
         <Label>Publicar</Label>
       </NativeTabs.Trigger>
