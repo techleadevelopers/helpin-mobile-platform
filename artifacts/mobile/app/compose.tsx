@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
   Alert,
@@ -42,12 +42,12 @@ const POST_TYPES: Array<{
   light: string;
   cta: string;
 }> = [
-  { type: 'post',      icon: 'pencil-outline', label: 'Escrever',   color: '#6E6E73', light: '#6E6E7315', cta: 'Publicar post' },
-  { type: 'adoption',  icon: 'home-heart',     label: 'Adoção',     color: '#4CAF50', light: '#4CAF5015', cta: 'Publicar para adoção' },
-  { type: 'lost',      icon: 'magnify',        label: 'Perdido',    color: '#FF9800', light: '#FF980015', cta: 'Reportar animal perdido' },
-  { type: 'found',     icon: 'check-circle',   label: 'Encontrado', color: '#2F80ED', light: '#2F80ED15', cta: 'Reportar animal encontrado' },
-  { type: 'emergency', icon: 'alert-circle',   label: 'Emergência', color: '#FF3B30', light: '#FF3B3015', cta: 'Pedir ajuda urgente' },
-  { type: 'campaign',  icon: 'heart-multiple', label: 'Campanha',   color: '#9B59B6', light: '#9B59B615', cta: 'Lançar campanha' },
+  { type: 'post',      icon: 'pencil-outline', label: 'Escrever',   color: '#6B7B6B', light: '#6B7B6B15', cta: 'Publicar post' },
+  { type: 'adoption',  icon: 'home-heart',     label: 'Adoção',     color: '#2D6A4F', light: '#2D6A4F15', cta: 'Publicar para adoção' },
+  { type: 'lost',      icon: 'magnify',        label: 'Perdido',    color: '#D4A259', light: '#D4A25915', cta: 'Reportar animal perdido' },
+  { type: 'found',     icon: 'check-circle',   label: 'Encontrado', color: '#2C5F8A', light: '#2C5F8A15', cta: 'Reportar animal encontrado' },
+  { type: 'emergency', icon: 'alert-circle',   label: 'Emergência', color: '#C95A5A', light: '#C95A5A15', cta: 'Pedir ajuda urgente' },
+  { type: 'campaign',  icon: 'heart-multiple', label: 'Campanha',   color: '#6B5B8A', light: '#6B5B8A15', cta: 'Lançar campanha' },
 ];
 
 const ANIMAL_OPTIONS: Array<{ value: 'dog' | 'cat' | 'other'; icon: MCIcon; label: string }> = [
@@ -106,16 +106,22 @@ export default function ComposeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const params = useLocalSearchParams<{ intent?: string; type?: string }>();
   const { addPost, user } = useApp();
+  const requestedType = typeof params.type === 'string' ? params.type : undefined;
+  const requestedIntent = typeof params.intent === 'string' ? params.intent : undefined;
+  const initialType = POST_TYPES.some((t) => t.type === requestedType)
+    ? (requestedType as PostType)
+    : 'adoption';
 
   const [step, setStep] = useState(0);
-  const [selectedType, setSelectedType] = useState<PostType>('adoption');
+  const [selectedType, setSelectedType] = useState<PostType>(initialType);
   const [animalType, setAnimalType] = useState<'dog' | 'cat' | 'other'>('dog');
   const [text, setText] = useState('');
   const [location, setLocation] = useState('');
   const [contact, setContact] = useState('');
   const [images, setImages] = useState<string[]>([]);
-  const [urgent, setUrgent] = useState(false);
+  const [urgent, setUrgent] = useState(requestedIntent === 'help' || initialType === 'emergency');
   const [healthTags, setHealthTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
@@ -303,7 +309,7 @@ export default function ComposeScreen() {
               <View style={styles.authorMeta}>
                 <View style={[styles.roleBadge, { backgroundColor: currentType.light }]}>
                   <Text style={[styles.roleText, { color: currentType.color }]}>
-                    {user?.type === 'ong' ? '🏅 ONG' : user?.type === 'vet' ? '🩺 Veterinário' : '🛡️ Protetor(a)'}
+                    {user?.type === 'ong' ? '🏅 ONG' : user?.type === 'vet' ? '🩺 Veterinário' : ' Protetor(a)'}
                   </Text>
                 </View>
                 <View style={[styles.audienceBadge, { backgroundColor: colors.muted }]}>
@@ -513,25 +519,25 @@ export default function ComposeScreen() {
             style={[
               styles.urgentCard,
               {
-                backgroundColor: urgent ? '#FF3B3008' : '#FFFFFF',
-                borderColor: urgent ? '#FF3B30' : colors.border,
+                backgroundColor: urgent ? '#C95A5A08' : '#FFFFFF',
+                borderColor: urgent ? '#C95A5A' : colors.border,
               },
             ]}
             onPress={toggleUrgent}
             activeOpacity={0.92}
           >
-            <View style={[styles.urgentIcon, { backgroundColor: urgent ? '#FF3B30' : colors.muted }]}>
+            <View style={[styles.urgentIcon, { backgroundColor: urgent ? '#C95A5A' : colors.muted }]}>
               <MaterialCommunityIcons name="alert-circle-outline" size={22} color={urgent ? '#FFFFFF' : colors.mutedForeground} />
             </View>
             <View style={styles.urgentInfo}>
-              <Text style={[styles.urgentTitle, { color: urgent ? '#FF3B30' : colors.foreground }]}>
+              <Text style={[styles.urgentTitle, { color: urgent ? '#C95A5A' : colors.foreground }]}>
                 Marcar como URGENTE
               </Text>
               <Text style={[styles.urgentDesc, { color: colors.mutedForeground }]}>
                 Aparece em destaque no feed e notifica usuários próximos
               </Text>
             </View>
-            <View style={[styles.toggleTrack, { backgroundColor: urgent ? '#FF3B30' : colors.muted }]}>
+            <View style={[styles.toggleTrack, { backgroundColor: urgent ? '#C95A5A' : colors.muted }]}>
               <View style={[styles.toggleKnob, { transform: [{ translateX: urgent ? 20 : 2 }] }]} />
             </View>
           </TouchableOpacity>
@@ -565,12 +571,12 @@ export default function ComposeScreen() {
       >
         <View style={styles.dockIcons}>
           {[
-            { icon: 'image-outline'       as MCIcon, color: '#4CAF50', label: 'Foto',  onPress: pickImage },
-            { icon: 'microphone-outline'  as MCIcon, color: '#2F80ED', label: 'Áudio', onPress: () => Alert.alert('Áudio', 'Upload de áudio será liberado junto com moderação de mídia.') },
-            { icon: 'map-marker-outline'  as MCIcon, color: '#FF9800', label: 'Local', onPress: () => setLocation('São Paulo, SP') },
-            { icon: 'tag-outline'         as MCIcon, color: '#9B59B6', label: 'Tag',   onPress: () => Alert.alert('Tags', 'Selecione características na seção acima.') },
-            { icon: 'dots-horizontal'     as MCIcon, color: '#6E6E73', label: 'Mais',  onPress: () => Alert.alert('Mais opções', 'Recursos avançados serão ativados conforme moderação e backend evoluírem.') },
-          ].map(({ icon, color, label, onPress }) => (
+  { icon: 'image-outline' as MCIcon, color: '#2D6A4F', label: 'Foto', onPress: pickImage },
+  { icon: 'microphone-outline' as MCIcon, color: '#2C5F8A', label: 'Áudio', onPress: () => Alert.alert('Áudio', 'Upload de áudio será liberado junto com moderação de mídia.') },
+  { icon: 'map-marker-outline' as MCIcon, color: '#D4A259', label: 'Local', onPress: () => setLocation('São Paulo, SP') },
+  { icon: 'tag-outline' as MCIcon, color: '#6B5B8A', label: 'Tag', onPress: () => Alert.alert('Tags', 'Selecione características na seção acima.') },
+  { icon: 'dots-horizontal' as MCIcon, color: '#6B7B6B', label: 'Mais', onPress: () => Alert.alert('Mais opções', 'Recursos avançados serão ativados conforme moderação e backend evoluírem.') },
+].map(({ icon, color, label, onPress }) => (
             <TouchableOpacity key={icon} style={styles.dockBtn} onPress={onPress} activeOpacity={0.7}>
               <View style={[styles.dockIcon, { backgroundColor: color + '18', borderColor: color + '30', shadowColor: color }]}>
                 <MaterialCommunityIcons name={icon} size={18} color={color} />
