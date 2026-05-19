@@ -168,7 +168,7 @@ export default function ChatRoomScreen() {
       {isAdoptionChat && (
         <View style={[styles.adoptionBanner, { backgroundColor: '#4CAF5010', borderColor: '#4CAF5030' }]}>
           <View style={[styles.adoptionBannerIcon, { backgroundColor: '#4CAF5020' }]}>
-            <MaterialCommunityIcons name="home-heart" size={16} color="#4CAF50" />
+            <MaterialCommunityIcons name="home-heart" size={16} color="#4CAF50" />  
           </View>
           <View style={styles.adoptionBannerInfo}>
             <Text style={[styles.adoptionBannerTitle, { color: '#4CAF50' }]}>Pedido de adoção</Text>
