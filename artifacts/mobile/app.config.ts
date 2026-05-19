@@ -58,6 +58,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ],
     },
     web: {
+      bundler: "metro",
       favicon: "./assets/images/icon.png",
     },
     plugins: [
@@ -90,7 +91,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ],
     experiments: {
       typedRoutes: true,
-      reactCompiler: true,
+      reactCompiler: false,
+    },
+    extra: {
+      ...config.extra,
+      environment: process.env.APP_ENV || process.env.NODE_ENV || "development",
+      sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || "",
     },
   };
 };
