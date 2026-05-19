@@ -89,7 +89,7 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.form}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Entrar</Text>
+          
 
           <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <MaterialCommunityIcons name="email-outline" size={18} color={colors.mutedForeground} />
