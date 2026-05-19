@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { MOCK_POSTS, Post } from '@/constants/data';
+import { registerRescueAlerts } from '@/services/rescueNotifications';
 import { AUTH_TOKEN_KEY, createZooHelpApi, mapPost, uploadLocalImageToCloudinary } from '@/services/zoohelpApi';
 
 interface User {
@@ -75,6 +76,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     loadStoredData();
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    registerRescueAlerts(user.id).catch(() => {
+      // Push/geolocation permission is optional; the app keeps working without it.
+    });
+  }, [user?.id]);
 
   async function loadStoredData() {
     try {
@@ -220,6 +228,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         urgent: post.urgent,
         contact: post.contact,
         tags: post.tags,
+        latitude: undefined,
+        longitude: undefined,
       });
       setPosts((prev) => [mapPost(response.post), ...prev]);
       return;
