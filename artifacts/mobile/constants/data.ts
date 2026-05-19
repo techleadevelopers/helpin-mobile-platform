@@ -396,7 +396,7 @@ export const MOCK_POSTS: Post[] = [
     name: 'Relato',
     breed: '',
     age: '',
-    description: 'Hoje completou 6 meses que adotei a Lua pelo ZooHelp. O que antes era um gatinho assustado que se escondia debaixo da cama hoje me acorda com ronronar e dorme no meu travesseiro. Adoção transforma — a vida do animal e a sua 🐱❤️',
+    description: 'Hoje completou 6 meses que adotei a Lua pelo ZooHelp. O que antes era um gatinho assustado que se escondia debaixo da cama hoje me acorda com ronronar e dorme no meu travesseiro. Adoção transforma — a vida do animal e a sua 🐱',
     location: 'São Paulo, SP',
     neighborhood: 'Itaim Bibi',
     image: null,
