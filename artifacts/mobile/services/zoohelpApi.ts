@@ -1,5 +1,4 @@
-import { ZooHelpEngine, type AccountType, type PostContract, type PostType } from '@workspace/zoohelp-engine';
-
+import { ZooHelpEngine, type AccountType, type PostContract, type PostType } from '@/services/zoohelpEngine';
 import type { Author, Post } from '@/constants/data';
 
 declare const process: { env?: Record<string, string | undefined> };
