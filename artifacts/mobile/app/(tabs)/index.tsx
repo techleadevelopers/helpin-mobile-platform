@@ -1,14 +1,17 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { BlurView } from 'expo-blur';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Image,
   Platform,
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -25,7 +28,7 @@ import { Avatar } from '@/components/Avatar';
 import { EmptyState } from '@/components/EmptyState';
 import { PostCard } from '@/components/PostCard';
 import { SkeletonCard } from '@/components/SkeletonCard';
-import { Post, PostType } from '@/constants/data';
+import { MOCK_AUTHORS, Post, PostType } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 
@@ -49,10 +52,16 @@ export default function FeedScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { posts, refreshPosts, user } = useApp();
+  const { posts, refreshPosts, user, addPost } = useApp();
   const [activeFilter, setActiveFilter] = useState<FeedFilter>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading] = useState(false);
+  const [quickText, setQuickText] = useState('');
+  const [quickImage, setQuickImage] = useState<string | null>(null);
+  const [quickUrgent, setQuickUrgent] = useState(true);
+  const [quickLocation, setQuickLocation] = useState('');
+  const [quickSubmitting, setQuickSubmitting] = useState(false);
+  const quickInputRef = useRef<TextInput>(null);
 
   const scrollY = useSharedValue(0);
 
@@ -110,6 +119,64 @@ export default function FeedScreen() {
 
   const displayName = user?.name?.split(' ')[0] ?? 'Visitante';
 
+  async function pickQuickImage() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: false,
+      quality: 0.85,
+    });
+    if (!result.canceled) {
+      setQuickImage(result.assets[0]?.uri ?? null);
+    }
+  }
+
+  async function handleQuickPost() {
+    const description = quickText.trim();
+    if (!description && !quickImage) {
+      quickInputRef.current?.focus();
+      return;
+    }
+
+    setQuickSubmitting(true);
+    const location = quickLocation || 'Localizacao aproximada';
+    const post: Post = {
+      id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
+      type: 'emergency',
+      animalType: 'other',
+      name: description.split(' ').slice(0, 3).join(' ') || 'Pedido de ajuda',
+      breed: '',
+      age: '',
+      description: description || 'Pedido rapido de ajuda para animal proximo.',
+      location,
+      neighborhood: location,
+      image: quickImage,
+      textOnly: !quickImage,
+      author: user
+        ? { id: user.id, name: user.name, avatar: user.avatar, verified: user.verified, type: user.type }
+        : MOCK_AUTHORS[4],
+      likes: 0,
+      comments: 0,
+      shares: 0,
+      urgent: quickUrgent,
+      createdAt: 'agora',
+      contact: '',
+      tags: quickUrgent ? ['ajuda', 'urgente'] : ['ajuda'],
+    };
+
+    try {
+      await addPost(post);
+      setQuickText('');
+      setQuickImage(null);
+      setQuickLocation('');
+      setQuickUrgent(true);
+      setActiveFilter('all');
+    } catch {
+      Alert.alert('Erro ao publicar', 'Nao foi possivel publicar agora. Tente novamente.');
+    } finally {
+      setQuickSubmitting(false);
+    }
+  }
+
   const ListHeader = (
     <View>
       {/* ── Main Header ── */}
@@ -134,6 +201,13 @@ export default function FeedScreen() {
           <View style={styles.headerRight}>
             <TouchableOpacity
               style={[styles.iconBtn, { backgroundColor: colors.muted }]}
+              onPress={() => router.push('/search')}
+              activeOpacity={0.75}
+            >
+              <MaterialCommunityIcons name="magnify" size={18} color={colors.foreground} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.iconBtn, { backgroundColor: colors.muted }]}
               onPress={() => router.push('/notifications')}
               activeOpacity={0.75}
             >
@@ -149,23 +223,77 @@ export default function FeedScreen() {
           </View>
         </Animated.View>
 
-        {/* Search pill */}
-        <TouchableOpacity
+        {/* Quick help composer */}
+        <View
           style={[
-            styles.searchPill,
-            { backgroundColor: colors.card, borderColor: colors.border },
+            styles.quickPostCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              shadowColor: colors.primary,
+            },
           ]}
-          onPress={() => router.push('/search')}
-          activeOpacity={0.75}
         >
-          <MaterialCommunityIcons name="magnify" size={16} color={colors.mutedForeground} />
-          <Text style={[styles.searchPlaceholder, { color: colors.mutedForeground }]}>
-            Buscar animais, ONGs, campanhas...
-          </Text>
-          <View style={[styles.searchFilterBtn, { backgroundColor: colors.muted }]}>
-            <MaterialCommunityIcons name="tune-variant" size={14} color={colors.foreground} />
+          <View style={styles.quickPostTop}>
+            <View style={[styles.quickPostAvatar, { backgroundColor: colors.primary + '18' }]}>
+              <MaterialCommunityIcons name="paw" size={20} color={colors.primary} />
+            </View>
+            <View style={[styles.quickInputShell, { backgroundColor: colors.muted }]}>
+              <TextInput
+                ref={quickInputRef}
+                style={[styles.quickInput, { color: colors.foreground }]}
+                value={quickText}
+                onChangeText={setQuickText}
+                placeholder="Escreva algo..."
+                placeholderTextColor={colors.mutedForeground}
+                returnKeyType="send"
+                onSubmitEditing={handleQuickPost}
+              />
+            </View>
           </View>
-        </TouchableOpacity>
+
+          <View style={styles.quickPostBottom}>
+            <View style={styles.quickPostTools}>
+              <TouchableOpacity
+                style={[styles.quickTool, { backgroundColor: quickImage ? colors.primary + '18' : colors.muted }]}
+                onPress={pickQuickImage}
+                activeOpacity={0.75}
+              >
+                <MaterialCommunityIcons name="image-outline" size={16} color={quickImage ? colors.primary : colors.mutedForeground} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.quickTool, { backgroundColor: quickLocation ? colors.primary + '18' : colors.muted }]}
+                onPress={() => setQuickLocation('Sao Paulo, SP')}
+                activeOpacity={0.75}
+              >
+                <MaterialCommunityIcons name="map-marker-outline" size={16} color={quickLocation ? colors.primary : colors.mutedForeground} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.quickTool, { backgroundColor: quickUrgent ? '#FF3B3014' : colors.muted }]}
+                onPress={() => setQuickUrgent((prev) => !prev)}
+                activeOpacity={0.75}
+              >
+                <MaterialCommunityIcons name="alert-circle-outline" size={16} color={quickUrgent ? '#FF3B30' : colors.mutedForeground} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.quickTool, { backgroundColor: colors.muted }]}
+                onPress={() => Alert.alert('Ajuda rapida', 'Use foto, local e urgencia para publicar um pedido direto no feed.')}
+                activeOpacity={0.75}
+              >
+                <MaterialCommunityIcons name="dots-horizontal" size={16} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={[styles.quickPostCta, { backgroundColor: colors.primary, opacity: quickSubmitting ? 0.65 : 1 }]}
+              onPress={handleQuickPost}
+              disabled={quickSubmitting}
+              activeOpacity={0.82}
+            >
+              <MaterialCommunityIcons name="send" size={13} color="#FFFFFF" />
+              <Text style={styles.quickPostCtaText}>{quickSubmitting ? 'Enviando' : 'Pedir ajuda'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
       {/* ── Filter chips ── */}
@@ -263,8 +391,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingHorizontal: 16,
-    paddingBottom: 10,
-    gap: 12,
+    paddingBottom: 8,
+    gap: 10,
   },
   headerTop: {
     flexDirection: 'row',
@@ -276,8 +404,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   greeting: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    fontFamily: 'Montserrat_400Regular',
   },
   logoRow: {
     flexDirection: 'row',
@@ -285,19 +413,22 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logoIcon: {
-    width: 32,
-    height: 32,
+    width: 30,
+    height: 30,
     borderRadius: 8,
   },
   logoText: {
-    fontSize: 28,
-    fontFamily: 'Inter_700Bold',
+    fontSize: 25,
+    fontFamily: 'Montserrat_700Bold',
     letterSpacing: -1,
-    lineHeight: 34,
+    lineHeight: 31,
+    textShadowColor: 'rgba(46,125,50,0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   tagline: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    fontFamily: 'Montserrat_400Regular',
   },
   headerRight: {
     flexDirection: 'row',
@@ -323,43 +454,84 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#F8FAF8',
   },
-  searchPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+  quickPostCard: {
     borderRadius: 22,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    padding: 13,
+    gap: 12,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 3,
   },
-  searchPlaceholder: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
+  quickPostTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-  searchFilterBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+  quickPostAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  quickInputShell: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: 19,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+  },
+  quickInput: {
+    flex: 1,
+    padding: 0,
+    fontSize: 13,
+    fontFamily: 'Montserrat_400Regular',
+  },
+  quickPostBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  quickPostTools: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  quickTool: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickPostCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
+  },
+  quickPostCtaText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontFamily: 'Montserrat_700Bold',
+  },
   filterList: {
     paddingHorizontal: 16,
-    gap: 8,
-    paddingBottom: 10,
-    paddingTop: 6,
+    gap: 7,
+    paddingBottom: 8,
+    paddingTop: 4,
   },
   filterChip: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
+    paddingHorizontal: 11,
+    paddingVertical: 4,
+    borderRadius: 18,
     borderWidth: 1,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -374,25 +546,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   filterText: {
-    fontSize: 12,
-    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    fontFamily: 'Montserrat_500Medium',
   },
   sectionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 10,
+    paddingTop: 6,
+    paddingBottom: 8,
   },
   sectionTitle: {
-    fontSize: 17,
-    fontFamily: 'Inter_700Bold',
+    fontSize: 15,
+    fontFamily: 'Montserrat_700Bold',
     letterSpacing: -0.3,
+    textShadowColor: 'rgba(0,0,0,0.12)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
   sectionCount: {
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    fontFamily: 'Montserrat_400Regular',
   },
   listContent: {
     paddingBottom: 0,
