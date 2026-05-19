@@ -79,7 +79,7 @@ export function Avatar({ name, size = 40, verified = false, type, bgColor: bgCol
 
 const styles = StyleSheet.create({
   circle: { alignItems: 'center', justifyContent: 'center' },
-  initials: { fontFamily: 'Inter_700Bold' },
+  initials: { fontFamily: 'Montserrat_700Bold' },
   badge: {
     position: 'absolute',
     alignItems: 'center',
