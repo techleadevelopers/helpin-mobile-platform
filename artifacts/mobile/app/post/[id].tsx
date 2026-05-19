@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -36,8 +37,27 @@ const ANIMAL_PLACEHOLDERS: Record<string, string> = {
 const STATS: Array<{ icon: MCIcon; key: 'likes' | 'comments' | 'shares'; label: string }> = [
   { icon: 'heart-outline',          key: 'likes',    label: 'Curtidas' },
   { icon: 'comment-outline',        key: 'comments', label: 'Comentários' },
-  { icon: 'share-variant-outline',  key: 'shares',   label: 'Compartilhamentos' },
+  { icon: 'share-variant-outline',  key: 'shares',   label: 'Compartilhar' },
 ];
+
+function DetailInfoChip({
+  icon,
+  text,
+  color,
+}: {
+  icon: MCIcon;
+  text: string;
+  color: string;
+}) {
+  return (
+    <View style={[styles.infoChip, { backgroundColor: color + '0A' }]}>
+      <MaterialCommunityIcons name={icon} size={11} color={color} />
+      <Text style={[styles.infoChipText, { color }]} numberOfLines={1}>
+        {text}
+      </Text>
+    </View>
+  );
+}
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -53,7 +73,7 @@ export default function PostDetailScreen() {
   if (!post) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
-        <MaterialCommunityIcons name="paw-off" size={40} color={colors.mutedForeground} />
+        <MaterialCommunityIcons name="paw-off" size={36} color={colors.mutedForeground} />
         <Text style={[styles.errorText, { color: colors.mutedForeground }]}>Caso não encontrado</Text>
       </View>
     );
@@ -93,10 +113,10 @@ export default function PostDetailScreen() {
   }
 
   const actionLabel =
-    activePost.type === 'adoption' ? 'Quero adotar ❤️' :
-    activePost.type === 'emergency' ? 'Quero ajudar 🚨' :
-    activePost.type === 'campaign' ? 'Fazer doação 💚' :
-    activePost.type === 'lost' ? 'Vi esse animal 🔍' : 'Entrar em contato';
+    activePost.type === 'adoption' ? 'Quero adotar' :
+    activePost.type === 'emergency' ? 'Ajudar' :
+    activePost.type === 'campaign' ? 'Doar' :
+    activePost.type === 'lost' ? 'Encontrei' : 'Contato';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -113,19 +133,19 @@ export default function PostDetailScreen() {
             style={[
               styles.backBtn,
               {
-                backgroundColor: 'rgba(0,0,0,0.42)',
+                backgroundColor: 'rgba(0,0,0,0.45)',
                 top: (Platform.OS === 'web' ? 67 : insets.top) + 12,
               },
             ]}
             onPress={() => router.back()}
           >
-            <MaterialCommunityIcons name="arrow-left" size={22} color="#FFFFFF" />
+            <MaterialCommunityIcons name="arrow-left" size={20} color="#FFFFFF" />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.shareFloatBtn, { backgroundColor: 'rgba(0,0,0,0.42)', top: (Platform.OS === 'web' ? 67 : insets.top) + 12 }]}
+            style={[styles.shareFloatBtn, { backgroundColor: 'rgba(0,0,0,0.45)', top: (Platform.OS === 'web' ? 67 : insets.top) + 12 }]}
             onPress={handleShare}
           >
-            <MaterialCommunityIcons name="share-variant-outline" size={20} color="#FFFFFF" />
+            <MaterialCommunityIcons name="share-variant-outline" size={18} color="#FFFFFF" />
           </TouchableOpacity>
           <View style={styles.imageBadge}>
             <StatusBadge type={post.type} urgent={post.urgent} />
@@ -137,17 +157,22 @@ export default function PostDetailScreen() {
           <View style={styles.titleRow}>
             <View style={styles.titleInfo}>
               <Text style={[styles.animalName, { color: colors.foreground }]}>{post.name}</Text>
-              <Text style={[styles.breedAge, { color: colors.mutedForeground }]}>
-                {post.breed} · {post.age}
-              </Text>
+              <View style={styles.breedAgeRow}>
+                <Text style={[styles.breedAge, { color: colors.mutedForeground }]}>
+                  {post.breed}
+                </Text>
+                <View style={[styles.dot, { backgroundColor: colors.mutedForeground }]} />
+                <Text style={[styles.breedAge, { color: colors.mutedForeground }]}>
+                  {post.age}
+                </Text>
+              </View>
             </View>
             <TouchableOpacity
               style={[
                 styles.likeBtn,
                 {
-                  backgroundColor: isLiked ? '#FF3B3015' : colors.muted,
-                  borderColor: isLiked ? '#FF3B3045' : 'transparent',
-                  shadowColor: isLiked ? '#FF3B30' : 'transparent',
+                  backgroundColor: isLiked ? '#C95A5A10' : 'transparent',
+                  borderColor: isLiked ? '#C95A5A30' : colors.border,
                 },
               ]}
               onPress={handleLike}
@@ -156,71 +181,70 @@ export default function PostDetailScreen() {
               <MaterialCommunityIcons
                 name={isLiked ? 'heart' : 'heart-outline'}
                 size={22}
-                color={isLiked ? '#FF3B30' : colors.mutedForeground}
+                color={isLiked ? '#C95A5A' : colors.mutedForeground}
               />
             </TouchableOpacity>
           </View>
 
           {/* Location */}
           <View style={styles.locationRow}>
-            <MaterialCommunityIcons name="map-marker-outline" size={15} color={colors.primary} />
+            <MaterialCommunityIcons name="map-marker-outline" size={12} color={colors.mutedForeground} />
             <Text style={[styles.locationText, { color: colors.mutedForeground }]}>
               {post.neighborhood}, {post.location}
             </Text>
             <Text style={[styles.timeText, { color: colors.mutedForeground }]}>· {post.createdAt}</Text>
           </View>
 
-          {/* Author */}
+          {/* Info chips */}
+          <View style={styles.infoChipsRow}>
+            <DetailInfoChip icon="shield-check" text="Verificado" color="#7B8B8B" />
+            <DetailInfoChip icon="clock-fast" text="Resposta rápida" color="#A8886B" />
+          </View>
+
+          {/* Author card */}
           {(() => {
             const ongId = AUTHOR_TO_ONG[post.author.id];
             const isOrg = post.author.type === 'ong' || post.author.type === 'vet';
             const authorLabel =
-              post.author.type === 'ong' ? 'Organização' :
-              post.author.type === 'vet' ? 'Veterinário' : 'Protetor(a)';
+              post.author.type === 'ong' ? 'ONG' :
+              post.author.type === 'vet' ? 'Veterinário' : 'Protetor';
             return (
               <TouchableOpacity
                 style={[
                   styles.authorCard,
                   {
-                    backgroundColor: colors.muted,
-                    borderColor: isOrg ? '#4CAF5028' : 'transparent',
-                    borderWidth: isOrg ? 1.5 : 0,
-                    shadowColor: isOrg ? '#4CAF50' : 'transparent',
-                    shadowOpacity: isOrg ? 0.12 : 0,
-                    shadowRadius: isOrg ? 8 : 0,
-                    shadowOffset: { width: 0, height: 0 },
-                    elevation: isOrg ? 2 : 0,
+                    backgroundColor: colors.muted + '80',
+                    borderColor: isOrg ? colors.primary + '20' : 'transparent',
+                    borderWidth: isOrg ? 0.5 : 0,
                   },
                 ]}
                 onPress={() => ongId && router.push(`/ong/${ongId}`)}
                 activeOpacity={ongId ? 0.85 : 1}
               >
-                <Avatar name={post.author.name} size={44} verified={post.author.verified} type={post.author.type} />
+                <Avatar name={post.author.name} size={40} verified={false} type={post.author.type} />
                 <View style={styles.authorInfo}>
                   <View style={styles.authorNameRow}>
                     <Text style={[styles.authorName, { color: colors.foreground }]}>{post.author.name}</Text>
-                    {isOrg && (
-                      <MaterialCommunityIcons name="check-decagram" size={15} color="#2F80ED" />
+                    {post.author.verified && (
+                      <MaterialCommunityIcons name="check-decagram" size={12} color="#7B8B8B" />
                     )}
                   </View>
                   <Text style={[styles.authorType, { color: colors.mutedForeground }]}>
-                    {authorLabel}{post.author.verified ? ' · Verificado' : ''}
-                    {ongId ? ' · Ver perfil →' : ''}
+                    {authorLabel}
                   </Text>
                 </View>
                 <TouchableOpacity
                   style={[
                     styles.chatBtn,
                     {
-                      backgroundColor: '#2F80ED14',
-                      borderColor: '#2F80ED40',
-                      shadowColor: '#2F80ED',
+                      backgroundColor: colors.primary + '08',
+                      borderColor: colors.primary + '20',
                     },
                   ]}
                   onPress={() => router.push('/chat/c1')}
                   activeOpacity={0.85}
                 >
-                  <MaterialCommunityIcons name="message-outline" size={17} color="#2F80ED" />
+                  <MaterialCommunityIcons name="message-outline" size={16} color={colors.primary} />
                 </TouchableOpacity>
               </TouchableOpacity>
             );
@@ -243,14 +267,12 @@ export default function PostDetailScreen() {
                     style={[
                       styles.tag,
                       {
-                        backgroundColor: colors.primary + '12',
-                        borderColor: colors.primary + '35',
-                        shadowColor: colors.primary,
+                        backgroundColor: colors.muted,
+                        borderColor: colors.border,
                       },
                     ]}
                   >
-                    <MaterialCommunityIcons name="check-circle-outline" size={13} color={colors.primary} />
-                    <Text style={[styles.tagText, { color: colors.foreground }]}>#{tag}</Text>
+                    <Text style={[styles.tagText, { color: colors.mutedForeground }]}>#{tag}</Text>
                   </View>
                 ))}
               </View>
@@ -267,18 +289,17 @@ export default function PostDetailScreen() {
                   {
                     backgroundColor: colors.card,
                     borderColor: colors.border,
-                    shadowColor: '#00000010',
                   },
                 ]}
               >
-                <MaterialCommunityIcons name={stat.icon} size={20} color={cfg.bgColor} />
+                <MaterialCommunityIcons name={stat.icon} size={18} color={colors.mutedForeground} />
                 <Text style={[styles.statValue, { color: colors.foreground }]}>{post[stat.key]}</Text>
                 <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{stat.label}</Text>
               </View>
             ))}
           </View>
 
-          <View style={{ height: bottomPad + 100 }} />
+          <View style={{ height: bottomPad + 80 }} />
         </View>
       </ScrollView>
 
@@ -286,7 +307,7 @@ export default function PostDetailScreen() {
       <View
         style={[
           styles.actionBar,
-          { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: bottomPad + 12 },
+          { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: bottomPad + 10 },
         ]}
       >
         <TouchableOpacity
@@ -294,24 +315,24 @@ export default function PostDetailScreen() {
           onPress={handleShare}
           activeOpacity={0.8}
         >
-          <MaterialCommunityIcons name="share-variant-outline" size={21} color={colors.foreground} />
+          <MaterialCommunityIcons name="share-variant-outline" size={20} color={colors.mutedForeground} />
         </TouchableOpacity>
 
         {post.type === 'adoption' && (
           <TouchableOpacity
-            style={[styles.bottomChatBtn, { backgroundColor: '#2F80ED12', borderColor: '#2F80ED30' }]}
+            style={[styles.bottomChatBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
             onPress={handleOpenChat}
             activeOpacity={0.8}
           >
-            <MaterialCommunityIcons name="chat-outline" size={18} color="#2F80ED" />
-            <Text style={styles.chatBtnText}>Chat</Text>
+            <MaterialCommunityIcons name="chat-outline" size={16} color={colors.mutedForeground} />
+            <Text style={[styles.chatBtnText, { color: colors.mutedForeground }]}>Chat</Text>
           </TouchableOpacity>
         )}
 
         <TouchableOpacity
           style={[
             styles.mainActionBtn,
-            { backgroundColor: cfg.bgColor, flex: 1, shadowColor: cfg.bgColor },
+            { backgroundColor: cfg.bgColor },
           ]}
           onPress={handleContact}
           activeOpacity={0.85}
@@ -325,139 +346,153 @@ export default function PostDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  imageContainer: { position: 'relative', height: 320 },
-  image: { width: SCREEN_WIDTH, height: 320 },
+  imageContainer: { position: 'relative', height: 280 },
+  image: { width: SCREEN_WIDTH, height: 280 },
   backBtn: {
     position: 'absolute',
     left: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   shareFloatBtn: {
     position: 'absolute',
     right: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  imageBadge: { position: 'absolute', bottom: 16, left: 16 },
-  content: { padding: 20, gap: 18 },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  imageBadge: { position: 'absolute', bottom: 14, left: 14 },
+  content: { padding: 18, gap: 16 },
+
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   titleInfo: { flex: 1, gap: 4 },
-  animalName: { fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
-  breedAge: { fontSize: 14, fontFamily: 'Inter_400Regular' },
+  animalName: {
+    fontSize: 22,
+    fontFamily: 'Montserrat_700Bold',
+    letterSpacing: -0.4,
+  },
+  breedAgeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  breedAge: { fontSize: 12, fontFamily: 'Montserrat_400Regular', opacity: 0.7 },
+  dot: { width: 3, height: 3, borderRadius: 1.5, opacity: 0.5 },
   likeBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  locationText: { fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 },
-  timeText: { fontSize: 13, fontFamily: 'Inter_400Regular' },
-  authorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 16,
-  },
-  authorInfo: { flex: 1 },
-  authorNameRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  authorName: { fontSize: 14, fontFamily: 'Inter_600SemiBold', flexShrink: 1 },
-  authorType: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
-  chatBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 7,
-    elevation: 3,
   },
-  section: { gap: 8 },
-  sectionTitle: { fontSize: 16, fontFamily: 'Inter_600SemiBold' },
-  description: { fontSize: 15, fontFamily: 'Inter_400Regular', lineHeight: 24 },
-  tagsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  tag: {
+
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  locationText: { fontSize: 12, fontFamily: 'Montserrat_400Regular', flex: 1 },
+  timeText: { fontSize: 11, fontFamily: 'Montserrat_400Regular', opacity: 0.6 },
+
+  infoChipsRow: { flexDirection: 'row', gap: 8, marginTop: 2 },
+  infoChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
   },
-  tagText: { fontSize: 13, fontFamily: 'Inter_400Regular' },
+  infoChipText: { fontSize: 11, fontFamily: 'Montserrat_500Medium' },
+
+  authorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 16,
+  },
+  authorInfo: { flex: 1, gap: 2 },
+  authorNameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
+  authorName: { fontSize: 14, fontFamily: 'Montserrat_600SemiBold' },
+  authorType: { fontSize: 11, fontFamily: 'Montserrat_400Regular', opacity: 0.6 },
+  chatBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 0.5,
+  },
+
+  section: { gap: 6 },
+  sectionTitle: {
+    fontSize: 15,
+    fontFamily: 'Montserrat_600SemiBold',
+    letterSpacing: -0.3,
+  },
+  description: { fontSize: 14, fontFamily: 'Montserrat_400Regular', lineHeight: 21, opacity: 0.85 },
+
+  tagsRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 14,
+    borderWidth: 0.5,
+  },
+  tagText: { fontSize: 11, fontFamily: 'Montserrat_500Medium' },
+
   statsRow: { flexDirection: 'row', gap: 8 },
   statBox: {
     flex: 1,
     alignItems: 'center',
-    padding: 12,
+    padding: 10,
     borderRadius: 14,
     gap: 4,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 2,
+    borderWidth: 0.5,
   },
-  statValue: { fontSize: 18, fontFamily: 'Inter_700Bold' },
-  statLabel: { fontSize: 10, fontFamily: 'Inter_400Regular', textAlign: 'center' },
-  errorText: { fontSize: 16, fontFamily: 'Inter_400Regular', marginTop: 12 },
+  statValue: { fontSize: 16, fontFamily: 'Montserrat_700Bold' },
+  statLabel: { fontSize: 10, fontFamily: 'Montserrat_500Medium', textAlign: 'center' },
+
+  errorText: { fontSize: 14, fontFamily: 'Montserrat_400Regular', marginTop: 10 },
+
   actionBar: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     paddingHorizontal: 16,
-    paddingTop: 14,
-    borderTopWidth: 1,
+    paddingTop: 12,
+    borderTopWidth: 0.5,
   },
   shareBtn: {
-    width: 50,
-    height: 50,
+    width: 44,
+    height: 44,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+    borderWidth: 0.5,
   },
   mainActionBtn: {
-    height: 50,
+    flex: 1,
+    height: 44,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 6,
   },
-  mainActionText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: '#FFFFFF' },
+  mainActionText: {
+    fontSize: 14,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
   bottomChatBtn: {
-    height: 50,
-    paddingHorizontal: 16,
+    height: 44,
+    paddingHorizontal: 14,
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: 0.5,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
   },
-  chatBtnText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: '#2F80ED' },
+  chatBtnText: { fontSize: 13, fontFamily: 'Montserrat_600SemiBold' },
 });
