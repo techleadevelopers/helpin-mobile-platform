@@ -1,44 +1,55 @@
 const colors = {
   light: {
-    text: "#1A1A2E",
-    tint: "#4CAF50",
-
-    background: "#F8F9FA",
-    foreground: "#1A1A2E",
-
-    card: "#FFFFFF",
-    cardForeground: "#1A1A2E",
-
-    primary: "#4CAF50",
+    // Base neutra (calma e profissional)
+    text: "#1C2A1C",
+    tint: "#2D6A4F",
+    
+    background: "#F5F7F5",      // fundo geral suave
+    foreground: "#1A2E1A",      // textos principais
+    
+    card: "#FFFFFF",             // cards brancos limpos
+    cardForeground: "#1A2E1A",
+    
+    // Verde confortável (principal)
+    primary: "#2D6A4F",         // verde escuro confortável
     primaryForeground: "#FFFFFF",
-
-    secondary: "#2F80ED",
+    primaryLight: "#E8F5E9",    // fundo de hover/light
+    
+    // Secundário azul suave (menos chamativo)
+    secondary: "#2C5F8A",
     secondaryForeground: "#FFFFFF",
-
-    muted: "#F0F2F5",
-    mutedForeground: "#8E8E93",
-
-    accent: "#FF6B6B",
+    secondaryLight: "#E8F0F5",
+    
+    muted: "#EEF2EE",           // cinza esverdeado suave
+    mutedForeground: "#6B7B6B", // texto secundário
+    
+    accent: "#4A9B7A",          // verde médio para destaques
     accentForeground: "#FFFFFF",
-
-    destructive: "#FF3B30",
+    
+    destructive: "#C95A5A",     // vermelho suave (não berrante)
     destructiveForeground: "#FFFFFF",
-
-    border: "#E8ECF0",
-    input: "#E8ECF0",
-
-    // Extra ZooHelp tokens
-    warning: "#FF9800",
+    
+    border: "#E2E8E2",          // bordas suaves
+    input: "#EDF2ED",
+    
+    // Tokens extras
+    warning: "#D4A259",         // âmbar suave
     warningForeground: "#FFFFFF",
-    success: "#4CAF50",
-    purple: "#9B59B6",
+    success: "#2D6A4F",
+    successLight: "#E8F5E9",
+    purple: "#6B5B8A",          // roxo suave
     purpleForeground: "#FFFFFF",
-
+    
     tabBar: "#FFFFFF",
-    tabBarBorder: "#E8ECF0",
-    shadow: "#000000",
+    tabBarBorder: "#E2E8E2",
+    shadow: "#1A2E1A",
+    
+    // Efeitos neon sutis (glow)
+    neonGreen: "rgba(45, 106, 79, 0.15)",
+    neonBlue: "rgba(44, 95, 138, 0.12)",
+    neonAmber: "rgba(212, 162, 89, 0.12)",
   },
-
+  
   radius: 16,
 };
 
