@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import { POST_TYPE_CONFIG, PostType } from '@/constants/data';
 
@@ -15,6 +16,16 @@ const TYPE_ICONS: Record<PostType, MCIcon> = {
   post:      'pencil-outline',
 };
 
+// Substitua TYPE_GRADIENTS por versões mais suaves:
+const TYPE_GRADIENTS: Record<PostType, [string, string]> = {
+  adoption: ['#4A9B7A', '#2D6A4F'],   // verde suave
+  lost: ['#D4A259', '#B8863E'],       // âmbar suave
+  found: ['#5B8A9F', '#2C5F8A'],     // azul suave
+  emergency: ['#C95A5A', '#A84444'], // vermelho suave (não neon)
+  campaign: ['#7B6B9A', '#5B4B7A'],  // roxo suave
+  post: ['#8A9B8A', '#6B7B6B'],      // cinza suave
+};
+
 interface StatusBadgeProps {
   type: PostType;
   urgent?: boolean;
@@ -25,39 +36,48 @@ export function StatusBadge({ type, urgent, size = 'md' }: StatusBadgeProps) {
   const config = POST_TYPE_CONFIG[type];
   const isSmall = size === 'sm';
   const iconSize = isSmall ? 11 : 13;
+  const gradient = TYPE_GRADIENTS[type];
 
   return (
     <View style={styles.row}>
-      <View
+      <LinearGradient
+        colors={gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={[
           styles.badge,
           {
-            backgroundColor: config.bgColor,
-            borderColor: config.color + '55',
-            shadowColor: config.color,
+            shadowColor: config.bgColor,
           },
           isSmall && styles.badgeSm,
         ]}
       >
-        <MaterialCommunityIcons name={TYPE_ICONS[type]} size={iconSize} color={config.color} />
-        <Text style={[styles.label, { color: config.color }, isSmall && styles.labelSm]}>
+        <View style={[styles.iconBubble, isSmall && styles.iconBubbleSm]}>
+          <MaterialCommunityIcons name={TYPE_ICONS[type]} size={iconSize} color="#FFFFFF" />
+        </View>
+        <Text style={[styles.label, isSmall && styles.labelSm]}>
           {config.label}
         </Text>
-      </View>
+      </LinearGradient>
       {urgent && (
-        <View
+        <LinearGradient
+          colors={['#FF5757', '#D91515']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={[
             styles.badge,
             styles.urgentBadge,
-            { shadowColor: '#FF3B30', borderColor: '#FF3B3055' },
+            { shadowColor: '#FF3B30' },
             isSmall && styles.badgeSm,
           ]}
         >
-          <MaterialCommunityIcons name="lightning-bolt" size={iconSize} color="#FFFFFF" />
+          <View style={[styles.iconBubble, styles.urgentIconBubble, isSmall && styles.iconBubbleSm]}>
+            <MaterialCommunityIcons name="lightning-bolt" size={iconSize} color="#FFFFFF" />
+          </View>
           <Text style={[styles.label, styles.urgentLabel, isSmall && styles.labelSm]}>
             URGENTE
           </Text>
-        </View>
+        </LinearGradient>
       )}
     </View>
   );
@@ -73,31 +93,47 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
     borderRadius: 20,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: Platform.OS === 'android' ? 0 : 3,
   },
   badgeSm: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 3,
+  },
+  iconBubble: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconBubbleSm: {
+    width: 15,
+    height: 15,
+    borderRadius: 7.5,
   },
   label: {
     fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: 'Montserrat_600SemiBold',
     letterSpacing: 0.2,
+    color: '#FFFFFF',
   },
   labelSm: {
     fontSize: 10,
   },
   urgentBadge: {
-    backgroundColor: '#FF3B30',
+    shadowOpacity: 0.24,
   },
   urgentLabel: {
     color: '#FFFFFF',
+  },
+  urgentIconBubble: {
+    backgroundColor: 'rgba(255,255,255,0.24)',
   },
 });
