@@ -55,28 +55,28 @@ export default function OngProfileScreen() {
   const [donated, setDonated] = useState(false);
 
   const headerOpacity = useRef(new Animated.Value(0)).current;
-  const heroScale    = useRef(new Animated.Value(0.92)).current;
-  const statsY       = useRef(new Animated.Value(24)).current;
+  const heroScale = useRef(new Animated.Value(0.96)).current;
+  const statsY = useRef(new Animated.Value(20)).current;
   const statsOpacity = useRef(new Animated.Value(0)).current;
-  const donateScale  = useRef(new Animated.Value(0.88)).current;
+  const donateScale = useRef(new Animated.Value(0.92)).current;
   const donateOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(heroScale, { toValue: 1, tension: 60, friction: 8, useNativeDriver: true }),
-      Animated.timing(headerOpacity, { toValue: 1, duration: 380, useNativeDriver: true }),
+      Animated.spring(heroScale, { toValue: 1, tension: 70, friction: 9, useNativeDriver: true }),
+      Animated.timing(headerOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
       Animated.sequence([
-        Animated.delay(200),
+        Animated.delay(180),
         Animated.parallel([
-          Animated.spring(statsY, { toValue: 0, tension: 80, friction: 10, useNativeDriver: true }),
-          Animated.timing(statsOpacity, { toValue: 1, duration: 360, useNativeDriver: true }),
+          Animated.spring(statsY, { toValue: 0, tension: 85, friction: 11, useNativeDriver: true }),
+          Animated.timing(statsOpacity, { toValue: 1, duration: 380, useNativeDriver: true }),
         ]),
       ]),
       Animated.sequence([
-        Animated.delay(350),
+        Animated.delay(320),
         Animated.parallel([
-          Animated.spring(donateScale, { toValue: 1, tension: 70, friction: 8, useNativeDriver: true }),
-          Animated.timing(donateOpacity, { toValue: 1, duration: 320, useNativeDriver: true }),
+          Animated.spring(donateScale, { toValue: 1, tension: 75, friction: 9, useNativeDriver: true }),
+          Animated.timing(donateOpacity, { toValue: 1, duration: 340, useNativeDriver: true }),
         ]),
       ]),
     ]).start();
@@ -110,10 +110,10 @@ export default function OngProfileScreen() {
 
   if (!ong) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
-        <MaterialCommunityIcons name="domain-off" size={48} color={colors.mutedForeground} />
-        <Text style={[styles.errorText, { color: colors.mutedForeground }]}>ONG não encontrada</Text>
-        <TouchableOpacity onPress={() => router.back()} style={[styles.backFallback, { backgroundColor: colors.primary }]}>
+      <View style={[styles.container, { backgroundColor: '#F1F2F1', justifyContent: 'center', alignItems: 'center' }]}>
+        <MaterialCommunityIcons name="domain-off" size={48} color="#9CA3AF" />
+        <Text style={[styles.errorText, { color: '#6B7280' }]}>ONG não encontrada</Text>
+        <TouchableOpacity onPress={() => router.back()} style={[styles.backFallback, { backgroundColor: '#4CAF50' }]}>
           <Text style={styles.backFallbackText}>Voltar</Text>
         </TouchableOpacity>
       </View>
@@ -135,38 +135,36 @@ export default function OngProfileScreen() {
   const avatarImg = AVATAR_IMAGES[ongIndex % AVATAR_IMAGES.length];
 
   const STATS: Array<{ label: string; value: number; icon: MCIcon; color: string }> = [
-    { label: 'Resgatados', value: ong.animalsRescued, icon: 'heart-pulse',       color: '#FF6B6B' },
-    { label: 'Adotados',   value: ong.adoptions,      icon: 'home-heart',        color: '#4CAF50' },
-    { label: 'Seguidores', value: ong.followers,       icon: 'account-group',    color: '#2F80ED' },
-    { label: 'Casos ativos',value: ong.activeCases,   icon: 'clipboard-list',   color: '#FF9800' },
+    { label: 'Resgatados', value: ong.animalsRescued, icon: 'heart-pulse', color: '#FF6B6B' },
+    { label: 'Adotados', value: ong.adoptions, icon: 'home-heart', color: '#4CAF50' },
+    { label: 'Seguidores', value: ong.followers, icon: 'account-group', color: '#2F80ED' },
+    { label: 'Casos ativos', value: ong.activeCases, icon: 'clipboard-list', color: '#FF9800' },
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: '#F1F2F1' }]}>
       <ScrollView showsVerticalScrollIndicator={false} bounces>
 
-        {/* ── HERO HEADER ── */}
+        {/* ── HERO HEADER (apenas imagem, sem gradiente azul pesado) ── */}
         <Animated.View style={{ opacity: headerOpacity, transform: [{ scale: heroScale }] }}>
-          {/* Cover image with gradient overlay */}
-          <ImageBackground source={coverImg} style={[styles.cover, { paddingTop: topPad }]} resizeMode="cover">
-            <LinearGradient
-              colors={['rgba(0,0,0,0.25)', 'rgba(15,52,96,0.82)', 'rgba(15,52,96,0.97)']}
-              style={styles.coverGradient}
-            >
-              {/* Back button */}
-              <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
-                <MaterialCommunityIcons name="arrow-left" size={22} color="#FFFFFF" />
-              </TouchableOpacity>
+          <View style={[styles.coverWrapper, { paddingTop: topPad }]}>
+            <ImageBackground source={coverImg} style={styles.cover} resizeMode="cover">
+              <LinearGradient
+                colors={['rgba(0,0,0,0.15)', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.65)']}
+                style={styles.coverOverlay}
+              >
+                {/* Back button */}
+                <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
+                  <MaterialCommunityIcons name="arrow-left" size={22} color="#FFFFFF" />
+                </TouchableOpacity>
 
-              {/* Share button */}
-              <TouchableOpacity style={styles.shareBtn} onPress={handleShare} activeOpacity={0.8}>
-                <MaterialCommunityIcons name="share-variant-outline" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
+                {/* Share button */}
+                <TouchableOpacity style={styles.shareBtn} onPress={handleShare} activeOpacity={0.8}>
+                  <MaterialCommunityIcons name="share-variant-outline" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
 
-              {/* Avatar + name */}
-              <View style={styles.heroCenter}>
-                {/* Animal profile photo */}
-                <View style={styles.avatarOuter}>
+                {/* Avatar flutuante sobre a imagem */}
+                <View style={styles.avatarOverlay}>
                   <View style={styles.avatarRing}>
                     <Image source={avatarImg} style={styles.avatarImage} resizeMode="cover" />
                   </View>
@@ -176,32 +174,35 @@ export default function OngProfileScreen() {
                     </View>
                   )}
                 </View>
+              </LinearGradient>
+            </ImageBackground>
+          </View>
 
-                <View style={styles.heroNameRow}>
-                  <Text style={styles.heroName}>{ong.name}</Text>
-                  {ong.verified && (
-                    <View style={[styles.verifiedBadge, { backgroundColor: '#2F80ED', shadowColor: '#2F80ED' }]}>
-                      <MaterialCommunityIcons name="check-decagram" size={14} color="#FFFFFF" />
-                      <Text style={styles.verifiedText}>Verificado</Text>
-                    </View>
-                  )}
+          {/* Nome e informações abaixo da imagem (fora do overlay) */}
+          <View style={styles.heroInfo}>
+            <View style={styles.heroNameRow}>
+              <Text style={[styles.heroName, { color: '#1F2937' }]}>{ong.name}</Text>
+              {ong.verified && (
+                <View style={styles.verifiedBadge}>
+                  <MaterialCommunityIcons name="check-decagram" size={14} color="#2F80ED" />
+                  <Text style={styles.verifiedText}>Verificado</Text>
                 </View>
+              )}
+            </View>
 
-                <View style={styles.heroCause}>
-                  <View style={[styles.causePill, { backgroundColor: '#4CAF5018', borderColor: '#4CAF5045', shadowColor: '#4CAF50' }]}>
-                    <MaterialCommunityIcons name={causeIcon} size={14} color="#4CAF50" />
-                    <Text style={[styles.causePillText, { color: '#4CAF50' }]}>{ong.cause}</Text>
-                  </View>
-                </View>
-
-                <Text style={styles.heroLocation}>
-                  <MaterialCommunityIcons name="map-marker-outline" size={13} color="rgba(255,255,255,0.6)" />
-                  {'  '}{ong.location}
-                </Text>
-                <Text style={styles.heroSince}>Desde {ong.since} · CNPJ {ong.cnpj}</Text>
+            <View style={styles.heroCause}>
+              <View style={styles.causePill}>
+                <MaterialCommunityIcons name={causeIcon} size={14} color="#4CAF50" />
+                <Text style={styles.causePillText}>{ong.cause}</Text>
               </View>
-            </LinearGradient>
-          </ImageBackground>
+            </View>
+
+            <Text style={styles.heroLocation}>
+              <MaterialCommunityIcons name="map-marker-outline" size={13} color="#6B7280" />
+              {'  '}{ong.location}
+            </Text>
+            <Text style={styles.heroSince}>Desde {ong.since} · CNPJ {ong.cnpj}</Text>
+          </View>
         </Animated.View>
 
         {/* ── STATS GRID ── */}
@@ -217,19 +218,20 @@ export default function OngProfileScreen() {
               style={[
                 styles.statBox,
                 {
-                  backgroundColor: s.color + '0D',
-                  borderColor: s.color + '28',
+                  backgroundColor: '#FFFFFF',
+                  borderColor: s.color + '20',
+                  shadowColor: s.color,
                 },
               ]}
             >
-              <View style={[styles.statIconWrap, { backgroundColor: s.color + '18' }]}>
-                <MaterialCommunityIcons name={s.icon} size={15} color={s.color} />
+              <View style={[styles.statIconWrap, { backgroundColor: s.color + '10' }]}>
+                <MaterialCommunityIcons name={s.icon} size={16} color={s.color} />
               </View>
               <View style={styles.statTexts}>
-                <Text style={[styles.statValue, { color: colors.foreground }]}>
+                <Text style={[styles.statValue, { color: '#1F2937' }]}>
                   {formatNumber(s.value)}
                 </Text>
-                <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
+                <Text style={[styles.statLabel, { color: '#6B7280' }]}>{s.label}</Text>
               </View>
             </View>
           ))}
@@ -242,7 +244,6 @@ export default function OngProfileScreen() {
             { opacity: donateOpacity, transform: [{ scale: donateScale }] },
           ]}
         >
-          {/* DONATE CTA */}
           <TouchableOpacity
             onPress={handleDonate}
             activeOpacity={0.88}
@@ -252,114 +253,83 @@ export default function OngProfileScreen() {
               colors={donated ? ['#4CAF50', '#2E7D32'] : ['#FF6B6B', '#E53E3E']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={[
-                styles.donateBtn,
-                {
-                  shadowColor: donated ? '#4CAF50' : '#FF6B6B',
-                  borderColor: donated ? '#4CAF5050' : '#FF6B6B50',
-                },
-              ]}
+              style={styles.donateBtn}
             >
               <MaterialCommunityIcons
                 name={donated ? 'check-circle' : 'hand-coin'}
-                size={22}
+                size={20}
                 color="#FFFFFF"
               />
               <Text style={styles.donateBtnText}>
-                {donated ? 'Obrigado! ❤️' : 'Doar / Ajudar ONG'}
+                {donated ? 'Obrigado! ' : 'Doar / Ajudar ONG'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          {/* FOLLOW */}
           <TouchableOpacity
             onPress={handleFollow}
             activeOpacity={0.85}
             style={[
               styles.followBtn,
               {
-                backgroundColor: following ? '#4CAF5018' : colors.card,
-                borderColor: following ? '#4CAF5050' : colors.border,
-                shadowColor: following ? '#4CAF50' : 'transparent',
+                backgroundColor: following ? '#4CAF5015' : '#FFFFFF',
+                borderColor: following ? '#4CAF5040' : '#E5E7EB',
               },
             ]}
           >
             <MaterialCommunityIcons
               name={following ? 'account-check' : 'account-plus-outline'}
-              size={20}
-              color={following ? '#4CAF50' : colors.foreground}
+              size={18}
+              color={following ? '#4CAF50' : '#374151'}
             />
-            <Text style={[styles.followBtnText, { color: following ? '#4CAF50' : colors.foreground }]}>
+            <Text style={[styles.followBtnText, { color: following ? '#4CAF50' : '#374151' }]}>
               {following ? 'Seguindo' : 'Seguir'}
             </Text>
           </TouchableOpacity>
 
-          {/* WHATSAPP */}
           <TouchableOpacity
             onPress={handleContact}
             activeOpacity={0.85}
-            style={[
-              styles.iconBtn,
-              {
-                backgroundColor: '#25D36618',
-                borderColor: '#25D36640',
-                shadowColor: '#25D366',
-              },
-            ]}
+            style={styles.iconBtn}
           >
             <MaterialCommunityIcons name="whatsapp" size={22} color="#25D366" />
           </TouchableOpacity>
         </Animated.View>
 
         {/* ── MISSION ── */}
-        <View style={[styles.section, { backgroundColor: colors.card }]}>
+        <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View
-              style={[
-                styles.sectionIconCircle,
-                { backgroundColor: '#2F80ED14', borderColor: '#2F80ED35', shadowColor: '#2F80ED' },
-              ]}
-            >
+            <View style={styles.sectionIconCircle}>
               <MaterialCommunityIcons name="bullhorn-outline" size={16} color="#2F80ED" />
             </View>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Missão</Text>
+            <Text style={styles.sectionTitle}>Missão</Text>
           </View>
-          <Text style={[styles.missionText, { color: colors.mutedForeground }]}>{ong.mission}</Text>
-          <Text style={[styles.descriptionText, { color: colors.foreground }]}>{ong.description}</Text>
+          <Text style={styles.missionText}>{ong.mission}</Text>
+          <Text style={styles.descriptionText}>{ong.description}</Text>
         </View>
 
         {/* ── INFO ── */}
-        <View style={[styles.section, { backgroundColor: colors.card }]}>
+        <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View
-              style={[
-                styles.sectionIconCircle,
-                { backgroundColor: '#4CAF5014', borderColor: '#4CAF5035', shadowColor: '#4CAF50' },
-              ]}
-            >
+            <View style={[styles.sectionIconCircle, { backgroundColor: '#4CAF5010' }]}>
               <MaterialCommunityIcons name="information-outline" size={16} color="#4CAF50" />
             </View>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Informações</Text>
+            <Text style={styles.sectionTitle}>Informações</Text>
           </View>
 
           {[
-            { icon: 'paw' as MCIcon,            color: '#4CAF50', label: 'Animais',  value: ong.animalTypes.join(', ') },
-            { icon: 'phone-outline' as MCIcon,  color: '#2F80ED', label: 'Contato',  value: ong.contact },
+            { icon: 'paw' as MCIcon, color: '#4CAF50', label: 'Animais', value: ong.animalTypes.join(', ') },
+            { icon: 'phone-outline' as MCIcon, color: '#2F80ED', label: 'Contato', value: ong.contact },
             { icon: 'map-marker-outline' as MCIcon, color: '#FF9800', label: 'Local', value: ong.location },
             { icon: 'calendar-outline' as MCIcon, color: '#9B59B6', label: 'Fundação', value: ong.since },
           ].map((row) => (
-            <View key={row.label} style={[styles.infoRow, { borderTopColor: colors.border }]}>
-              <View
-                style={[
-                  styles.infoIconCircle,
-                  { backgroundColor: row.color + '14', borderColor: row.color + '35', shadowColor: row.color },
-                ]}
-              >
+            <View key={row.label} style={styles.infoRow}>
+              <View style={[styles.infoIconCircle, { backgroundColor: row.color + '10' }]}>
                 <MaterialCommunityIcons name={row.icon} size={15} color={row.color} />
               </View>
               <View style={styles.infoText}>
-                <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
-                <Text style={[styles.infoValue, { color: colors.foreground }]}>{row.value}</Text>
+                <Text style={styles.infoLabel}>{row.label}</Text>
+                <Text style={styles.infoValue}>{row.value}</Text>
               </View>
             </View>
           ))}
@@ -367,18 +337,13 @@ export default function OngProfileScreen() {
 
         {/* ── POSTS BY THIS ONG ── */}
         {ongPosts.length > 0 && (
-          <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <View
-                style={[
-                  styles.sectionIconCircle,
-                  { backgroundColor: '#FF6B6B14', borderColor: '#FF6B6B35', shadowColor: '#FF6B6B' },
-                ]}
-              >
+              <View style={[styles.sectionIconCircle, { backgroundColor: '#FF6B6B10' }]}>
                 <MaterialCommunityIcons name="clipboard-list-outline" size={16} color="#FF6B6B" />
               </View>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Casos ativos</Text>
-              <View style={[styles.postCountBadge, { backgroundColor: '#FF6B6B', shadowColor: '#FF6B6B' }]}>
+              <Text style={styles.sectionTitle}>Casos ativos</Text>
+              <View style={styles.postCountBadge}>
                 <Text style={styles.postCountText}>{ongPosts.length}</Text>
               </View>
             </View>
@@ -386,34 +351,28 @@ export default function OngProfileScreen() {
             {ongPosts.map((p) => (
               <TouchableOpacity
                 key={p.id}
-                style={[
-                  styles.postRow,
-                  {
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                  },
-                ]}
+                style={styles.postRow}
                 onPress={() => router.push(`/post/${p.id}`)}
                 activeOpacity={0.88}
               >
                 <View style={styles.postRowLeft}>
                   <StatusBadge type={p.type} size="sm" />
                   <View style={styles.postRowInfo}>
-                    <Text style={[styles.postRowName, { color: colors.foreground }]} numberOfLines={1}>
+                    <Text style={styles.postRowName} numberOfLines={1}>
                       {p.name}
                     </Text>
-                    <Text style={[styles.postRowMeta, { color: colors.mutedForeground }]}>
+                    <Text style={styles.postRowMeta}>
                       {p.breed} · {p.neighborhood}
                     </Text>
                   </View>
                 </View>
                 <View style={styles.postRowRight}>
                   {p.urgent && (
-                    <View style={[styles.urgentDot, { backgroundColor: '#FF3B30', shadowColor: '#FF3B30' }]}>
+                    <View style={styles.urgentDot}>
                       <MaterialCommunityIcons name="lightning-bolt" size={9} color="#FFFFFF" />
                     </View>
                   )}
-                  <MaterialCommunityIcons name="chevron-right" size={18} color={colors.mutedForeground} />
+                  <MaterialCommunityIcons name="chevron-right" size={18} color="#9CA3AF" />
                 </View>
               </TouchableOpacity>
             ))}
@@ -421,18 +380,11 @@ export default function OngProfileScreen() {
         )}
 
         {/* ── TRANSPARENCY SEAL ── */}
-        <View
-          style={[
-            styles.trustSeal,
-            { backgroundColor: '#2F80ED08', borderColor: '#2F80ED30', shadowColor: '#2F80ED' },
-          ]}
-        >
+        <View style={styles.trustSeal}>
           <MaterialCommunityIcons name="shield-check" size={22} color="#2F80ED" />
           <View style={styles.trustText}>
-            <Text style={[styles.trustTitle, { color: '#2F80ED' }]}>Organização verificada pela ZooHelp</Text>
-            <Text style={[styles.trustSub, { color: colors.mutedForeground }]}>
-              Documentação e CNPJ validados · Doações rastreáveis
-            </Text>
+            <Text style={styles.trustTitle}>Organização verificada pela ZooHelp</Text>
+            <Text style={styles.trustSub}>Documentação e CNPJ validados · Doações rastreáveis</Text>
           </View>
         </View>
 
@@ -449,23 +401,23 @@ const styles = StyleSheet.create({
   backFallbackText: { color: '#FFF', fontFamily: 'Inter_600SemiBold', fontSize: 15 },
 
   /* HERO */
+  coverWrapper: {
+    width: '100%',
+  },
   cover: {
     width: '100%',
-    minHeight: 260,
+    height: 200,
   },
-  coverGradient: {
+  coverOverlay: {
     flex: 1,
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 32,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -473,30 +425,31 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 20,
     top: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroCenter: { alignItems: 'center', marginTop: 16, gap: 8 },
-  avatarOuter: {
-    width: 92,
-    height: 92,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 14,
-    elevation: 8,
-    shadowColor: '#4CAF50',
+  avatarOverlay: {
+    position: 'absolute',
+    bottom: -40,
+    left: 20,
   },
   avatarRing: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     borderWidth: 3,
-    borderColor: '#4CAF5070',
+    borderColor: '#FFFFFF',
     overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   avatarImage: {
     width: '100%',
@@ -506,70 +459,69 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 2,
     right: 2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: '#2F80ED',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#FFFFFF',
   },
-  heroNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
+  heroInfo: {
+    paddingHorizontal: 20,
+    paddingTop: 48,
+    paddingBottom: 12,
+    backgroundColor: '#F1F2F1',
+  },
+  heroNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   heroName: {
     fontSize: 22,
     fontFamily: 'Inter_700Bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
     letterSpacing: -0.4,
   },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    backgroundColor: '#2F80ED10',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  verifiedText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: '#FFFFFF' },
-  heroCause: { marginTop: 2 },
+  verifiedText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: '#2F80ED' },
+  heroCause: { marginTop: 6 },
   causePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
+    backgroundColor: '#4CAF5010',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 20,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 3,
+    alignSelf: 'flex-start',
   },
-  causePillText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  causePillText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: '#4CAF50' },
   heroLocation: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter_400Regular',
-    color: 'rgba(255,255,255,0.65)',
+    color: '#6B7280',
+    marginTop: 6,
   },
   heroSince: {
     fontSize: 11,
     fontFamily: 'Inter_400Regular',
-    color: 'rgba(255,255,255,0.4)',
-    marginTop: -4,
+    color: '#9CA3AF',
+    marginTop: 2,
   },
 
   /* STATS */
   statsGrid: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 8,
     marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   statBox: {
     flex: 1,
@@ -579,21 +531,22 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 10,
     paddingHorizontal: 6,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
   statIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statTexts: {
-    gap: 1,
-    alignItems: 'center',
-  },
-  statValue: { fontSize: 14, fontFamily: 'Inter_700Bold', letterSpacing: -0.4 },
+  statTexts: { gap: 2, alignItems: 'center' },
+  statValue: { fontSize: 15, fontFamily: 'Inter_700Bold', letterSpacing: -0.3 },
   statLabel: { fontSize: 9, fontFamily: 'Inter_500Medium', textAlign: 'center' },
 
   /* ACTIONS */
@@ -601,7 +554,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 12,
     alignItems: 'center',
   },
   donateBtnWrapper: { flex: 1 },
@@ -610,16 +563,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 14,
-    borderRadius: 18,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
-    elevation: 7,
+    paddingVertical: 12,
+    borderRadius: 16,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   donateBtnText: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'Inter_700Bold',
     color: '#FFFFFF',
     letterSpacing: 0.2,
@@ -628,36 +580,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 1,
   },
   followBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   iconBtn: {
-    width: 50,
-    height: 50,
+    width: 46,
+    height: 46,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
 
   /* SECTION */
   section: {
     marginHorizontal: 16,
     marginBottom: 12,
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 16,
-    gap: 10,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   sectionIconCircle: {
@@ -666,20 +618,17 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 3,
+    backgroundColor: '#2F80ED10',
   },
-  sectionTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', flex: 1 },
+  sectionTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', flex: 1, color: '#1F2937' },
   missionText: {
     fontSize: 14,
     fontFamily: 'Inter_500Medium',
     fontStyle: 'italic',
     lineHeight: 21,
+    color: '#4B5563',
   },
-  descriptionText: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 22 },
+  descriptionText: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 22, color: '#374151' },
 
   /* INFO ROWS */
   infoRow: {
@@ -687,60 +636,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     borderTopWidth: 1,
-    paddingTop: 10,
+    borderTopColor: '#F3F4F6',
+    paddingTop: 12,
   },
   infoIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 5,
-    elevation: 2,
   },
   infoText: { flex: 1 },
-  infoLabel: { fontSize: 11, fontFamily: 'Inter_500Medium' },
-  infoValue: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  infoLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: '#6B7280' },
+  infoValue: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: '#1F2937' },
 
   /* POST ROWS */
   postCountBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 5,
-    elevation: 3,
+    backgroundColor: '#FF6B6B',
   },
-  postCountText: { fontSize: 12, fontFamily: 'Inter_700Bold', color: '#FFFFFF' },
+  postCountText: { fontSize: 11, fontFamily: 'Inter_700Bold', color: '#FFFFFF' },
   postRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 12,
     paddingHorizontal: 12,
+    backgroundColor: '#F9FAFB',
     borderRadius: 14,
-    borderWidth: 1,
     gap: 10,
   },
   postRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   postRowInfo: { flex: 1 },
-  postRowName: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  postRowMeta: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  postRowName: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: '#1F2937' },
+  postRowMeta: { fontSize: 12, fontFamily: 'Inter_400Regular', color: '#6B7280', marginTop: 2 },
   postRowRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   urgentDot: {
     width: 18,
     height: 18,
     borderRadius: 9,
+    backgroundColor: '#FF3B30',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 5,
-    elevation: 3,
   },
 
   /* TRUST SEAL */
@@ -749,16 +688,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginHorizontal: 16,
-    marginBottom: 4,
-    padding: 16,
+    marginBottom: 16,
+    padding: 14,
+    backgroundColor: '#FFFFFF',
     borderRadius: 18,
-    borderWidth: 1.5,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   trustText: { flex: 1 },
-  trustTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
-  trustSub: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  trustTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: '#1F2937' },
+  trustSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: '#6B7280', marginTop: 2 },
 });
