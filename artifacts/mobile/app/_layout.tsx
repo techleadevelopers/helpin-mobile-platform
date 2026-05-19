@@ -5,6 +5,12 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
+import {
+  Montserrat_400Regular,
+  Montserrat_500Medium,
+  Montserrat_600SemiBold,
+  Montserrat_700Bold,
+} from "@expo-google-fonts/montserrat";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -14,7 +20,9 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { NavigationLoadingOverlay } from "@/components/NavigationLoadingOverlay";
 import { AppProvider } from "@/context/AppContext";
+import { initializeObservability } from "@/services/observability";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -75,7 +83,15 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_600SemiBold,
+    Montserrat_700Bold,
   });
+
+  useEffect(() => {
+    initializeObservability();
+  }, []);
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
@@ -93,6 +109,7 @@ export default function RootLayout() {
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
                 <RootLayoutNav />
+                <NavigationLoadingOverlay />
               </KeyboardProvider>
             </GestureHandlerRootView>
           </AppProvider>
