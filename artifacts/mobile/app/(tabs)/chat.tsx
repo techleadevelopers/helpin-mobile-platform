@@ -116,7 +116,7 @@ export default function ChatScreen() {
           <EmptyState
             icon="message-outline"
             title="Nenhuma conversa ainda"
-            subtitle="Quando você demonstrar interesse em adotar ou ajudar, as conversas aparecerão aqui."
+            subtitle="Quando você demonstrar interesse em adotar ou ajudar, as conversas aparecerío aqui."
             iconColor="#2F80ED"
           />
         }
@@ -136,9 +136,9 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
   composeBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
