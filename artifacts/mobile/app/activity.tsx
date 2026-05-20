@@ -156,7 +156,7 @@ export default function ActivityScreen() {
               <View style={[styles.emptyHint, { backgroundColor: colors.card }]}>
                 <MaterialCommunityIcons name="heart-outline" size={28} color={colors.mutedForeground} />
                 <Text style={[styles.emptyHintText, { color: colors.mutedForeground }]}>
-                  Você ainda não curtiu nenhum post.{'\n'}Explore o feed e curta os animais!
+                  Você ainda nío curtiu nenhum post.{'\n'}Explore o feed e curta os animais!
                 </Text>
               </View>
             )}
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     gap: 12,
   },
-  backBtn: { padding: 4 },
+  backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerCenter: { flex: 1 },
   headerTitle: { fontSize: 17, fontFamily: 'Inter_700Bold' },
   headerSub: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 1 },
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    paddingVertical: 12,
+    minHeight: 48,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
