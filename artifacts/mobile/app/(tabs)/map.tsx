@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -23,10 +24,11 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
+import { StaticMapTiles } from '@/components/StaticMapTiles';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MOCK_POSTS, Post, POST_TYPE_CONFIG, PostType } from '@/constants/data';
 import { useColors } from '@/hooks/useColors';
-import { createZooHelpApi, mapPost } from '@/services/zoohelpApi';
+import { createZooHelpApi, getStaticMapUrl, mapPost } from '@/services/zoohelpApi';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -58,6 +60,11 @@ const PIN_POSITIONS = [
   { top: 70, left: 260, type: 'found'     as PostType },
   { top: 38, left: 320, type: 'campaign'  as PostType },
 ];
+
+const DEFAULT_MAP_COORDS = {
+  lat: -23.5505,
+  lng: -46.6333,
+};
 
 function PulsingPin({ type, top, left, urgent }: { type: PostType; top: number; left: number; urgent?: boolean }) {
   const cfg = POST_TYPE_CONFIG[type];
@@ -177,19 +184,38 @@ export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState<FilterValue>('all');
   const [nearbyPosts, setNearbyPosts] = useState<Post[]>(MOCK_POSTS);
-  const [locationLabel, setLocationLabel] = useState('São Paulo, SP');
+  const [locationLabel, setLocationLabel] = useState('Sao Paulo, SP');
+  const [mapImageUrl, setMapImageUrl] = useState<string | null>(null);
+  const [mapCoords, setMapCoords] = useState(DEFAULT_MAP_COORDS);
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
   useEffect(() => {
     let mounted = true;
+
+    async function loadMapImage(lat: number, lng: number) {
+      setMapCoords({ lat, lng });
+      const staticMap = await getStaticMapUrl({
+        lat,
+        lng,
+        zoom: 13,
+        width: 800,
+        height: 360,
+      });
+      if (staticMap && mounted) setMapImageUrl(staticMap);
+    }
+
     async function loadNearby() {
       try {
         const permission = await Location.requestForegroundPermissionsAsync();
-        if (permission.status !== 'granted') return;
+        if (permission.status !== 'granted') {
+          await loadMapImage(DEFAULT_MAP_COORDS.lat, DEFAULT_MAP_COORDS.lng);
+          return;
+        }
         const position = await Location.getCurrentPositionAsync({});
         if (!mounted) return;
-        setLocationLabel('Perto de você');
+        setLocationLabel('Perto de voce');
+        await loadMapImage(position.coords.latitude, position.coords.longitude);
         const api = createZooHelpApi();
         const nearby = await api?.nearby({
           lat: position.coords.latitude,
@@ -198,7 +224,7 @@ export default function MapScreen() {
         });
         if (nearby && mounted) setNearbyPosts(nearby.map((item) => mapPost(item.post)));
       } catch {
-        // Local fallback keeps the map usable without GPS/API.
+        await loadMapImage(DEFAULT_MAP_COORDS.lat, DEFAULT_MAP_COORDS.lng);
       }
     }
     loadNearby();
@@ -253,14 +279,24 @@ export default function MapScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.mapGradient}
         >
+          <StaticMapTiles latitude={mapCoords.lat} longitude={mapCoords.lng} zoom={13} opacity={0.95} />
+          {mapImageUrl && (
+            <Image
+              source={{ uri: mapImageUrl }}
+              style={styles.realMapImage}
+              contentFit="cover"
+              onError={() => setMapImageUrl(null)}
+            />
+          )}
+
           {/* Grid lines */}
-          {[...Array(5)].map((_, i) => (
+          {false && !mapImageUrl && [...Array(5)].map((_, i) => (
             <View
               key={`h${i}`}
               style={[styles.gridLineH, { top: 20 + i * 28, opacity: 0.18 }]}
             />
           ))}
-          {[...Array(7)].map((_, i) => (
+          {false && !mapImageUrl && [...Array(7)].map((_, i) => (
             <View
               key={`v${i}`}
               style={[styles.gridLineV, { left: 16 + i * 52, opacity: 0.18 }]}
@@ -408,6 +444,10 @@ const styles = StyleSheet.create({
     height: 165,
     position: 'relative',
   },
+  realMapImage: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+  },
   gridLineH: {
     position: 'absolute',
     left: 0,
@@ -426,6 +466,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 2,
   },
   pinPulse: {
     position: 'absolute',
@@ -447,6 +488,7 @@ const styles = StyleSheet.create({
   },
   youMarker: {
     position: 'absolute',
+    zIndex: 3,
     top: '45%',
     left: '50%',
     width: 22,
@@ -470,6 +512,7 @@ const styles = StyleSheet.create({
   },
   expandBtn: {
     position: 'absolute',
+    zIndex: 4,
     bottom: 10,
     right: 10,
     flexDirection: 'row',
