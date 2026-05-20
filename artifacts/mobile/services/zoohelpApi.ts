@@ -122,6 +122,7 @@ export function fileNameFromUri(uri: string) {
 export async function uploadLocalImageToCloudinary(
   api: NonNullable<ReturnType<typeof createZooHelpApi>>,
   uri: string,
+  purpose: 'post' | 'ong-logo' | 'profile-avatar' = 'post',
 ) {
   const contentType = contentTypeFromUri(uri);
   const fileName = fileNameFromUri(uri);
@@ -131,6 +132,7 @@ export async function uploadLocalImageToCloudinary(
     fileName,
     contentType,
     sizeBytes: blob.size,
+    purpose,
   });
 
   const form = new FormData();
