@@ -41,23 +41,11 @@ interface AppContextType {
   addPost: (post: Post) => Promise<void>;
   refreshPosts: () => Promise<void>;
   donateToOng: (ongId: string, amountCents?: number) => Promise<void>;
+  updateUserAvatar: (avatarUri: string) => Promise<void>;
   isLoading: boolean;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
-
-const DEFAULT_USER: User = {
-  id: 'me',
-  name: 'Você',
-  email: 'voce@zoohelp.com',
-  avatar: null,
-  bio: 'Apaixonada por animais',
-  type: 'person',
-  verified: false,
-  postsCount: 3,
-  helpedCount: 12,
-  adoptionsCount: 2,
-};
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -135,7 +123,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    await persistUser({ ...DEFAULT_USER, email, name: email.split('@')[0] });
+    throw new Error('Backend auth is required');
   }
 
   async function register(
@@ -170,7 +158,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    await persistUser({ ...DEFAULT_USER, name, email, type });
+    throw new Error('Backend auth is required');
   }
 
   async function logout() {
@@ -228,8 +216,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         urgent: post.urgent,
         contact: post.contact,
         tags: post.tags,
-        latitude: undefined,
-        longitude: undefined,
+        latitude: post.latitude,
+        longitude: post.longitude,
       });
       setPosts((prev) => [mapPost(response.post), ...prev]);
       return;
@@ -258,6 +246,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function updateUserAvatar(avatarUri: string) {
+    if (!user) return;
+
+    const uploadedImage =
+      api && !avatarUri.startsWith('http')
+        ? await uploadLocalImageToCloudinary(api, avatarUri)
+        : null;
+    const nextUser = {
+      ...user,
+      avatar: uploadedImage?.publicUrl ?? avatarUri,
+    };
+
+    await persistUser(nextUser);
+  }
+
   return (
     <AppContext.Provider
       value={{
@@ -277,6 +280,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addPost,
         refreshPosts,
         donateToOng,
+        updateUserAvatar,
         isLoading,
       }}
     >
