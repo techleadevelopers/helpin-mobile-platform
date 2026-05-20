@@ -26,7 +26,7 @@ const colors = {
     accent: "#4A9B7A",          // verde médio para destaques
     accentForeground: "#FFFFFF",
     
-    destructive: "#C95A5A",     // vermelho suave (não berrante)
+    destructive: "#C95A5A",     // vermelho suave (nío berrante)
     destructiveForeground: "#FFFFFF",
     
     border: "#E2E8E2",          // bordas suaves
