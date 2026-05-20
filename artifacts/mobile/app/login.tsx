@@ -41,7 +41,7 @@ export default function LoginScreen() {
       await login(email.trim(), password);
       router.replace('/(tabs)');
     } catch {
-      Alert.alert('Erro', 'Não foi possível fazer login. Tente novamente.');
+      Alert.alert('Erro', 'Nao foi possivel fazer login. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -55,7 +55,7 @@ export default function LoginScreen() {
     try {
       await createZooHelpApi()?.requestPasswordReset(email.trim());
     } finally {
-      Alert.alert('Recuperação enviada', 'Se o e-mail existir, enviaremos as instruções de recuperação.');
+      Alert.alert('Recuperacao enviada', 'Se o e-mail existir, enviaremos as instrucoes de recuperacao.');
     }
   }
 
@@ -84,17 +84,19 @@ export default function LoginScreen() {
           </View>
           <Text style={[styles.logoText, { color: colors.primary }]}>ZooHelp</Text>
           <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
-            Plataforma de adoção, resgate e apoio animal
+            Plataforma de adocao, resgate e apoio animal
           </Text>
         </View>
 
         <View style={styles.form}>
           
 
-          <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <MaterialCommunityIcons name="email-outline" size={18} color={colors.mutedForeground} />
+          <View style={styles.inputWrapper}>
+            <View style={styles.iconCircle}>
+              <MaterialCommunityIcons name="email-outline" size={18} color={colors.mutedForeground} />
+            </View>
             <TextInput
-              style={[styles.input, { color: colors.foreground }]}
+              style={[styles.input, styles.loginInput]}
               placeholder="Seu e-mail"
               placeholderTextColor={colors.mutedForeground}
               keyboardType="email-address"
@@ -104,10 +106,12 @@ export default function LoginScreen() {
             />
           </View>
 
-          <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <MaterialCommunityIcons name="lock-outline" size={18} color={colors.mutedForeground} />
+          <View style={styles.inputWrapper}>
+            <View style={styles.iconCircle}>
+              <MaterialCommunityIcons name="lock-outline" size={18} color={colors.mutedForeground} />
+            </View>
             <TextInput
-              style={[styles.input, { color: colors.foreground }]}
+              style={[styles.input, styles.loginInput]}
               placeholder="Senha"
               placeholderTextColor={colors.mutedForeground}
               secureTextEntry={!showPassword}
@@ -131,17 +135,14 @@ export default function LoginScreen() {
 
           <TouchableOpacity
             style={[
-              styles.loginBtn,
-              {
-                backgroundColor: loading ? colors.muted : colors.primary,
-                shadowColor: colors.primary,
-              },
+              styles.signInButton,
+              loading && styles.buttonDisabled,
             ]}
             onPress={handleLogin}
             disabled={loading}
             activeOpacity={0.85}
           >
-            <Text style={[styles.loginBtnText, { color: loading ? colors.mutedForeground : '#FFFFFF' }]}>
+            <Text style={styles.signInButtonText}>
               {loading ? 'Entrando...' : 'Entrar'}
             </Text>
           </TouchableOpacity>
@@ -190,15 +191,69 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1.5,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    height: 41.8,
+    bottom: Platform.OS === 'ios' ? 55 : 45,
+    marginBottom: 10,
+    shadowColor: 'rgba(100, 100, 150, 0.15)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 15,
+    elevation: 0,
+    paddingLeft: 5,
+    paddingRight: 15,
   },
-  input: { flex: 1, fontSize: 16, fontFamily: 'Inter_400Regular' },
+  iconCircle: {
+    width: 50,
+    height: 30,
+    right: 2,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Platform.OS === 'android' ? '#85d0fc34' : '#FFFFFF',
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: '#2D3748',
+    paddingVertical: 0,
+    height: 44,
+  },
+  loginInput: {
+    height: 34,
+    bottom: Platform.OS === 'ios' ? 0 : 2,
+  },
   forgotBtn: { alignSelf: 'flex-end' },
   forgotText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
+  signInButton: {
+    backgroundColor: '#2D6A4F',
+    borderRadius: 28,
+    paddingVertical: 8,
+    top: Platform.OS === 'ios' ? 0 : 2,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    bottom: 55,
+    marginBottom: Platform.OS === 'ios' ? 35 : 25,
+    shadowColor: '#2D6A4F',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 0,
+  },
+  buttonDisabled: {
+    backgroundColor: '#A0CFFF',
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  signInButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
   loginBtn: {
     paddingVertical: 16,
     borderRadius: 14,
