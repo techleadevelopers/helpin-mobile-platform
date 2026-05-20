@@ -143,6 +143,27 @@ export interface CreatePostResponseContract {
   media: PostMediaContract[];
   moderationStatus: "queued" | "approved" | "rejected" | "needs_review";
   fraudRisk: number;
+  rescueAlert?: RescueAlertContract | null;
+}
+
+export interface RescueAlertContract {
+  id: string;
+  postId: string;
+  title: string;
+  body: string;
+  imageUrl?: string | null;
+  lat: number;
+  lng: number;
+  radiusKm: number;
+  critical: boolean;
+  recipients: Array<{
+    userId: string;
+    pushToken: string;
+    platform: "ios" | "android" | "expo" | "web" | string;
+    distanceKm: number;
+    deliveryStatus: string;
+  }>;
+  createdAt: string;
 }
 
 export interface MediaUploadIntentContract {
