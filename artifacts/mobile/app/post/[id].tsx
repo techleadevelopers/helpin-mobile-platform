@@ -74,7 +74,7 @@ export default function PostDetailScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
         <MaterialCommunityIcons name="paw-off" size={36} color={colors.mutedForeground} />
-        <Text style={[styles.errorText, { color: colors.mutedForeground }]}>Caso não encontrado</Text>
+        <Text style={[styles.errorText, { color: colors.mutedForeground }]}>Caso nío encontrado</Text>
       </View>
     );
   }
