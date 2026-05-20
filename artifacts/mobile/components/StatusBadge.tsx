@@ -16,10 +16,10 @@ const TYPE_ICONS: Record<PostType, MCIcon> = {
   post:      'pencil-outline',
 };
 
-// Substitua TYPE_GRADIENTS por versÃµes mais suaves:
+// Substitua TYPE_GRADIENTS por versíµes mais suaves:
 const TYPE_GRADIENTS: Record<PostType, [string, string]> = {
   adoption: ['#4A9B7A', '#2D6A4F'],   // verde suave
-  lost: ['#D4A259', '#B8863E'],       // Ã¢mbar suave
+  lost: ['#D4A259', '#B8863E'],       // í¢mbar suave
   found: ['#5B8A9F', '#2C5F8A'],     // azul suave
   emergency: ['#D97863', '#A85645'],
   campaign: ['#7B6B9A', '#5B4B7A'],  // roxo suave
