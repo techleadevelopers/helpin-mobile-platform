@@ -27,7 +27,7 @@ export default function FavoritesScreen() {
         data={favorites}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => <PostCard post={item} index={index} />}
-        ListEmptyComponent={<Text style={[styles.empty, { color: colors.mutedForeground }]}>Você ainda não favoritou nenhum caso.</Text>}
+        ListEmptyComponent={<Text style={[styles.empty, { color: colors.mutedForeground }]}>Você ainda nío favoritou nenhum caso.</Text>}
       />
     </View>
   );
