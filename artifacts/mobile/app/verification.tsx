@@ -16,9 +16,9 @@ export default function VerificationScreen() {
         <MaterialCommunityIcons name="arrow-left" size={20} color={colors.foreground} />
       </TouchableOpacity>
       <MaterialCommunityIcons name="shield-check-outline" size={46} color="#4CAF50" />
-      <Text style={[styles.title, { color: colors.foreground }]}>Verificação de conta</Text>
+      <Text style={[styles.title, { color: colors.foreground }]}>Verificaçío de conta</Text>
       <Text style={[styles.text, { color: colors.mutedForeground }]}>
-        ONGs ganham selo após validação de CNPJ, telefone, cidade e análise operacional. O cadastro já envia esses dados ao backend.
+        ONGs ganham selo após validaçío de CNPJ, telefone, cidade e análise operacional. O cadastro já envia esses dados ao backend.
       </Text>
     </View>
   );
