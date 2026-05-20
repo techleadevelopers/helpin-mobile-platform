@@ -146,7 +146,7 @@ function ONGCard({ item, following, onFollow, onPress, index }: {
           <Text style={[S.trustTxt, { color: colors.mutedForeground }]}>CNPJ verificado</Text>
           <View style={[S.dot, { backgroundColor: colors.border }]} />
           <MaterialCommunityIcons name="file-document-check-outline" size={11} color="#1565C0" />
-          <Text style={[S.trustTxt, { color: colors.mutedForeground }]}>Prestação ativa</Text>
+          <Text style={[S.trustTxt, { color: colors.mutedForeground }]}>Prestaçío ativa</Text>
         </View>
 
         <View style={S.actionBtns}>
