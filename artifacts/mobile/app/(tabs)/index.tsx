@@ -39,7 +39,7 @@ type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 const FILTERS: Array<{ label: string; value: FeedFilter; icon: MCIcon; color: string; activeBg: string }> = [
   { label: 'Todos',       value: 'all',       icon: 'paw',               color: '#4CAF50', activeBg: '#6EC270' },
-  { label: 'Adoção',      value: 'adoption',  icon: 'home-heart',        color: '#4CAF50', activeBg: '#6EC270' },
+  { label: 'Adoçío',      value: 'adoption',  icon: 'home-heart',        color: '#4CAF50', activeBg: '#6EC270' },
   { label: 'Perdidos',    value: 'lost',       icon: 'magnify',           color: '#FF9800', activeBg: '#FFB347' },
   { label: 'Encontrados', value: 'found',      icon: 'check-circle',      color: '#2F80ED', activeBg: '#5B9FEE' },
   { label: 'Emergência',  value: 'emergency',  icon: 'alert-circle',      color: '#FF3B30', activeBg: '#FF6B6B' },
@@ -384,7 +384,7 @@ export default function FeedScreen() {
       <View style={styles.sectionRow}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
           {activeFilter === 'all' ? 'Casos recentes' :
-           activeFilter === 'adoption' ? 'Para adoção' :
+           activeFilter === 'adoption' ? 'Para adoçío' :
            activeFilter === 'lost' ? 'Animais perdidos' :
            activeFilter === 'found' ? 'Animais encontrados' :
            activeFilter === 'emergency' ? 'Emergências' : 'Campanhas'}
@@ -450,7 +450,8 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    minHeight: 48,
   },
   headerLeft: {
     gap: 1,
@@ -487,12 +488,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingTop: 4,
   },
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -523,16 +523,16 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   quickPostAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
   quickInputShell: {
     flex: 1,
-    minHeight: 38,
-    borderRadius: 19,
+    minHeight: 44,
+    borderRadius: 22,
     paddingHorizontal: 14,
     justifyContent: 'center',
   },
@@ -554,9 +554,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   quickTool: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -564,8 +564,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
+    minHeight: 36,
     paddingHorizontal: 12,
-    paddingVertical: 8,
     borderRadius: 18,
   },
   quickPostCtaText: {
