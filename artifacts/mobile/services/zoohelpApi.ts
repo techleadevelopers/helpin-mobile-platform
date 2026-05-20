@@ -3,7 +3,9 @@ import type { Author, Post } from '@/constants/data';
 
 declare const process: { env?: Record<string, string | undefined> };
 
-const API_BASE_URL = process.env?.EXPO_PUBLIC_API_BASE_URL;
+const DEFAULT_API_BASE_URL = 'https://zoohelp-core-production.up.railway.app';
+const API_BASE_URL = (process.env?.EXPO_PUBLIC_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
+const GOOGLE_MAPS_API_KEY = process.env?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 const AUTH_TOKEN_KEY = 'authToken';
 
 export const backendEnabled = Boolean(API_BASE_URL);
@@ -18,6 +20,47 @@ export function createZooHelpApi(getAccessToken?: () => Promise<string | null> |
 }
 
 export { AUTH_TOKEN_KEY };
+
+export async function getStaticMapUrl(input: {
+  lat: number;
+  lng: number;
+  zoom?: number;
+  width?: number;
+  height?: number;
+}) {
+  const params = new URLSearchParams({
+    lat: String(input.lat),
+    lng: String(input.lng),
+    zoom: String(input.zoom ?? 14),
+    width: String(input.width ?? 640),
+    height: String(input.height ?? 320),
+  });
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/v1/maps/static-url?${params.toString()}`);
+    if (response.ok) {
+      const payload = (await response.json()) as { imageUrl?: string };
+      if (payload.imageUrl) return payload.imageUrl;
+    }
+  } catch {
+    // Fall back to direct Static Maps while the backend is unavailable.
+  }
+
+  if (!GOOGLE_MAPS_API_KEY) return null;
+
+  const marker = `color:green|label:Z|${input.lat},${input.lng}`;
+  const directParams = new URLSearchParams({
+    center: `${input.lat},${input.lng}`,
+    zoom: String(input.zoom ?? 14),
+    size: `${input.width ?? 640}x${input.height ?? 320}`,
+    scale: '2',
+    maptype: 'roadmap',
+    markers: marker,
+    key: GOOGLE_MAPS_API_KEY,
+  });
+
+  return `https://maps.googleapis.com/maps/api/staticmap?${directParams.toString()}`;
+}
 
 export function mapAuthor(author: PostContract['author']): Author {
   return {
@@ -41,6 +84,7 @@ export function mapPost(post: PostContract): Post {
     location: post.location,
     neighborhood: post.neighborhood,
     image: post.image,
+    images: post.images?.map((image) => image.url) ?? [],
     textOnly: post.textOnly,
     author: mapAuthor(post.author),
     likes: post.likes,
@@ -50,6 +94,8 @@ export function mapPost(post: PostContract): Post {
     createdAt: post.createdAt,
     contact: post.contact,
     tags: post.tags,
+    latitude: post.latitude,
+    longitude: post.longitude,
   };
 }
 
