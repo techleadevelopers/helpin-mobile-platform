@@ -1,9 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
   Alert,
@@ -25,9 +26,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MOCK_AUTHORS, Post, PostType, POST_TYPE_CONFIG } from '@/constants/data';
+import { Post, PostType, POST_TYPE_CONFIG } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
+import { getStaticMapUrl } from '@/services/zoohelpApi';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -107,7 +109,7 @@ export default function ComposeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ intent?: string; type?: string }>();
-  const { addPost, user } = useApp();
+  const { addPost, isAuthenticated, isLoading, user } = useApp();
   const requestedType = typeof params.type === 'string' ? params.type : undefined;
   const requestedIntent = typeof params.intent === 'string' ? params.intent : undefined;
   const initialType = POST_TYPES.some((t) => t.type === requestedType)
@@ -119,6 +121,8 @@ export default function ComposeScreen() {
   const [animalType, setAnimalType] = useState<'dog' | 'cat' | 'other'>('dog');
   const [text, setText] = useState('');
   const [location, setLocation] = useState('');
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [mapImageUrl, setMapImageUrl] = useState<string | null>(null);
   const [contact, setContact] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [urgent, setUrgent] = useState(requestedIntent === 'help' || initialType === 'emergency');
@@ -134,7 +138,11 @@ export default function ComposeScreen() {
 
   const currentType = POST_TYPES.find((t) => t.type === selectedType)!;
   const canPost = text.trim().length > 0 || images.length > 0;
-  const displayName = user?.name ?? 'Você';
+  const displayName = user?.name ?? '';
+
+  if (isLoading) return null;
+  if (!isAuthenticated || !user) return <Redirect href="/login" />;
+  const currentUser = user;
 
   function selectType(type: PostType) {
     setSelectedType(type);
@@ -170,6 +178,39 @@ export default function ComposeScreen() {
     }
   }
 
+  async function detectLocation() {
+    if (Platform.OS === 'web') {
+      Alert.alert('GPS indisponivel', 'Use o app mobile para capturar GPS real.');
+      return;
+    }
+
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert('Permissao de localizacao', 'Autorize a localizacao para enviar ajuda proxima com precisao.');
+        return;
+      }
+
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const { latitude, longitude } = position.coords;
+      setCoords({ latitude, longitude });
+      setLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+
+      const staticMap = await getStaticMapUrl({
+        lat: latitude,
+        lng: longitude,
+        zoom: 14,
+        width: 640,
+        height: 320,
+      });
+      if (staticMap) setMapImageUrl(staticMap);
+    } catch {
+      Alert.alert('Localizacao indisponivel', 'Nao foi possivel capturar sua localizacao agora.');
+    }
+  }
+
   function removeImage(uri: string) {
     setImages((prev) => prev.filter((u) => u !== uri));
   }
@@ -194,10 +235,17 @@ export default function ComposeScreen() {
       location: location.trim() || 'Localização não informada',
       neighborhood: location.trim() || 'Local não informado',
       image: images[0] ?? null,
+      images,
+      latitude: coords?.latitude,
+      longitude: coords?.longitude,
       textOnly: images.length === 0,
-      author: user
-        ? { id: user.id, name: user.name, avatar: null, verified: user.verified, type: user.type }
-        : MOCK_AUTHORS[4],
+      author: {
+        id: currentUser.id,
+        name: currentUser.name,
+        avatar: null,
+        verified: currentUser.verified,
+        type: currentUser.type,
+      },
       likes: 0,
       comments: 0,
       shares: 0,
@@ -473,22 +521,29 @@ export default function ComposeScreen() {
               onChangeText={setLocation}
             />
             {location.length > 0 && (
-              <TouchableOpacity onPress={() => setLocation('')}>
+              <TouchableOpacity
+                onPress={() => {
+                  setLocation('');
+                  setCoords(null);
+                  setMapImageUrl(null);
+                }}
+              >
                 <MaterialCommunityIcons name="close-circle" size={15} color={colors.mutedForeground} />
               </TouchableOpacity>
             )}
           </View>
           <View style={[styles.mapPreview, { backgroundColor: colors.muted }]}>
-            <MaterialCommunityIcons name="map-outline" size={22} color={colors.mutedForeground} />
+            {mapImageUrl ? (
+              <Image source={{ uri: mapImageUrl }} style={styles.mapPreviewImage} contentFit="cover" />
+            ) : (
+              <MaterialCommunityIcons name="map-outline" size={22} color={colors.mutedForeground} />
+            )}
             <Text style={[styles.mapPreviewText, { color: colors.mutedForeground }]}>
               {location.trim() ? location : 'Nenhuma localização definida'}
             </Text>
             <TouchableOpacity
               style={[styles.autoLocBtn, { backgroundColor: currentType.color }]}
-              onPress={() => {
-                setLocation('São Paulo, SP');
-                Alert.alert('Localização definida', 'Usando localização aproximada. A integração GPS completa usa /v1/geo/nearby no mapa.');
-              }}
+              onPress={detectLocation}
               activeOpacity={0.85}
             >
               <MaterialCommunityIcons name="navigation-variant" size={12} color="#FFFFFF" />
@@ -573,7 +628,7 @@ export default function ComposeScreen() {
           {[
   { icon: 'image-outline' as MCIcon, color: '#2D6A4F', label: 'Foto', onPress: pickImage },
   { icon: 'microphone-outline' as MCIcon, color: '#2C5F8A', label: 'Áudio', onPress: () => Alert.alert('Áudio', 'Upload de áudio será liberado junto com moderação de mídia.') },
-  { icon: 'map-marker-outline' as MCIcon, color: '#D4A259', label: 'Local', onPress: () => setLocation('São Paulo, SP') },
+  { icon: 'map-marker-outline' as MCIcon, color: '#D4A259', label: 'Local', onPress: detectLocation },
   { icon: 'tag-outline' as MCIcon, color: '#6B5B8A', label: 'Tag', onPress: () => Alert.alert('Tags', 'Selecione características na seção acima.') },
   { icon: 'dots-horizontal' as MCIcon, color: '#6B7B6B', label: 'Mais', onPress: () => Alert.alert('Mais opções', 'Recursos avançados serão ativados conforme moderação e backend evoluírem.') },
 ].map(({ icon, color, label, onPress }) => (
@@ -788,11 +843,18 @@ const styles = StyleSheet.create({
   mapPreview: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     borderRadius: 14, padding: 12,
+    minHeight: 74,
+    overflow: 'hidden',
   },
-  mapPreviewText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular' },
+  mapPreviewImage: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.72,
+  },
+  mapPreviewText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', zIndex: 1 },
   autoLocBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12,
+    zIndex: 1,
   },
   autoLocText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: '#FFFFFF' },
 
