@@ -16,7 +16,7 @@ export default function SettingsScreen() {
         <MaterialCommunityIcons name="arrow-left" size={20} color={colors.foreground} />
       </TouchableOpacity>
       <Text style={[styles.title, { color: colors.foreground }]}>Configurações</Text>
-      <Text style={[styles.text, { color: colors.mutedForeground }]}>Preferências de conta, notificações e segurança serão centralizadas aqui.</Text>
+      <Text style={[styles.text, { color: colors.mutedForeground }]}>Preferências de conta, notificações e segurança serío centralizadas aqui.</Text>
     </View>
   );
 }
