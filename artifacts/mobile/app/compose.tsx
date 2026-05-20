@@ -45,7 +45,7 @@ const POST_TYPES: Array<{
   cta: string;
 }> = [
   { type: 'post',      icon: 'pencil-outline', label: 'Escrever',   color: '#6B7B6B', light: '#6B7B6B15', cta: 'Publicar post' },
-  { type: 'adoption',  icon: 'home-heart',     label: 'Adoção',     color: '#2D6A4F', light: '#2D6A4F15', cta: 'Publicar para adoção' },
+  { type: 'adoption',  icon: 'home-heart',     label: 'Adoçío',     color: '#2D6A4F', light: '#2D6A4F15', cta: 'Publicar para adoçío' },
   { type: 'lost',      icon: 'magnify',        label: 'Perdido',    color: '#D4A259', light: '#D4A25915', cta: 'Reportar animal perdido' },
   { type: 'found',     icon: 'check-circle',   label: 'Encontrado', color: '#2C5F8A', light: '#2C5F8A15', cta: 'Reportar animal encontrado' },
   { type: 'emergency', icon: 'alert-circle',   label: 'Emergência', color: '#C95A5A', light: '#C95A5A15', cta: 'Pedir ajuda urgente' },
@@ -217,7 +217,7 @@ export default function ComposeScreen() {
 
   async function handlePublish() {
     if (!canPost) {
-      Alert.alert('Publicação vazia', 'Escreva algo ou adicione uma foto.');
+      Alert.alert('Publicaçío vazia', 'Escreva algo ou adicione uma foto.');
       return;
     }
     setSubmitting(true);
@@ -228,12 +228,12 @@ export default function ComposeScreen() {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
       type: selectedType,
       animalType,
-      name: text.trim().split(' ').slice(0, 2).join(' ') || 'Publicação',
+      name: text.trim().split(' ').slice(0, 2).join(' ') || 'Publicaçío',
       breed: '',
       age: '',
       description: text.trim(),
-      location: location.trim() || 'Localização não informada',
-      neighborhood: location.trim() || 'Local não informado',
+      location: location.trim() || 'Localizaçío nío informada',
+      neighborhood: location.trim() || 'Local nío informado',
       image: images[0] ?? null,
       images,
       latitude: coords?.latitude,
@@ -259,7 +259,7 @@ export default function ComposeScreen() {
       await addPost(newPost);
       router.back();
     } catch {
-      Alert.alert('Erro ao publicar', 'Não foi possível publicar agora. Tente novamente.');
+      Alert.alert('Erro ao publicar', 'Nío foi possível publicar agora. Tente novamente.');
     } finally {
       setSubmitting(false);
     }
@@ -290,7 +290,7 @@ export default function ComposeScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Nova publicação</Text>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Nova publicaçío</Text>
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { backgroundColor: currentType.color, width: `${Math.round(progress * 100)}%` }]} />
           </View>
@@ -320,7 +320,7 @@ export default function ComposeScreen() {
         {/* ── POST TYPE SELECTOR ── */}
         <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-            Qual é a situação?
+            Qual é a situaçío?
           </Text>
           <ScrollView
             horizontal
@@ -510,7 +510,7 @@ export default function ComposeScreen() {
 
         {/* ── LOCATION ── */}
         <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Localização</Text>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Localizaçío</Text>
           <View style={[styles.locationInput, { borderColor: colors.border }]}>
             <MaterialCommunityIcons name="map-marker-outline" size={16} color={currentType.color} />
             <TextInput
@@ -539,7 +539,7 @@ export default function ComposeScreen() {
               <MaterialCommunityIcons name="map-outline" size={22} color={colors.mutedForeground} />
             )}
             <Text style={[styles.mapPreviewText, { color: colors.mutedForeground }]}>
-              {location.trim() ? location : 'Nenhuma localização definida'}
+              {location.trim() ? location : 'Nenhuma localizaçío definida'}
             </Text>
             <TouchableOpacity
               style={[styles.autoLocBtn, { backgroundColor: currentType.color }]}
@@ -606,7 +606,7 @@ export default function ComposeScreen() {
           </View>
           {[
             { icon: 'account-check' as MCIcon,  text: 'Sua identidade é verificada pela plataforma' },
-            { icon: 'eye-outline' as MCIcon,    text: 'Denúncias são monitoradas em tempo real' },
+            { icon: 'eye-outline' as MCIcon,    text: 'Denúncias sío monitoradas em tempo real' },
             { icon: 'lock-outline' as MCIcon,   text: 'Doações com rastreabilidade total' },
           ].map((item) => (
             <View key={item.text} style={styles.trustRow}>
@@ -627,10 +627,10 @@ export default function ComposeScreen() {
         <View style={styles.dockIcons}>
           {[
   { icon: 'image-outline' as MCIcon, color: '#2D6A4F', label: 'Foto', onPress: pickImage },
-  { icon: 'microphone-outline' as MCIcon, color: '#2C5F8A', label: 'Áudio', onPress: () => Alert.alert('Áudio', 'Upload de áudio será liberado junto com moderação de mídia.') },
+  { icon: 'microphone-outline' as MCIcon, color: '#2C5F8A', label: 'Áudio', onPress: () => Alert.alert('Áudio', 'Upload de áudio será liberado junto com moderaçío de mídia.') },
   { icon: 'map-marker-outline' as MCIcon, color: '#D4A259', label: 'Local', onPress: detectLocation },
-  { icon: 'tag-outline' as MCIcon, color: '#6B5B8A', label: 'Tag', onPress: () => Alert.alert('Tags', 'Selecione características na seção acima.') },
-  { icon: 'dots-horizontal' as MCIcon, color: '#6B7B6B', label: 'Mais', onPress: () => Alert.alert('Mais opções', 'Recursos avançados serão ativados conforme moderação e backend evoluírem.') },
+  { icon: 'tag-outline' as MCIcon, color: '#6B5B8A', label: 'Tag', onPress: () => Alert.alert('Tags', 'Selecione características na seçío acima.') },
+  { icon: 'dots-horizontal' as MCIcon, color: '#6B7B6B', label: 'Mais', onPress: () => Alert.alert('Mais opções', 'Recursos avançados serío ativados conforme moderaçío e backend evoluírem.') },
 ].map(({ icon, color, label, onPress }) => (
             <TouchableOpacity key={icon} style={styles.dockBtn} onPress={onPress} activeOpacity={0.7}>
               <View style={[styles.dockIcon, { backgroundColor: color + '18', borderColor: color + '30', shadowColor: color }]}>
@@ -673,7 +673,7 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: '#FFFFFF',
   },
-  cancelBtn: { paddingVertical: 6, paddingRight: 4 },
+  cancelBtn: { minHeight: 44, justifyContent: 'center', paddingRight: 4 },
   cancelText: { fontSize: 15, fontFamily: 'Inter_400Regular' },
   headerCenter: { flex: 1, alignItems: 'center', gap: 5 },
   headerTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
@@ -686,8 +686,9 @@ const styles = StyleSheet.create({
   },
   progressFill: { height: 3, borderRadius: 2 },
   publishTopBtn: {
+    minHeight: 40,
+    justifyContent: 'center',
     paddingHorizontal: 18,
-    paddingVertical: 8,
     borderRadius: 20,
   },
   publishTopText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
