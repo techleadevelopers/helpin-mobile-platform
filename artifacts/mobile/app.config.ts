@@ -48,12 +48,18 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         backgroundColor: "#4CAF50",
       },
       package: "com.zoohelp.app",
+      versionCode: Number(process.env.ANDROID_VERSION_CODE || "1"),
       permissions: [
         "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.POST_NOTIFICATIONS",
+      ],
+      blockedPermissions: [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
         "android.permission.RECORD_AUDIO",
       ],
     },
@@ -86,6 +92,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             "O ZooHelp precisa acessar sua galeria para que você possa escolher fotos nas publicações.",
           cameraPermission:
             "O ZooHelp precisa acessar sua câmera para fotografar animais.",
+          microphonePermission: false,
         },
       ],
     ],
