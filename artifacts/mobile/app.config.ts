@@ -35,11 +35,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         NSPhotoLibraryAddUsageDescription:
           "O ZooHelp precisa salvar fotos na sua galeria.",
         NSLocationWhenInUseUsageDescription:
-          "O ZooHelp usa sua localização para mostrar animais próximos de você.",
+          "O ZooHelp usa sua localizaçío para mostrar animais próximos de você.",
         NSLocationAlwaysAndWhenInUseUsageDescription:
-          "O ZooHelp usa sua localização para mostrar animais próximos e enviar alertas de emergência na sua região.",
+          "O ZooHelp usa sua localizaçío para mostrar animais próximos e enviar alertas de emergência na sua regiío.",
         NSMicrophoneUsageDescription:
-          "O ZooHelp pode precisar do microfone para gravação de áudio ou vídeo nas publicações.",
+          "O ZooHelp pode precisar do microfone para gravaçío de áudio ou vídeo nas publicações.",
       },
     },
     android: {
@@ -80,9 +80,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         "expo-location",
         {
           locationAlwaysAndWhenInUsePermission:
-            "O ZooHelp usa sua localização para mostrar animais próximos e enviar alertas de emergência na sua região.",
+            "O ZooHelp usa sua localizaçío para mostrar animais próximos e enviar alertas de emergência na sua regiío.",
           locationWhenInUsePermission:
-            "O ZooHelp usa sua localização para mostrar animais próximos de você.",
+            "O ZooHelp usa sua localizaçío para mostrar animais próximos de você.",
         },
       ],
       [
