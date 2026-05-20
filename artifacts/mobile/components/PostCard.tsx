@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+﻿import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -30,15 +30,15 @@ const DISTANCES = ['0.3 km', '0.8 km', '1.2 km', '1.5 km', '2.1 km', '3.4 km'];
 
 const CTA_LABELS: Record<string, string> = {
   adoption:  'Quero adotar ',
-  emergency: 'Ajudar agora 🚨',
-  campaign:  'Fazer doação 💚',
-  lost:      'Vi esse pet 🔍',
+  emergency: 'Ajudar agora',
+  campaign:  'Fazer doaÃ§Ã£o ðŸ’š',
+  lost:      'Vi esse pet ðŸ”',
   found:     'Entrar em contato',
 };
 
 const CTA_COLORS: Record<string, string> = {
   adoption:  '#4CAF50',
-  emergency: '#FF3B30',
+  emergency: '#D97863',
   campaign:  '#9B59B6',
   lost:      '#FF9800',
   found:     '#2F80ED',
@@ -115,12 +115,19 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     shareZooHelpItem(post.name, `${post.name} no ZooHelp: ${post.description}`);
   }
 
-  const imageUri = ANIMAL_PLACEHOLDERS[post.animalType];
+  const imageUris =
+    post.images && post.images.length > 0
+      ? post.images
+      : post.image
+      ? [post.image]
+      : [ANIMAL_PLACEHOLDERS[post.animalType]];
+  const imageUri = imageUris[0];
+  const hasPhotoGrid = imageUris.length > 1;
   const distance = DISTANCES[index % DISTANCES.length];
   const ctaLabel = CTA_LABELS[post.type] ?? 'Ver mais';
   const ctaColor = CTA_COLORS[post.type] ?? '#4CAF50';
 
-  /* ── TEXT-ONLY CARD (premium) ── */
+  /* â”€â”€ TEXT-ONLY CARD (premium) â”€â”€ */
   if (post.textOnly) {
     return (
       <Animated.View style={animatedCardStyle}>
@@ -169,7 +176,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                   )}
                 </View>
                 <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                  {post.neighborhood} · {post.createdAt}
+                  {post.neighborhood} Â· {post.createdAt}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -227,7 +234,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     );
   }
 
-  /* ── IMAGE CARD ── */
+  /* â”€â”€ IMAGE CARD â”€â”€ */
   return (
     <Animated.View style={animatedCardStyle}>
       <TouchableOpacity
@@ -239,12 +246,40 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
       >
         {/* Hero image */}
         <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: imageUri }}
-            style={styles.image}
-            contentFit="cover"
-            transition={400}
-          />
+          {hasPhotoGrid ? (
+            <View style={styles.photoGrid}>
+              <Image
+                source={{ uri: imageUri }}
+                style={styles.photoGridMain}
+                contentFit="cover"
+                transition={400}
+              />
+              <View style={styles.photoGridSide}>
+                {imageUris.slice(1, 3).map((uri, photoIndex) => (
+                  <View key={`${uri}-${photoIndex}`} style={styles.photoGridThumbWrap}>
+                    <Image
+                      source={{ uri }}
+                      style={styles.photoGridThumb}
+                      contentFit="cover"
+                      transition={400}
+                    />
+                    {photoIndex === 1 && imageUris.length > 3 && (
+                      <View style={styles.photoMoreOverlay}>
+                        <Text style={styles.photoMoreText}>+{imageUris.length - 3}</Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : (
+            <Image
+              source={{ uri: imageUri }}
+              style={styles.image}
+              contentFit="cover"
+              transition={400}
+            />
+          )}
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.55)']}
             style={styles.imageGradient}
@@ -281,6 +316,12 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
               <MaterialCommunityIcons name="navigation-variant" size={11} color="#FFFFFF" />
               <Text style={styles.distanceText}>{distance}</Text>
             </View>
+            {hasPhotoGrid && (
+              <View style={styles.photoCountBadge}>
+                <MaterialCommunityIcons name="image-multiple-outline" size={11} color="#FFFFFF" />
+                <Text style={styles.photoCountText}>{imageUris.length}</Text>
+              </View>
+            )}
             {post.author.type === 'ong' && (
               <View style={styles.ongBadge}>
                 <MaterialCommunityIcons name="check-decagram" size={11} color="#FFFFFF" />
@@ -313,7 +354,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
               <View style={styles.metaRow}>
                 <MaterialCommunityIcons name="map-marker-outline" size={11} color={colors.mutedForeground} />
                 <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                  {post.neighborhood} · {post.createdAt}
+                  {post.neighborhood} Â· {post.createdAt}
                 </Text>
               </View>
             </View>
@@ -325,7 +366,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                 {post.name}
               </Text>
               <Text style={[styles.animalBreed, { color: colors.mutedForeground }]} numberOfLines={1}>
-                {post.breed} · {post.age}
+                {post.breed} Â· {post.age}
               </Text>
             </View>
             <Text style={[styles.description, { color: colors.foreground }]} numberOfLines={1}>
@@ -416,6 +457,41 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8ECF0',
   },
   image: { width: '100%', height: CARD_IMAGE_HEIGHT },
+  photoGrid: {
+    width: '100%',
+    height: CARD_IMAGE_HEIGHT,
+    flexDirection: 'row',
+    gap: 2,
+  },
+  photoGridMain: {
+    flex: 1,
+    height: CARD_IMAGE_HEIGHT,
+  },
+  photoGridSide: {
+    width: 96,
+    height: CARD_IMAGE_HEIGHT,
+    gap: 2,
+  },
+  photoGridThumbWrap: {
+    flex: 1,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  photoGridThumb: {
+    width: '100%',
+    height: '100%',
+  },
+  photoMoreOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  photoMoreText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'Montserrat_700Bold',
+  },
   imageGradient: {
     position: 'absolute',
     bottom: 0,
@@ -468,6 +544,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   distanceText: { fontSize: 10, fontFamily: 'Montserrat_500Medium', color: '#FFFFFF' },
+  photoCountBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(0,0,0,0.42)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  photoCountText: { fontSize: 10, fontFamily: 'Montserrat_600SemiBold', color: '#FFFFFF' },
   ongBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -553,3 +639,4 @@ const styles = StyleSheet.create({
   ctaSmall: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
   ctaSmallText: { fontSize: 11, fontFamily: 'Montserrat_500Medium' },
 });
+
