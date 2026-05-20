@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { BlurView } from 'expo-blur';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
@@ -60,6 +61,7 @@ export default function FeedScreen() {
   const [quickImage, setQuickImage] = useState<string | null>(null);
   const [quickUrgent, setQuickUrgent] = useState(true);
   const [quickLocation, setQuickLocation] = useState('');
+  const [quickCoords, setQuickCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [quickSubmitting, setQuickSubmitting] = useState(false);
   const quickInputRef = useRef<TextInput>(null);
 
@@ -117,7 +119,7 @@ export default function FeedScreen() {
     return 'Boa noite';
   })();
 
-  const displayName = user?.name?.split(' ')[0] ?? 'Visitante';
+  const displayName = user?.name?.split(' ')[0] ?? 'Conta';
 
   async function pickQuickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -130,6 +132,28 @@ export default function FeedScreen() {
     }
   }
 
+  async function detectQuickLocation() {
+    if (Platform.OS === 'web') {
+      Alert.alert('Localizacao', 'GPS real esta disponivel no app mobile. No web, use a publicacao completa.');
+      return;
+    }
+
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (permission.status !== 'granted') {
+      Alert.alert('Permissao de localizacao', 'Ative a localizacao para alertar ONGs e pessoas proximas.');
+      return;
+    }
+
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    });
+    setQuickCoords({
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    });
+    setQuickLocation('Localizacao atual');
+  }
+
   async function handleQuickPost() {
     const description = quickText.trim();
     if (!description && !quickImage) {
@@ -137,8 +161,33 @@ export default function FeedScreen() {
       return;
     }
 
+    let coords = quickCoords;
+    let location = quickLocation;
+    if (!coords && Platform.OS === 'web') {
+      Alert.alert('Localizacao obrigatoria', 'Para pedir ajuda real, use o app mobile com GPS ativo.');
+      return;
+    }
+
+    if (!coords) {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert('Localizacao obrigatoria', 'Para pedir ajuda real, permita o GPS. Assim o sistema alerta pessoas e ONGs proximas.');
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      coords = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+      setQuickCoords(coords);
+      location = 'Localizacao atual';
+      setQuickLocation(location);
+    }
+
     setQuickSubmitting(true);
-    const location = quickLocation || 'Localizacao aproximada';
+    location = location || 'Localizacao atual';
     const post: Post = {
       id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
       type: 'emergency',
@@ -150,6 +199,7 @@ export default function FeedScreen() {
       location,
       neighborhood: location,
       image: quickImage,
+      images: quickImage ? [quickImage] : [],
       textOnly: !quickImage,
       author: user
         ? { id: user.id, name: user.name, avatar: user.avatar, verified: user.verified, type: user.type }
@@ -161,6 +211,8 @@ export default function FeedScreen() {
       createdAt: 'agora',
       contact: '',
       tags: quickUrgent ? ['ajuda', 'urgente'] : ['ajuda'],
+      latitude: coords?.latitude,
+      longitude: coords?.longitude,
     };
 
     try {
@@ -168,6 +220,7 @@ export default function FeedScreen() {
       setQuickText('');
       setQuickImage(null);
       setQuickLocation('');
+      setQuickCoords(null);
       setQuickUrgent(true);
       setActiveFilter('all');
     } catch {
@@ -263,7 +316,7 @@ export default function FeedScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.quickTool, { backgroundColor: quickLocation ? colors.primary + '18' : colors.muted }]}
-                onPress={() => setQuickLocation('Sao Paulo, SP')}
+                onPress={detectQuickLocation}
                 activeOpacity={0.75}
               >
                 <MaterialCommunityIcons name="map-marker-outline" size={16} color={quickLocation ? colors.primary : colors.mutedForeground} />
