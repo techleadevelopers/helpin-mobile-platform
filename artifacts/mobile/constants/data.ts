@@ -19,6 +19,7 @@ export interface Post {
   location: string;
   neighborhood: string;
   image: string | null;
+  images?: string[];
   textOnly: boolean;
   author: Author;
   likes: number;
@@ -28,6 +29,8 @@ export interface Post {
   createdAt: string;
   contact: string;
   tags: string[];
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface ChatConversation {
@@ -200,6 +203,90 @@ export const MOCK_ONGS: ONG[] = [
 ];
 
 export const MOCK_POSTS: Post[] = [
+  {
+    id: 'help1',
+    type: 'emergency',
+    animalType: 'dog',
+    name: 'Cachorro ferido',
+    breed: 'Sem raca definida',
+    age: 'Adulto',
+    description: 'Encontrei esse cachorro mancando perto da praca. Ele esta assustado, aceita agua, mas precisa de transporte e avaliacao veterinaria urgente.',
+    location: 'Sao Paulo, SP',
+    neighborhood: 'Vila Mariana',
+    image: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=900&q=85',
+    images: [
+      'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=900&q=85',
+      'https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=900&q=85',
+      'https://images.unsplash.com/photo-1507146426996-ef05306b995a?w=900&q=85',
+    ],
+    textOnly: false,
+    author: MOCK_AUTHORS[4],
+    likes: 48,
+    comments: 19,
+    shares: 33,
+    urgent: true,
+    createdAt: '12min atras',
+    contact: '(11) 98888-1212',
+    tags: ['ferido', 'transporte', 'agua'],
+    latitude: -23.5891,
+    longitude: -46.6345,
+  },
+  {
+    id: 'help2',
+    type: 'emergency',
+    animalType: 'cat',
+    name: 'Gata com filhotes',
+    breed: 'SRD',
+    age: 'Mae jovem',
+    description: 'Gata apareceu com tres filhotes em um terreno. O local tem muito movimento e chuva. Preciso de lar temporario ou ONG proxima para resgate.',
+    location: 'Sao Paulo, SP',
+    neighborhood: 'Mooca',
+    image: 'https://images.unsplash.com/photo-1511044568932-338cba0ad803?w=900&q=85',
+    images: [
+      'https://images.unsplash.com/photo-1511044568932-338cba0ad803?w=900&q=85',
+      'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=900&q=85',
+      'https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=900&q=85',
+      'https://images.unsplash.com/photo-1596854407944-bf87f6fdd49e?w=900&q=85',
+    ],
+    textOnly: false,
+    author: MOCK_AUTHORS[1],
+    likes: 91,
+    comments: 42,
+    shares: 76,
+    urgent: true,
+    createdAt: '28min atras',
+    contact: '(11) 97777-3434',
+    tags: ['filhotes', 'lar-temporario', 'chuva'],
+    latitude: -23.5587,
+    longitude: -46.5973,
+  },
+  {
+    id: 'help3',
+    type: 'found',
+    animalType: 'dog',
+    name: 'Encontrado na rua',
+    breed: 'Porte pequeno',
+    age: 'Jovem',
+    description: 'Achei esse cachorro com coleira vermelha perto do mercado. Esta limpo e parece perdido. Estou segurando por enquanto, se alguem reconhecer me chama.',
+    location: 'Sao Paulo, SP',
+    neighborhood: 'Pinheiros',
+    image: 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=900&q=85',
+    images: [
+      'https://images.unsplash.com/photo-1552053831-71594a27632d?w=900&q=85',
+      'https://images.unsplash.com/photo-1529472119196-cb724127a98e?w=900&q=85',
+    ],
+    textOnly: false,
+    author: MOCK_AUTHORS[5],
+    likes: 35,
+    comments: 11,
+    shares: 28,
+    urgent: false,
+    createdAt: '1h atras',
+    contact: '(11) 96666-5555',
+    tags: ['encontrado', 'coleira', 'pinheiros'],
+    latitude: -23.5665,
+    longitude: -46.6922,
+  },
   {
     id: '1',
     type: 'adoption',
