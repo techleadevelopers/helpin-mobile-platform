@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
-import { Tabs, useRouter } from 'expo-router';
+import { Redirect, Tabs, useRouter } from 'expo-router';
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 import { SymbolView } from 'expo-symbols';
 import React from 'react';
@@ -9,6 +9,8 @@ import { Platform, StyleSheet, TouchableOpacity, View, useColorScheme } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColors } from '@/hooks/useColors';
+import { ZooHelpLoading } from '@/components/ZooHelpLoading';
+import { useApp } from '@/context/AppContext';
 
 function NativeTabLayout() {
   return (
@@ -158,6 +160,11 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
+  const { isAuthenticated, isLoading } = useApp();
+
+  if (isLoading) return <ZooHelpLoading />;
+  if (!isAuthenticated) return <Redirect href="/login" />;
+
   if (isLiquidGlassAvailable()) {
     return <NativeTabLayout />;
   }
