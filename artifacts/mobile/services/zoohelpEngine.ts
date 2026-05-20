@@ -390,6 +390,7 @@ export class ZooHelpEngine {
     email: string;
     password: string;
     accountType?: AccountType;
+    avatar?: string | null;
     ongType?: string;
     cnpj?: string;
     phone?: string;
@@ -438,6 +439,7 @@ export class ZooHelpEngine {
     fileName: string;
     contentType: "image/jpeg" | "image/png" | "image/webp" | "video/mp4" | "video/quicktime" | "video/webm" | string;
     sizeBytes: number;
+    purpose?: "post" | "ong-logo" | "profile-avatar" | string;
     checksumSha256?: string;
   }) {
     return this.request<MediaUploadIntentContract>("/v1/media/upload-intents", {
