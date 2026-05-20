@@ -8,7 +8,9 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "APP_ENV": "development"
+        "APP_ENV": "development",
+        "EXPO_PUBLIC_API_BASE_URL": "https://zoohelp-core-production.up.railway.app",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "REPLACE_WITH_EAS_SECRET"
       },
       "ios": {
         "simulator": true
@@ -17,7 +19,9 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "APP_ENV": "preview"
+        "APP_ENV": "preview",
+        "EXPO_PUBLIC_API_BASE_URL": "https://zoohelp-core-production.up.railway.app",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "REPLACE_WITH_EAS_SECRET"
       },
       "ios": {
         "resourceClass": "m-medium"
@@ -27,7 +31,8 @@
       "autoIncrement": true,
       "env": {
         "APP_ENV": "production",
-        "EXPO_PUBLIC_API_BASE_URL": "https://api.zoohelp.app"
+        "EXPO_PUBLIC_API_BASE_URL": "https://zoohelp-core-production.up.railway.app",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "REPLACE_WITH_EAS_SECRET"
       },
       "ios": {
         "resourceClass": "m-medium"
@@ -36,6 +41,10 @@
   },
   "submit": {
     "production": {
+      "android": {
+        "track": "internal",
+        "releaseStatus": "draft"
+      },
       "ios": {
         "ascAppId": "${ASC_APP_ID}",
         "appleTeamId": "${APPLE_TEAM_ID}"
