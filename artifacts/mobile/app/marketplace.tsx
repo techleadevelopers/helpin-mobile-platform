@@ -13,7 +13,7 @@ export default function MarketplaceScreen() {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [items, setItems] = useState<Item[]>([{ id: 'local', title: 'Ração para doação', itemType: 'donation' }]);
+  const [items, setItems] = useState<Item[]>([{ id: 'local', title: 'Raçío para doaçío', itemType: 'donation' }]);
 
   useEffect(() => {
     createZooHelpApi()?.marketplaceItems().then(setItems).catch(() => {});
