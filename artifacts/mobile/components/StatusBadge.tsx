@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+﻿import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
@@ -16,12 +16,12 @@ const TYPE_ICONS: Record<PostType, MCIcon> = {
   post:      'pencil-outline',
 };
 
-// Substitua TYPE_GRADIENTS por versões mais suaves:
+// Substitua TYPE_GRADIENTS por versÃµes mais suaves:
 const TYPE_GRADIENTS: Record<PostType, [string, string]> = {
   adoption: ['#4A9B7A', '#2D6A4F'],   // verde suave
-  lost: ['#D4A259', '#B8863E'],       // âmbar suave
+  lost: ['#D4A259', '#B8863E'],       // Ã¢mbar suave
   found: ['#5B8A9F', '#2C5F8A'],     // azul suave
-  emergency: ['#C95A5A', '#A84444'], // vermelho suave (não neon)
+  emergency: ['#D97863', '#A85645'],
   campaign: ['#7B6B9A', '#5B4B7A'],  // roxo suave
   post: ['#8A9B8A', '#6B7B6B'],      // cinza suave
 };
@@ -61,13 +61,13 @@ export function StatusBadge({ type, urgent, size = 'md' }: StatusBadgeProps) {
       </LinearGradient>
       {urgent && (
         <LinearGradient
-          colors={['#FF5757', '#D91515']}
+          colors={['rgba(55,35,30,0.82)', 'rgba(30,24,22,0.78)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[
             styles.badge,
             styles.urgentBadge,
-            { shadowColor: '#FF3B30' },
+            { shadowColor: '#2A211F' },
             isSmall && styles.badgeSm,
           ]}
         >
