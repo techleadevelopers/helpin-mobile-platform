@@ -16,7 +16,7 @@ export default function SupportScreen() {
         <MaterialCommunityIcons name="arrow-left" size={20} color={colors.foreground} />
       </TouchableOpacity>
       <Text style={[styles.title, { color: colors.foreground }]}>Suporte ZooHelp</Text>
-      <Text style={[styles.text, { color: colors.mutedForeground }]}>Precisa de ajuda com resgate, denúncia, doação ou conta?</Text>
+      <Text style={[styles.text, { color: colors.mutedForeground }]}>Precisa de ajuda com resgate, denúncia, doaçío ou conta?</Text>
       <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]} onPress={() => Linking.openURL('mailto:suporte@zoohelp.app')}>
         <MaterialCommunityIcons name="email-outline" size={18} color="#fff" />
         <Text style={styles.buttonText}>Enviar email para suporte</Text>
