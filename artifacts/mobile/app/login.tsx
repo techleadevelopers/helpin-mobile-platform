@@ -162,15 +162,6 @@ export default function LoginScreen() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.bypassBtn}
-            onPress={() => router.replace('/(tabs)')}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.bypassText, { color: colors.mutedForeground }]}>
-              Explorar sem conta →
-            </Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </LinearGradient>
@@ -224,6 +215,4 @@ const styles = StyleSheet.create({
   dividerText: { fontSize: 13, fontFamily: 'Inter_400Regular' },
   registerBtn: { paddingVertical: 16, borderRadius: 14, alignItems: 'center', borderWidth: 2 },
   registerBtnText: { fontSize: 17, fontFamily: 'Inter_600SemiBold' },
-  bypassBtn: { alignItems: 'center', paddingVertical: 10 },
-  bypassText: { fontSize: 14, fontFamily: 'Inter_400Regular' },
 });
