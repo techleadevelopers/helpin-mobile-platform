@@ -18,7 +18,7 @@ export default function NotificationsScreen() {
   const [items, setItems] = useState<AppNotification[]>([
     {
       id: 'local-1',
-      title: 'Emergências próximas aparecerão aqui.',
+      title: 'Emergências próximas aparecerío aqui.',
       body: 'Quando houver resgate no seu raio, o alerta chega com rota e chat.',
       isRead: false,
       createdAt: new Date().toISOString(),
