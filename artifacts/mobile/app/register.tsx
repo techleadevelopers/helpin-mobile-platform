@@ -162,6 +162,10 @@ export default function RegisterScreen() {
           state: ongState,
         });
       }
+      Alert.alert(
+        'Confirme seu e-mail',
+        'Enviamos um link de confirmacao para o e-mail cadastrado. Abra esse link para ativar a conta.',
+      );
       router.replace('/(tabs)');
     } catch {
       Alert.alert('Erro', 'Não foi possível criar a conta. Tente novamente.');
@@ -415,6 +419,10 @@ export default function RegisterScreen() {
                   <Text style={{ color: '#4CAF50', fontFamily: 'Inter_500Medium' }}>Política de Privacidade</Text>
                 </Text>
 
+                <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.78}>
+                  <Text style={styles.privacyLink}>Abrir Politica de Privacidade</Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity
                   style={[styles.primaryBtn, { backgroundColor: loading ? '#B0B8C1' : '#4CAF50', shadowColor: '#4CAF50' }]}
                   onPress={validateAndNext}
@@ -642,6 +650,10 @@ export default function RegisterScreen() {
                   <Text style={{ color: '#4CAF50', fontFamily: 'Inter_500Medium' }}>Política de Privacidade</Text>
                 </Text>
 
+                <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.78}>
+                  <Text style={styles.privacyLink}>Abrir Politica de Privacidade</Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity
                   style={[styles.primaryBtn, { backgroundColor: loading ? '#B0B8C1' : '#4CAF50', shadowColor: '#4CAF50' }]}
                   onPress={validateAndNext}
@@ -862,6 +874,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 19,
     marginTop: -4,
+  },
+  privacyLink: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+    color: '#4CAF50',
+    textAlign: 'center',
+    marginTop: -10,
   },
   loginBtn: { alignItems: 'center', paddingVertical: 4 },
   loginText: { fontSize: 15, fontFamily: 'Inter_400Regular', color: '#8E8E93' },
