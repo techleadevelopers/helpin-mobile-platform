@@ -47,7 +47,7 @@ type FilterValue = PostType | 'all' | 'urgent' | 'ong';
 
 const FILTER_OPTIONS: Array<{ label: string; value: FilterValue; icon: MCIcon }> = [
   { label: 'Todos',       value: 'all',       icon: 'paw' },
-  { label: 'Adoção',      value: 'adoption',  icon: 'home-heart' },
+  { label: 'Adoçío',      value: 'adoption',  icon: 'home-heart' },
   { label: 'Emergência',  value: 'emergency', icon: 'alert-circle' },
   { label: 'Perdidos',    value: 'lost',      icon: 'magnify' },
   { label: 'Urgente',     value: 'urgent',    icon: 'lightning-bolt' },
@@ -257,7 +257,7 @@ export default function MapScreen() {
         <View style={styles.headerLeft}>
           <Text style={[styles.title, { color: colors.foreground }]}>Próximo a você</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Resgate, adoção e emergências
+            Resgate, adoçío e emergências
           </Text>
         </View>
         <View
@@ -411,11 +411,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingBottom: 12,
+    gap: 12,
   },
-  headerLeft: { gap: 2 },
+  headerLeft: { flex: 1, gap: 2 },
   title: { fontSize: 22, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
   subtitle: { fontSize: 12, fontFamily: 'Inter_400Regular' },
   locationBadge: {
@@ -426,9 +427,11 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1,
-    marginTop: 4,
+    maxWidth: 150,
+    minHeight: 36,
+    flexShrink: 0,
   },
-  locationLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  locationLabel: { flexShrink: 1, fontSize: 12, fontFamily: 'Inter_600SemiBold' },
 
   mapContainer: {
     marginHorizontal: 16,
