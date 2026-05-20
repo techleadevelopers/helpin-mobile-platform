@@ -31,7 +31,7 @@ interface AppContextType {
     email: string,
     password: string,
     type?: 'person' | 'ong',
-    profile?: { ongType?: string; cnpj?: string; phone?: string; city?: string; state?: string },
+    profile?: { avatar?: string | null; ongType?: string; cnpj?: string; phone?: string; city?: string; state?: string },
   ) => Promise<void>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -131,7 +131,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     email: string,
     password: string,
     type: 'person' | 'ong' = 'person',
-    profile: { ongType?: string; cnpj?: string; phone?: string; city?: string; state?: string } = {},
+    profile: { avatar?: string | null; ongType?: string; cnpj?: string; phone?: string; city?: string; state?: string } = {},
   ) {
     if (api) {
       const response = await api.register({
@@ -162,9 +162,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function logout() {
+    await AsyncStorage.multiRemove(['user', AUTH_TOKEN_KEY, 'refreshToken']);
     setUser(null);
     setIsAuthenticated(false);
-    await AsyncStorage.multiRemove(['user', AUTH_TOKEN_KEY, 'refreshToken']);
   }
 
   async function deleteAccount() {
