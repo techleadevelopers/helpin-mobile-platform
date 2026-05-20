@@ -12,7 +12,7 @@ import {
   Montserrat_700Bold,
 } from "@expo-google-fonts/montserrat";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Redirect, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -21,7 +21,9 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { NavigationLoadingOverlay } from "@/components/NavigationLoadingOverlay";
+import { ZooHelpLoading } from "@/components/ZooHelpLoading";
 import { AppProvider } from "@/context/AppContext";
+import { useApp } from "@/context/AppContext";
 import { initializeObservability } from "@/services/observability";
 
 SplashScreen.preventAutoHideAsync();
@@ -29,6 +31,16 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  const segments = useSegments();
+  const { hasSeenOnboarding, isAuthenticated, isLoading } = useApp();
+  const firstSegment = segments[0];
+  const isPublicRoute =
+    !firstSegment || firstSegment === "welcome" || firstSegment === "login" || firstSegment === "register";
+
+  if (isLoading) return <ZooHelpLoading />;
+  if (!hasSeenOnboarding && firstSegment !== "welcome") return <Redirect href="/welcome" />;
+  if (hasSeenOnboarding && !isAuthenticated && !isPublicRoute) return <Redirect href="/login" />;
+
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
