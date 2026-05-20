@@ -55,6 +55,7 @@ export default function ProfileScreen() {
   const [mapCoords, setMapCoords] = useState({ lat: -23.5505, lng: -46.6333 });
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [isAlertOverlayVisible, setIsAlertOverlayVisible] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const topPad = Platform.OS === 'web' ? 56 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -126,12 +127,23 @@ export default function ProfileScreen() {
     }
   }
 
+  async function confirmLogout() {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    try {
+      setIsAlertOverlayVisible(false);
+      await logout();
+      router.dismissAll();
+      router.replace('/login');
+    } catch {
+      setIsLoggingOut(false);
+      Alert.alert('Erro ao sair', 'Nao foi possivel encerrar a sessao. Tente novamente.');
+    }
+  }
+
   function handleLogout() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('Sair da conta', 'Voce sera desconectado e precisara fazer login novamente.', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Sair', style: 'destructive', onPress: () => logout() },
-    ]);
+    confirmLogout();
   }
 
   function handleDeleteAccount() {
@@ -367,10 +379,11 @@ export default function ProfileScreen() {
           onPressIn={() => { logoutScale.value = withSpring(0.98, { damping: 20, stiffness: 400 }); }}
           onPressOut={() => { logoutScale.value = withSpring(1, { damping: 20, stiffness: 400 }); }}
           onPress={handleLogout}
+          disabled={isLoggingOut}
           activeOpacity={0.85}
         >
           <MaterialCommunityIcons name="logout" size={18} color="#6B756C" />
-          <Text style={styles.logoutText}>Sair da conta</Text>
+          <Text style={styles.logoutText}>{isLoggingOut ? 'Saindo...' : 'Sair da conta'}</Text>
         </TouchableOpacity>
       </Animated.View>
 
@@ -475,9 +488,9 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   profileIconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#EAF7EF',
@@ -487,8 +500,8 @@ const styles = StyleSheet.create({
   profileDotActive: { width: 16, height: 4, borderRadius: 2, backgroundColor: '#2D6A4F' },
   profileNotifDot: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 11,
+    right: 11,
     width: 7,
     height: 7,
     borderRadius: 3.5,
