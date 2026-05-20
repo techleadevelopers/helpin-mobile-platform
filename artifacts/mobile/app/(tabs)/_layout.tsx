@@ -45,11 +45,12 @@ function ClassicTabLayout() {
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const isDark = colorScheme === 'dark';
+  const isAndroid = Platform.OS === 'android';
   const isIOS = Platform.OS === 'ios';
   const isWeb = Platform.OS === 'web';
 
-  const tabBarHeight = isWeb ? 84 : 49 + insets.bottom;
-  const tabBarPaddingBottom = isWeb ? 34 : insets.bottom + 4;
+  const tabBarHeight = isWeb ? 84 : isAndroid ? 64 + insets.bottom : 58 + insets.bottom;
+  const tabBarPaddingBottom = isWeb ? 34 : isAndroid ? Math.max(insets.bottom, 8) : insets.bottom + 4;
 
   return (
     <Tabs
@@ -62,10 +63,10 @@ function ClassicTabLayout() {
           backgroundColor: isIOS ? 'transparent' : colors.card,
           borderTopWidth: 1,
           borderTopColor: colors.border,
-          elevation: 0,
+          elevation: isAndroid ? 10 : 0,
           height: tabBarHeight,
           paddingBottom: tabBarPaddingBottom,
-          paddingTop: 8,
+          paddingTop: isAndroid ? 6 : 8,
         },
         tabBarBackground: () =>
           isIOS ? (
@@ -76,9 +77,12 @@ function ClassicTabLayout() {
             />
           ) : null,
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: isAndroid ? 12 : 11,
           fontFamily: 'Inter_500Medium',
-          marginTop: 2,
+          marginTop: isAndroid ? 0 : 2,
+        },
+        tabBarItemStyle: {
+          minHeight: isAndroid ? 52 : undefined,
         },
       }}
     >
@@ -165,7 +169,7 @@ export default function TabLayout() {
   if (isLoading) return <ZooHelpLoading />;
   if (!isAuthenticated) return <Redirect href="/login" />;
 
-  if (isLiquidGlassAvailable()) {
+  if (Platform.OS === 'ios' && isLiquidGlassAvailable()) {
     return <NativeTabLayout />;
   }
   return <ClassicTabLayout />;
@@ -176,17 +180,17 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: Platform.OS === 'android' ? 14 : 8,
   },
   centerBtn: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: Platform.OS === 'android' ? 58 : 54,
+    height: Platform.OS === 'android' ? 58 : 54,
+    borderRadius: Platform.OS === 'android' ? 29 : 27,
     alignItems: 'center',
     justifyContent: 'center',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: Platform.OS === 'android' ? 0.18 : 0.4,
     shadowRadius: 10,
-    elevation: 8,
+    elevation: Platform.OS === 'android' ? 12 : 8,
   },
 });
