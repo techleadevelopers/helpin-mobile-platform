@@ -31,8 +31,8 @@ const DISTANCES = ['0.3 km', '0.8 km', '1.2 km', '1.5 km', '2.1 km', '3.4 km'];
 const CTA_LABELS: Record<string, string> = {
   adoption:  'Quero adotar ',
   emergency: 'Ajudar agora',
-  campaign:  'Fazer doaÃ§Ã£o ðŸ’š',
-  lost:      'Vi esse pet ðŸ”',
+  campaign:  'Fazer doaçío ',
+  lost:      'Vi esse pet ',
   found:     'Entrar em contato',
 };
 
@@ -510,9 +510,9 @@ const styles = StyleSheet.create({
   },
   imageTopRight: { flexDirection: 'row', gap: 5 },
   floatingBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     ...Platform.select({
@@ -606,14 +606,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 5,
+    minHeight: 40,
+    paddingHorizontal: 9,
     borderRadius: 10,
   },
   actionCount: { fontSize: 11, fontFamily: 'Montserrat_500Medium' },
   ctaBtn: {
+  minHeight: 40,
+  justifyContent: 'center',
   paddingHorizontal: 15,
-  paddingVertical: 8,
   borderRadius: 20,
   shadowOffset: { width: 0, height: 2 },
   shadowOpacity: 0.12,        // mais suave
@@ -636,7 +637,7 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 1,
   },
-  ctaSmall: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+  ctaSmall: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 18 },
   ctaSmallText: { fontSize: 11, fontFamily: 'Montserrat_500Medium' },
 });
 
