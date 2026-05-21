@@ -17,7 +17,7 @@ export default function PrivacyScreen() {
       </TouchableOpacity>
       <Text style={[styles.title, { color: colors.foreground }]}>Privacidade e segurança</Text>
       <Text style={[styles.text, { color: colors.mutedForeground }]}>
-        O ZooHelp usa localizaçío para casos próximos, fotos para publicações, conta para confiança da comunidade e moderaçío para reduzir abuso.
+        O ZooHelp usa localização para casos próximos, fotos para publicações, conta para confiança da comunidade e moderação para reduzir abuso.
       </Text>
     </View>
   );
