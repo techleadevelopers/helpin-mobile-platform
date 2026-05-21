@@ -38,7 +38,7 @@ export default function LoginScreen() {
     }
     setLoading(true);
     try {
-      await login(email.trim(), password);
+      const loggedUser = await login(email.trim(), password);
       router.replace('/(tabs)');
     } catch {
       Alert.alert('Erro', 'Nao foi possivel fazer login. Tente novamente.');
@@ -194,7 +194,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 28,
     height: 41.8,
-    bottom: Platform.OS === 'ios' ? 55 : 45,
     marginBottom: 10,
     shadowColor: 'rgba(100, 100, 150, 0.15)',
     shadowOffset: { width: 0, height: 8 },
@@ -223,7 +222,6 @@ const styles = StyleSheet.create({
   },
   loginInput: {
     height: 34,
-    bottom: Platform.OS === 'ios' ? 0 : 2,
   },
   forgotBtn: { alignSelf: 'flex-end' },
   forgotText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
@@ -268,6 +266,14 @@ const styles = StyleSheet.create({
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   dividerLine: { flex: 1, height: 1 },
   dividerText: { fontSize: 13, fontFamily: 'Inter_400Regular' },
-  registerBtn: { paddingVertical: 16, borderRadius: 14, alignItems: 'center', borderWidth: 2 },
-  registerBtnText: { fontSize: 17, fontFamily: 'Inter_600SemiBold' },
+  registerBtn: {
+    minHeight: 36,
+    borderRadius: 28,
+    paddingVertical: 8,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+  },
+  registerBtnText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
 });
