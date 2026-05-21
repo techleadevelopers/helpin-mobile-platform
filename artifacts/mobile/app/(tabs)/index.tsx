@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { EmptyState } from '@/components/EmptyState';
+import { OngDashboard } from '@/components/OngDashboard';
 import { PostCard } from '@/components/PostCard';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { MOCK_AUTHORS, Post, PostType } from '@/constants/data';
@@ -38,13 +39,13 @@ type FeedFilter = PostType | 'all' | 'ong';
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 const FILTERS: Array<{ label: string; value: FeedFilter; icon: MCIcon; color: string; activeBg: string }> = [
-  { label: 'Todos',       value: 'all',       icon: 'paw',               color: '#4CAF50', activeBg: '#6EC270' },
-  { label: 'Adoçío',      value: 'adoption',  icon: 'home-heart',        color: '#4CAF50', activeBg: '#6EC270' },
-  { label: 'Perdidos',    value: 'lost',       icon: 'magnify',           color: '#FF9800', activeBg: '#FFB347' },
-  { label: 'Encontrados', value: 'found',      icon: 'check-circle',      color: '#2F80ED', activeBg: '#5B9FEE' },
-  { label: 'Emergência',  value: 'emergency',  icon: 'alert-circle',      color: '#FF3B30', activeBg: '#FF6B6B' },
-  { label: 'Campanhas',   value: 'campaign',   icon: 'heart-multiple',    color: '#9B59B6', activeBg: '#B07CC7' },
-  { label: 'ONGs',        value: 'ong',        icon: 'shield-check',      color: '#2F80ED', activeBg: '#5B9FEE' },
+  { label: 'Todos',       value: 'all',       icon: 'paw',               color: '#4CAF50', activeBg: '#586158' },
+  { label: 'Adoção',      value: 'adoption',  icon: 'home-heart',        color: '#4CAF50', activeBg: '#586158' },
+  { label: 'Perdidos',    value: 'lost',       icon: 'magnify',           color: '#FF9800', activeBg: '#586158' },
+  { label: 'Encontrados', value: 'found',      icon: 'check-circle',      color: '#2F80ED', activeBg: '#586158' },
+  { label: 'Emergência',  value: 'emergency',  icon: 'alert-circle',      color: '#FF3B30', activeBg: '#586158' },
+  { label: 'Campanhas',   value: 'campaign',   icon: 'heart-multiple',    color: '#9B59B6', activeBg: '#586158' },
+  { label: 'ONGs',        value: 'ong',        icon: 'shield-check',      color: '#2F80ED', activeBg: '#586158' },
 ];
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<Post>);
@@ -120,6 +121,10 @@ export default function FeedScreen() {
   })();
 
   const displayName = user?.name?.split(' ')[0] ?? 'Conta';
+
+  if (user?.type === 'ong') {
+    return <OngDashboard />;
+  }
 
   async function pickQuickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -384,7 +389,7 @@ export default function FeedScreen() {
       <View style={styles.sectionRow}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
           {activeFilter === 'all' ? 'Casos recentes' :
-           activeFilter === 'adoption' ? 'Para adoçío' :
+           activeFilter === 'adoption' ? 'Para adoção' :
            activeFilter === 'lost' ? 'Animais perdidos' :
            activeFilter === 'found' ? 'Animais encontrados' :
            activeFilter === 'emergency' ? 'Emergências' : 'Campanhas'}
