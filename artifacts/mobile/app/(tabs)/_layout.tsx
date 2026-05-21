@@ -13,20 +13,37 @@ import { ZooHelpLoading } from '@/components/ZooHelpLoading';
 import { useApp } from '@/context/AppContext';
 
 function NativeTabLayout() {
+  const { user } = useApp();
+  const isOng = user?.type === 'ong';
+
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: 'house', selected: 'house.fill' }} />
-        <Label>Feed</Label>
+        <Label>{isOng ? 'Dashboard' : 'Feed'}</Label>
       </NativeTabs.Trigger>
+      {isOng && (
+        <NativeTabs.Trigger name="feed">
+          <Icon sf={{ default: 'list.bullet', selected: 'list.bullet' }} />
+          <Label>Feed</Label>
+        </NativeTabs.Trigger>
+      )}
+      {isOng && (
+        <NativeTabs.Trigger name="cases">
+          <Icon sf={{ default: 'list.bullet.clipboard', selected: 'list.bullet.clipboard.fill' }} />
+          <Label>Casos</Label>
+        </NativeTabs.Trigger>
+      )}
       <NativeTabs.Trigger name="map">
         <Icon sf={{ default: 'map', selected: 'map.fill' }} />
         <Label>Mapa</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="publish">
-        <Icon sf={{ default: 'plus.circle', selected: 'plus.circle.fill' }} />
-        <Label>Publicar</Label>
-      </NativeTabs.Trigger>
+      {!isOng && (
+        <NativeTabs.Trigger name="publish">
+          <Icon sf={{ default: 'plus.circle', selected: 'plus.circle.fill' }} />
+          <Label>Publicar</Label>
+        </NativeTabs.Trigger>
+      )}
       <NativeTabs.Trigger name="chat">
         <Icon sf={{ default: 'message', selected: 'message.fill' }} />
         <Label>Chat</Label>
@@ -42,12 +59,14 @@ function NativeTabLayout() {
 function ClassicTabLayout() {
   const colors = useColors();
   const router = useRouter();
+  const { user } = useApp();
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const isDark = colorScheme === 'dark';
   const isAndroid = Platform.OS === 'android';
   const isIOS = Platform.OS === 'ios';
   const isWeb = Platform.OS === 'web';
+  const isOng = user?.type === 'ong';
 
   const tabBarHeight = isWeb ? 84 : isAndroid ? 64 + insets.bottom : 58 + insets.bottom;
   const tabBarPaddingBottom = isWeb ? 34 : isAndroid ? Math.max(insets.bottom, 8) : insets.bottom + 4;
@@ -89,12 +108,38 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Feed',
+          title: isOng ? 'Dashboard' : 'Feed',
           tabBarIcon: ({ color, focused }) =>
             isIOS ? (
               <SymbolView name={focused ? 'house.fill' : 'house'} tintColor={color} size={24} />
             ) : (
               <Feather name="home" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="cases"
+        options={{
+          title: 'Casos',
+          href: isOng ? undefined : null,
+          tabBarIcon: ({ color, focused }) =>
+            isIOS ? (
+              <SymbolView name={focused ? 'list.bullet.clipboard.fill' : 'list.bullet.clipboard'} tintColor={color} size={24} />
+            ) : (
+              <Feather name="clipboard" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="feed"
+        options={{
+          title: 'Feed',
+          href: isOng ? undefined : null,
+          tabBarIcon: ({ color, focused }) =>
+            isIOS ? (
+              <SymbolView name={focused ? 'list.bullet' : 'list.bullet'} tintColor={color} size={24} />
+            ) : (
+              <Feather name="list" size={22} color={color} />
             ),
         }}
       />
@@ -112,28 +157,34 @@ function ClassicTabLayout() {
       />
       <Tabs.Screen
         name="publish"
-        options={{
-          title: '',
-          tabBarButton: () => (
-            <TouchableOpacity
-              style={styles.centerBtnWrapper}
-              onPress={() => router.push('/compose')}
-              activeOpacity={0.85}
-            >
-              <View
-                style={[
-                  styles.centerBtn,
-                  {
-                    backgroundColor: colors.primary,
-                    shadowColor: colors.primary,
-                  },
-                ]}
-              >
-                <Feather name="plus" size={34} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
-          ),
-        }}
+        options={
+          isOng
+            ? {
+                href: null,
+              }
+            : {
+                title: '',
+                tabBarButton: () => (
+                  <TouchableOpacity
+                    style={styles.centerBtnWrapper}
+                    onPress={() => router.push('/compose')}
+                    activeOpacity={0.85}
+                  >
+                    <View
+                      style={[
+                        styles.centerBtn,
+                        {
+                          backgroundColor: colors.primary,
+                          shadowColor: colors.primary,
+                        },
+                      ]}
+                    >
+                      <Feather name="plus" size={34} color="#FFFFFF" />
+                    </View>
+                  </TouchableOpacity>
+                ),
+              }
+        }
       />
       <Tabs.Screen
         name="chat"
