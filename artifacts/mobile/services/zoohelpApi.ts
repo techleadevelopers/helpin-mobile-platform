@@ -1,5 +1,6 @@
 import { ZooHelpEngine, type AccountType, type PostContract, type PostType } from '@/services/zoohelpEngine';
 import type { Author, Post } from '@/constants/data';
+import { Platform } from 'react-native';
 
 declare const process: { env?: Record<string, string | undefined> };
 
@@ -141,18 +142,23 @@ export async function uploadLocalImageToCloudinary(
   form.append('signature', uploadIntent.cloudinary.signature);
   form.append('folder', uploadIntent.cloudinary.folder);
   form.append('public_id', uploadIntent.cloudinary.publicId);
-  form.append('file', {
-    uri,
-    name: fileName,
-    type: contentType,
-  } as unknown as Blob);
+  if (Platform.OS === 'web') {
+    form.append('file', blob, fileName);
+  } else {
+    form.append('file', {
+      uri,
+      name: fileName,
+      type: contentType,
+    } as unknown as Blob);
+  }
 
   const cloudinaryResponse = await fetch(uploadIntent.uploadUrl, {
     method: 'POST',
     body: form,
   });
   if (!cloudinaryResponse.ok) {
-    throw new Error(`Cloudinary upload failed: ${cloudinaryResponse.status}`);
+    const errorText = await cloudinaryResponse.text().catch(() => '');
+    throw new Error(`Cloudinary upload failed: ${cloudinaryResponse.status}${errorText ? ` ${errorText}` : ''}`);
   }
 
   const payload = (await cloudinaryResponse.json()) as {
