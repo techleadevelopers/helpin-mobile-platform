@@ -11,22 +11,22 @@ const colors = {
     cardForeground: "#1A2E1A",
     
     // Verde confortável (principal)
-    primary: "#2D6A4F",         // verde escuro confortável
+    primary: "#606864",         // verde escuro confortável
     primaryForeground: "#FFFFFF",
     primaryLight: "#E8F5E9",    // fundo de hover/light
     
     // Secundário azul suave (menos chamativo)
-    secondary: "#2C5F8A",
+    secondary: "#5a6b65",
     secondaryForeground: "#FFFFFF",
     secondaryLight: "#E8F0F5",
     
     muted: "#EEF2EE",           // cinza esverdeado suave
     mutedForeground: "#6B7B6B", // texto secundário
     
-    accent: "#4A9B7A",          // verde médio para destaques
+    accent: "#606864",          // verde médio para destaques
     accentForeground: "#FFFFFF",
     
-    destructive: "#C95A5A",     // vermelho suave (nío berrante)
+    destructive: "#dd4c4c",     // vermelho suave (nío berrante)
     destructiveForeground: "#FFFFFF",
     
     border: "#E2E8E2",          // bordas suaves
