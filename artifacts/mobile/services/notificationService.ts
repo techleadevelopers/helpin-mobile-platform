@@ -23,8 +23,8 @@ export function toAppNotification(raw: NotificationContract | any): AppNotificat
   const payload = raw?.payload ?? raw?.meta ?? raw?.data ?? null;
   return {
     id: String(raw?.id ?? ''),
-    title: raw?.title ?? payload?.title ?? 'Notificaçío',
-    body: raw?.body ?? raw?.message ?? payload?.message ?? 'Você recebeu uma notificaçío',
+    title: raw?.title ?? payload?.title ?? 'Notificação',
+    body: raw?.body ?? raw?.message ?? payload?.message ?? 'Você recebeu uma notificação',
     isRead: Boolean(raw?.read ?? raw?.isRead ?? raw?.readAt ?? raw?.acknowledgedAt),
     createdAt: raw?.createdAt ?? raw?.created_at ?? raw?.timestamp ?? new Date().toISOString(),
     deeplink: raw?.deeplink ?? raw?.deepLink ?? payload?.deeplink ?? payload?.deepLink ?? null,
