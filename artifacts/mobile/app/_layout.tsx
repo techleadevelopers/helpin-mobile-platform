@@ -48,6 +48,7 @@ function RootLayoutNav() {
       <Stack.Screen name="welcome" />
       <Stack.Screen name="login" />
       <Stack.Screen name="register" />
+      <Stack.Screen name="ong-dashboard" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
         name="post/[id]"
