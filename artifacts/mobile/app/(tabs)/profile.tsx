@@ -328,7 +328,7 @@ export default function ProfileScreen() {
               <MaterialCommunityIcons
                 name={post.urgent ? 'alert-circle' : 'paw'}
                 size={16}
-                color={post.urgent ? '#FF4F6E' : '#2D6A4F'}
+                color={post.urgent ? '#f14a4a' : '#106b42'}
               />
             </View>
             <View style={styles.caseInfo}>
