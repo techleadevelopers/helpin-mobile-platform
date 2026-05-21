@@ -27,14 +27,14 @@ const SLIDES: Array<{ id: string; icon: MCIcon; color: string; title: string; su
     icon: 'paw',
     color: '#4CAF50',
     title: 'Adote com amor',
-    subtitle: 'Encontre animais para adoçío perto de você. Dê um lar cheio de carinho para quem mais precisa.',
+    subtitle: 'Encontre animais para adoção perto de você. Dê um lar cheio de carinho para quem mais precisa.',
   },
   {
     id: '2',
     icon: 'map-marker-radius',
     color: '#2F80ED',
     title: 'Resgate próximo',
-    subtitle: 'Veja animais perdidos, encontrados e emergências na sua regiío. Seja parte da rede de proteçío animal.',
+    subtitle: 'Veja animais perdidos, encontrados e emergências na sua regiío. Seja parte da rede de proteção animal.',
   },
   {
     id: '3',
