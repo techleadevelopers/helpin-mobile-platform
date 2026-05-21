@@ -32,12 +32,12 @@ function formatNumber(n: number): string {
 }
 
 const CAUSE_ICONS: Record<string, MCIcon> = {
-  'Adoçío responsável e resgate urbano': 'home-heart',
-  'Combate a maus-tratos e adoçío': 'shield-check',
+  'Adoção responsável e resgate urbano': 'home-heart',
+  'Combate a maus-tratos e adoção': 'shield-check',
   'Bem-estar animal público': 'city-variant',
   'Saúde e bem-estar veterinário': 'medical-bag',
   'Resgate em emergências e desastres': 'ambulance',
-  'Captaçío e distribuiçío de recursos': 'hand-coin',
+  'Captação e distribuição de recursos': 'hand-coin',
 };
 
 export default function OngProfileScreen() {
@@ -321,7 +321,7 @@ export default function OngProfileScreen() {
             { icon: 'paw' as MCIcon, color: '#4CAF50', label: 'Animais', value: ong.animalTypes.join(', ') },
             { icon: 'phone-outline' as MCIcon, color: '#2F80ED', label: 'Contato', value: ong.contact },
             { icon: 'map-marker-outline' as MCIcon, color: '#FF9800', label: 'Local', value: ong.location },
-            { icon: 'calendar-outline' as MCIcon, color: '#9B59B6', label: 'Fundaçío', value: ong.since },
+            { icon: 'calendar-outline' as MCIcon, color: '#9B59B6', label: 'Fundação', value: ong.since },
           ].map((row) => (
             <View key={row.label} style={styles.infoRow}>
               <View style={[styles.infoIconCircle, { backgroundColor: row.color + '10' }]}>
@@ -383,8 +383,8 @@ export default function OngProfileScreen() {
         <View style={styles.trustSeal}>
           <MaterialCommunityIcons name="shield-check" size={22} color="#2F80ED" />
           <View style={styles.trustText}>
-            <Text style={styles.trustTitle}>Organizaçío verificada pela ZooHelp</Text>
-            <Text style={styles.trustSub}>Documentaçío e CNPJ validados · Doações rastreáveis</Text>
+            <Text style={styles.trustTitle}>Organização verificada pela ZooHelp</Text>
+            <Text style={styles.trustSub}>Documentação e CNPJ validados · Doações rastreáveis</Text>
           </View>
         </View>
 
