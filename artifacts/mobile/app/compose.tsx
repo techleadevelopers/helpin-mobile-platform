@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+﻿import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
@@ -35,7 +35,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-/* ── Post type config with icons ── */
+/* â”€â”€ Post type config with icons â”€â”€ */
 const POST_TYPES: Array<{
   type: PostType;
   icon: MCIcon;
@@ -45,10 +45,10 @@ const POST_TYPES: Array<{
   cta: string;
 }> = [
   { type: 'post',      icon: 'pencil-outline', label: 'Escrever',   color: '#6B7B6B', light: '#6B7B6B15', cta: 'Publicar post' },
-  { type: 'adoption',  icon: 'home-heart',     label: 'Adoçío',     color: '#2D6A4F', light: '#2D6A4F15', cta: 'Publicar para adoçío' },
+  { type: 'adoption',  icon: 'home-heart',     label: 'Adoção',     color: '#2D6A4F', light: '#2D6A4F15', cta: 'Publicar para adoção' },
   { type: 'lost',      icon: 'magnify',        label: 'Perdido',    color: '#D4A259', light: '#D4A25915', cta: 'Reportar animal perdido' },
   { type: 'found',     icon: 'check-circle',   label: 'Encontrado', color: '#2C5F8A', light: '#2C5F8A15', cta: 'Reportar animal encontrado' },
-  { type: 'emergency', icon: 'alert-circle',   label: 'Emergência', color: '#C95A5A', light: '#C95A5A15', cta: 'Pedir ajuda urgente' },
+  { type: 'emergency', icon: 'alert-circle',   label: 'EmergÃªncia', color: '#C95A5A', light: '#C95A5A15', cta: 'Pedir ajuda urgente' },
   { type: 'campaign',  icon: 'heart-multiple', label: 'Campanha',   color: '#6B5B8A', light: '#6B5B8A15', cta: 'Lançar campanha' },
 ];
 
@@ -58,10 +58,9 @@ const ANIMAL_OPTIONS: Array<{ value: 'dog' | 'cat' | 'other'; icon: MCIcon; labe
   { value: 'other', icon: 'paw',  label: 'Outro' },
 ];
 
-const HEALTH_TAGS = ['Vacinado', 'Castrado', 'Microchip', 'Ferido', 'Filhote', 'Idoso', 'Especial'];
-const STEPS = ['Tipo', 'Conteúdo', 'Mídia', 'Publicar'];
+const STEPS = ['Tipo', 'ConteÃºdo', 'MÃ­dia', 'Publicar'];
 
-/* ── Animated pill ── */
+/* â”€â”€ Animated pill â”€â”€ */
 function TypePill({
   item,
   isActive,
@@ -126,7 +125,6 @@ export default function ComposeScreen() {
   const [contact, setContact] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [urgent, setUrgent] = useState(requestedIntent === 'help' || initialType === 'emergency');
-  const [healthTags, setHealthTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
 
@@ -146,13 +144,6 @@ export default function ComposeScreen() {
 
   function selectType(type: PostType) {
     setSelectedType(type);
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }
-
-  function toggleHealthTag(tag: string) {
-    setHealthTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
@@ -217,7 +208,7 @@ export default function ComposeScreen() {
 
   async function handlePublish() {
     if (!canPost) {
-      Alert.alert('Publicaçío vazia', 'Escreva algo ou adicione uma foto.');
+      Alert.alert('Publicação vazia', 'Escreva algo ou adicione uma foto.');
       return;
     }
     setSubmitting(true);
@@ -228,12 +219,12 @@ export default function ComposeScreen() {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
       type: selectedType,
       animalType,
-      name: text.trim().split(' ').slice(0, 2).join(' ') || 'Publicaçío',
+      name: text.trim().split(' ').slice(0, 2).join(' ') || 'Publicação',
       breed: '',
       age: '',
       description: text.trim(),
-      location: location.trim() || 'Localizaçío nío informada',
-      neighborhood: location.trim() || 'Local nío informado',
+      location: location.trim() || 'Localização nÃ­o informada',
+      neighborhood: location.trim() || 'Local nÃ­o informado',
       image: images[0] ?? null,
       images,
       latitude: coords?.latitude,
@@ -252,14 +243,14 @@ export default function ComposeScreen() {
       urgent,
       createdAt: 'agora',
       contact: contact.trim(),
-      tags: healthTags,
+      tags: [],
     };
 
     try {
       await addPost(newPost);
       router.back();
     } catch {
-      Alert.alert('Erro ao publicar', 'Nío foi possível publicar agora. Tente novamente.');
+      Alert.alert('Erro ao publicar', 'NÃ­o foi possível publicar agora. Tente novamente.');
     } finally {
       setSubmitting(false);
     }
@@ -283,14 +274,14 @@ export default function ComposeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: '#F8FAF8' }]}>
-      {/* ── HEADER ── */}
+      {/* â”€â”€ HEADER â”€â”€ */}
       <View style={[styles.header, { paddingTop: topPad + 8, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.cancelBtn} activeOpacity={0.7}>
           <Text style={[styles.cancelText, { color: colors.mutedForeground }]}>Cancelar</Text>
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Nova publicaçío</Text>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Nova publicação</Text>
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { backgroundColor: currentType.color, width: `${Math.round(progress * 100)}%` }]} />
           </View>
@@ -317,10 +308,10 @@ export default function ComposeScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ── POST TYPE SELECTOR ── */}
+        {/* â”€â”€ POST TYPE SELECTOR â”€â”€ */}
         <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-            Qual é a situaçío?
+            Qual Ã© a situação?
           </Text>
           <ScrollView
             horizontal
@@ -338,7 +329,7 @@ export default function ComposeScreen() {
           </ScrollView>
         </View>
 
-        {/* ── AUTHOR CARD ── */}
+        {/* â”€â”€ AUTHOR CARD â”€â”€ */}
         <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
           <View style={styles.authorRow}>
             <View style={[styles.avatarCircle, { backgroundColor: currentType.color }]}>
@@ -357,19 +348,19 @@ export default function ComposeScreen() {
               <View style={styles.authorMeta}>
                 <View style={[styles.roleBadge, { backgroundColor: currentType.light }]}>
                   <Text style={[styles.roleText, { color: currentType.color }]}>
-                    {user?.type === 'ong' ? '🏅 ONG' : user?.type === 'vet' ? '🩺 Veterinário' : ' Protetor(a)'}
+                    {user?.type === 'ong' ? 'ðŸ… ONG' : user?.type === 'vet' ? 'ðŸ©º Veterinário' : ' Protetor(a)'}
                   </Text>
                 </View>
                 <View style={[styles.audienceBadge, { backgroundColor: colors.muted }]}>
                   <MaterialCommunityIcons name="earth" size={10} color={colors.mutedForeground} />
-                  <Text style={[styles.audienceText, { color: colors.mutedForeground }]}>Público</Text>
+                  <Text style={[styles.audienceText, { color: colors.mutedForeground }]}>PÃºblico</Text>
                 </View>
               </View>
             </View>
           </View>
         </View>
 
-        {/* ── COMPOSER ── */}
+        {/* â”€â”€ COMPOSER â”€â”€ */}
         <Animated.View style={[styles.sectionAnimated, styles.composerCard, inputAnimStyle]}>
           <TextInput
             style={[styles.composer, { color: colors.foreground }]}
@@ -377,13 +368,13 @@ export default function ComposeScreen() {
               selectedType === 'post'
                 ? 'Compartilhe algo com a comunidade ZooHelp...'
                 : selectedType === 'adoption'
-                ? 'Descreva o animal: comportamento, saúde, necessidades...'
+                ? 'Descreva o animal: comportamento, saÃºde, necessidades...'
                 : selectedType === 'lost'
-                ? 'Onde e quando desapareceu? Como é o animal?'
+                ? 'Onde e quando desapareceu? Como Ã© o animal?'
                 : selectedType === 'found'
                 ? 'Onde e quando encontrou? Como está o animal?'
                 : selectedType === 'emergency'
-                ? 'Descreva a emergência com detalhes urgentes...'
+                ? 'Descreva a emergÃªncia com detalhes urgentes...'
                 : 'Descreva a campanha e o impacto que ela terá...'
             }
             placeholderTextColor={colors.mutedForeground}
@@ -409,10 +400,9 @@ export default function ComposeScreen() {
           </View>
         </Animated.View>
 
-        {/* ── ANIMAL TYPE + HEALTH TAGS — oculto para posts de texto ── */}
-        {selectedType !== 'post' && (
-          <>
-            <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
+        {/* â”€â”€ ANIMAL TYPE + HEALTH TAGS â€” oculto para posts de texto â”€â”€ */}
+        {selectedType === 'adoption' && (
+          <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Tipo de animal</Text>
               <View style={styles.animalGrid}>
                 {ANIMAL_OPTIONS.map((a) => {
@@ -443,42 +433,14 @@ export default function ComposeScreen() {
               </View>
             </View>
 
-            <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Características</Text>
-              <View style={styles.tagGrid}>
-                {HEALTH_TAGS.map((tag) => {
-                  const isOn = healthTags.includes(tag);
-                  return (
-                    <TouchableOpacity
-                      key={tag}
-                      style={[
-                        styles.healthTag,
-                        {
-                          backgroundColor: isOn ? currentType.color : colors.muted,
-                          borderColor: isOn ? currentType.color : 'transparent',
-                        },
-                      ]}
-                      onPress={() => toggleHealthTag(tag)}
-                      activeOpacity={0.8}
-                    >
-                      {isOn && <MaterialCommunityIcons name="check" size={11} color="#FFFFFF" />}
-                      <Text style={[styles.healthTagText, { color: isOn ? '#FFFFFF' : colors.mutedForeground }]}>
-                        {tag}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          </>
         )}
 
-        {/* ── MEDIA SECTION ── */}
+        {/* â”€â”€ MEDIA SECTION â”€â”€ */}
         <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
           <View style={styles.mediaTitleRow}>
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Fotos</Text>
             <Text style={[styles.mediaHint, { color: colors.mutedForeground }]}>
-              {images.length}/4 · fotos aumentam 3x as chances de ajuda
+              {images.length}/4 Â· fotos aumentam 3x as chances de ajuda
             </Text>
           </View>
           <View style={styles.mediaGrid}>
@@ -508,9 +470,9 @@ export default function ComposeScreen() {
           </View>
         </View>
 
-        {/* ── LOCATION ── */}
+        {/* â”€â”€ LOCATION â”€â”€ */}
         <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Localizaçío</Text>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Localização</Text>
           <View style={[styles.locationInput, { borderColor: colors.border }]}>
             <MaterialCommunityIcons name="map-marker-outline" size={16} color={currentType.color} />
             <TextInput
@@ -539,7 +501,7 @@ export default function ComposeScreen() {
               <MaterialCommunityIcons name="map-outline" size={22} color={colors.mutedForeground} />
             )}
             <Text style={[styles.mapPreviewText, { color: colors.mutedForeground }]}>
-              {location.trim() ? location : 'Nenhuma localizaçío definida'}
+              {location.trim() ? location : 'Nenhuma localização definida'}
             </Text>
             <TouchableOpacity
               style={[styles.autoLocBtn, { backgroundColor: currentType.color }]}
@@ -552,7 +514,7 @@ export default function ComposeScreen() {
           </View>
         </View>
 
-        {/* ── CONTACT ── */}
+        {/* â”€â”€ CONTACT â”€â”€ */}
         <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Contato</Text>
           <View style={[styles.locationInput, { borderColor: colors.border }]}>
@@ -568,7 +530,7 @@ export default function ComposeScreen() {
           </View>
         </View>
 
-        {/* ── URGENCY ── */}
+        {/* â”€â”€ URGENCY â”€â”€ */}
         <Animated.View style={[urgentStyle]}>
           <TouchableOpacity
             style={[
@@ -589,7 +551,7 @@ export default function ComposeScreen() {
                 Marcar como URGENTE
               </Text>
               <Text style={[styles.urgentDesc, { color: colors.mutedForeground }]}>
-                Aparece em destaque no feed e notifica usuários próximos
+                Aparece em destaque no feed e notifica usuários prÃ³ximos
               </Text>
             </View>
             <View style={[styles.toggleTrack, { backgroundColor: urgent ? '#C95A5A' : colors.muted }]}>
@@ -598,16 +560,16 @@ export default function ComposeScreen() {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* ── TRUST SYSTEM ── */}
+        {/* â”€â”€ TRUST SYSTEM â”€â”€ */}
         <View style={[styles.section, styles.trustCard, { backgroundColor: '#2F80ED08', borderColor: '#2F80ED30' }]}>
           <View style={styles.trustHeader}>
             <MaterialCommunityIcons name="shield-outline" size={16} color="#2F80ED" />
             <Text style={[styles.trustTitle, { color: '#2F80ED' }]}>Sistema de confiança ZooHelp</Text>
           </View>
           {[
-            { icon: 'account-check' as MCIcon,  text: 'Sua identidade é verificada pela plataforma' },
-            { icon: 'eye-outline' as MCIcon,    text: 'Denúncias sío monitoradas em tempo real' },
-            { icon: 'lock-outline' as MCIcon,   text: 'Doações com rastreabilidade total' },
+            { icon: 'account-check' as MCIcon,  text: 'Sua identidade Ã© verificada pela plataforma' },
+            { icon: 'eye-outline' as MCIcon,    text: 'DenÃºncias sÃ­o monitoradas em tempo real' },
+            { icon: 'lock-outline' as MCIcon,   text: 'DoaçÃµes com rastreabilidade total' },
           ].map((item) => (
             <View key={item.text} style={styles.trustRow}>
               <MaterialCommunityIcons name={item.icon} size={13} color="#2F80ED" />
@@ -617,7 +579,7 @@ export default function ComposeScreen() {
         </View>
       </ScrollView>
 
-      {/* ── BOTTOM DOCK ── */}
+      {/* â”€â”€ BOTTOM DOCK â”€â”€ */}
       <View
         style={[
           styles.dock,
@@ -627,10 +589,8 @@ export default function ComposeScreen() {
         <View style={styles.dockIcons}>
           {[
   { icon: 'image-outline' as MCIcon, color: '#2D6A4F', label: 'Foto', onPress: pickImage },
-  { icon: 'microphone-outline' as MCIcon, color: '#2C5F8A', label: 'Áudio', onPress: () => Alert.alert('Áudio', 'Upload de áudio será liberado junto com moderaçío de mídia.') },
+  { icon: 'microphone-outline' as MCIcon, color: '#2C5F8A', label: 'Ãudio', onPress: () => Alert.alert('Ãudio', 'Upload de áudio será liberado junto com moderação de mÃ­dia.') },
   { icon: 'map-marker-outline' as MCIcon, color: '#D4A259', label: 'Local', onPress: detectLocation },
-  { icon: 'tag-outline' as MCIcon, color: '#6B5B8A', label: 'Tag', onPress: () => Alert.alert('Tags', 'Selecione características na seçío acima.') },
-  { icon: 'dots-horizontal' as MCIcon, color: '#6B7B6B', label: 'Mais', onPress: () => Alert.alert('Mais opções', 'Recursos avançados serío ativados conforme moderaçío e backend evoluírem.') },
 ].map(({ icon, color, label, onPress }) => (
             <TouchableOpacity key={icon} style={styles.dockBtn} onPress={onPress} activeOpacity={0.7}>
               <View style={[styles.dockIcon, { backgroundColor: color + '18', borderColor: color + '30', shadowColor: color }]}>
