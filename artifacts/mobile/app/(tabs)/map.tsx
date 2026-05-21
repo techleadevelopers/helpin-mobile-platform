@@ -47,7 +47,7 @@ type FilterValue = PostType | 'all' | 'urgent' | 'ong';
 
 const FILTER_OPTIONS: Array<{ label: string; value: FilterValue; icon: MCIcon }> = [
   { label: 'Todos',       value: 'all',       icon: 'paw' },
-  { label: 'Adoçío',      value: 'adoption',  icon: 'home-heart' },
+  { label: 'Adoção',      value: 'adoption',  icon: 'home-heart' },
   { label: 'Emergência',  value: 'emergency', icon: 'alert-circle' },
   { label: 'Perdidos',    value: 'lost',      icon: 'magnify' },
   { label: 'Urgente',     value: 'urgent',    icon: 'lightning-bolt' },
@@ -257,7 +257,7 @@ export default function MapScreen() {
         <View style={styles.headerLeft}>
           <Text style={[styles.title, { color: colors.foreground }]}>Próximo a você</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Resgate, adoçío e emergências
+            Resgate, adoção e emergências
           </Text>
         </View>
         <View
