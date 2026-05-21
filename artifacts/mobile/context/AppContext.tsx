@@ -13,6 +13,7 @@ interface User {
   bio: string;
   type: 'person' | 'ong' | 'vet';
   verified: boolean;
+  verificationStatus?: string | null;
   postsCount: number;
   helpedCount: number;
   adoptionsCount: number;
@@ -25,14 +26,14 @@ interface AppContextType {
   posts: Post[];
   likedPosts: string[];
   followedOngs: string[];
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   register: (
     name: string,
     email: string,
     password: string,
     type?: 'person' | 'ong',
     profile?: { avatar?: string | null; ongType?: string; cnpj?: string; phone?: string; city?: string; state?: string },
-  ) => Promise<void>;
+  ) => Promise<User>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
@@ -101,6 +102,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setUser(nextUser);
     setIsAuthenticated(true);
     await AsyncStorage.setItem('user', JSON.stringify(nextUser));
+    return nextUser;
+  }
+
+  function mapAuthUser(response: Awaited<ReturnType<NonNullable<typeof api>['login']>>): User {
+    const ongVerificationStatus = response.ongProfile?.verificationStatus ?? null;
+    const isApprovedOng =
+      response.user.type === 'ong'
+        ? ongVerificationStatus === 'APPROVED' || response.user.verified
+        : response.user.verified;
+
+    return {
+      id: response.user.id,
+      name: response.user.name,
+      email: response.user.email,
+      avatar: response.user.avatar,
+      bio: response.user.bio,
+      type: response.user.type,
+      verified: isApprovedOng,
+      verificationStatus: ongVerificationStatus,
+      postsCount: response.user.postsCount,
+      helpedCount: response.user.helpedCount,
+      adoptionsCount: response.user.adoptionsCount,
+    };
   }
 
   async function login(email: string, password: string) {
@@ -108,19 +132,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const response = await api.login(email, password);
       await AsyncStorage.setItem(AUTH_TOKEN_KEY, response.accessToken);
       await AsyncStorage.setItem('refreshToken', response.refreshToken);
-      await persistUser({
-        id: response.user.id,
-        name: response.user.name,
-        email: response.user.email,
-        avatar: response.user.avatar,
-        bio: response.user.bio,
-        type: response.user.type,
-        verified: response.user.verified,
-        postsCount: response.user.postsCount,
-        helpedCount: response.user.helpedCount,
-        adoptionsCount: response.user.adoptionsCount,
-      });
-      return;
+      return persistUser(mapAuthUser(response));
     }
 
     throw new Error('Backend auth is required');
@@ -143,19 +155,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
       await AsyncStorage.setItem(AUTH_TOKEN_KEY, response.accessToken);
       await AsyncStorage.setItem('refreshToken', response.refreshToken);
-      await persistUser({
-        id: response.user.id,
-        name: response.user.name,
-        email: response.user.email,
-        avatar: response.user.avatar,
-        bio: response.user.bio,
-        type: response.user.type,
-        verified: response.user.verified,
-        postsCount: response.user.postsCount,
-        helpedCount: response.user.helpedCount,
-        adoptionsCount: response.user.adoptionsCount,
-      });
-      return;
+      const nextUser = mapAuthUser(response);
+      if (type === 'ong' && response.ongProfile?.verificationStatus !== 'APPROVED') {
+        nextUser.verified = false;
+        nextUser.verificationStatus = response.ongProfile?.verificationStatus ?? 'PENDING_MANUAL_REVIEW';
+      }
+      return persistUser(nextUser);
     }
 
     throw new Error('Backend auth is required');
