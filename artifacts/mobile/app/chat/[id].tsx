@@ -33,7 +33,7 @@ const INITIAL_MESSAGES: Record<string, Message[]> = {
     { id: 'm1', text: 'Olá! Vi o post da Mel. Ela é muito linda!', sender: 'other', time: '14:28' },
     { id: 'm2', text: 'Sim! A Mel é uma fofa. Você tem interesse em adotá-la?', sender: 'me', time: '14:29' },
     { id: 'm3', text: 'Tenho sim! Moro em apartamento, isso seria problema?', sender: 'other', time: '14:31' },
-    { id: 'm4', text: 'Nío! Ela se adapta bem. Precisamos conversar sobre o processo de adoçío.', sender: 'me', time: '14:32' },
+    { id: 'm4', text: 'Nío! Ela se adapta bem. Precisamos conversar sobre o processo de adoção.', sender: 'me', time: '14:32' },
     { id: 'm5', text: 'Olá! Tenho interesse em adotar a Mel. Podemos conversar?', sender: 'other', time: '14:32' },
   ],
   c2: [
@@ -42,7 +42,7 @@ const INITIAL_MESSAGES: Record<string, Message[]> = {
     { id: 'm3', text: 'Perto do lago do Ibirapuera. Era um Golden com coleira azul?', sender: 'other', time: '12:17' },
   ],
   c3: [
-    { id: 'm1', text: 'Quero contribuir com raçío. Como faço?', sender: 'other', time: 'Ontem' },
+    { id: 'm1', text: 'Quero contribuir com ração. Como faço?', sender: 'other', time: 'Ontem' },
     { id: 'm2', text: 'Que gentileza! Pode trazer diretamente ao abrigo ou transferir via PIX.', sender: 'me', time: 'Ontem' },
   ],
 };
@@ -157,7 +157,7 @@ export default function ChatRoomScreen() {
           )}
         </View>
         <TouchableOpacity
-          onPress={() => Alert.alert('Opções do chat', 'Denunciar, bloquear e arquivar serío integrados à moderaçío.')}
+          onPress={() => Alert.alert('Opções do chat', 'Denunciar, bloquear e arquivar serío integrados à moderação.')}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <MaterialCommunityIcons name="dots-vertical" size={22} color={colors.foreground} />
@@ -171,7 +171,7 @@ export default function ChatRoomScreen() {
             <MaterialCommunityIcons name="home-heart" size={16} color="#4CAF50" />  
           </View>
           <View style={styles.adoptionBannerInfo}>
-            <Text style={[styles.adoptionBannerTitle, { color: '#4CAF50' }]}>Pedido de adoçío</Text>
+            <Text style={[styles.adoptionBannerTitle, { color: '#4CAF50' }]}>Pedido de adoção</Text>
             <Text style={[styles.adoptionBannerPost, { color: colors.mutedForeground }]} numberOfLines={1}>
               {decodeURIComponent(postName as string)}
             </Text>
@@ -196,7 +196,7 @@ export default function ChatRoomScreen() {
             <View style={styles.emptyChatWrap}>
               <MaterialCommunityIcons name="chat-outline" size={36} color={colors.mutedForeground} />
               <Text style={[styles.emptyChatText, { color: colors.mutedForeground }]}>
-                Inicie a conversa sobre a adoçío
+                Inicie a conversa sobre a adoção
               </Text>
             </View>
           ) : null
