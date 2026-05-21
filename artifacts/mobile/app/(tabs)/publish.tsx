@@ -23,7 +23,7 @@ import { useColors } from '@/hooks/useColors';
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 const POST_TYPES: Array<{ type: PostType; label: string; icon: MCIcon; color: string }> = [
-  { type: 'adoption',  label: 'Adoçío',     icon: 'home-heart',    color: '#4CAF50' },
+  { type: 'adoption',  label: 'Adoção',     icon: 'home-heart',    color: '#4CAF50' },
   { type: 'lost',      label: 'Perdido',    icon: 'magnify',       color: '#FF9800' },
   { type: 'found',     label: 'Encontrado', icon: 'check-circle',  color: '#2F80ED' },
   { type: 'emergency', label: 'Emergência', icon: 'alert-circle',  color: '#FF3B30' },
@@ -71,7 +71,7 @@ export default function PublishScreen() {
 
   async function handleSubmit() {
     if (!name.trim() || !description.trim() || !location.trim()) {
-      Alert.alert('Campos obrigatórios', 'Por favor, preencha nome, descriçío e localizaçío.');
+      Alert.alert('Campos obrigatórios', 'Por favor, preencha nome, descrição e localização.');
       return;
     }
     setSubmitting(true);
@@ -248,7 +248,7 @@ export default function PublishScreen() {
         { label: 'Nome do animal *', value: name, setter: setName, placeholder: 'Ex: Mel, Thor, Desconhecido' },
         { label: 'Raça', value: breed, setter: setBreed, placeholder: 'Ex: Vira-lata, Golden Retriever' },
         { label: 'Idade', value: age, setter: setAge, placeholder: 'Ex: 2 anos, Filhote, Adulto' },
-        { label: 'Localizaçío *', value: location, setter: setLocation, placeholder: 'Bairro, Cidade, Estado' },
+        { label: 'Localização *', value: location, setter: setLocation, placeholder: 'Bairro, Cidade, Estado' },
         { label: 'Contato', value: contact, setter: setContact, placeholder: 'WhatsApp ou telefone' },
       ].map((field) => (
         <View key={field.label}>
@@ -265,7 +265,7 @@ export default function PublishScreen() {
         </View>
       ))}
 
-      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Descriçío *</Text>
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Descrição *</Text>
       <View
         style={[
           styles.inputWrapper,
@@ -275,7 +275,7 @@ export default function PublishScreen() {
       >
         <TextInput
           style={[styles.input, styles.textArea, { color: colors.foreground }]}
-          placeholder="Descreva a situaçío, temperamento do animal, necessidades especiais..."
+          placeholder="Descreva a situação, temperamento do animal, necessidades especiais..."
           placeholderTextColor={colors.mutedForeground}
           value={description}
           onChangeText={setDescription}
