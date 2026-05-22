@@ -29,6 +29,7 @@ import {
     QueueInfo, QueueJob,
     Referral,
     ReferralStatus,
+    RescueTrackingSession,
     RevenueTrendPoint,
     Review,
     Service,
@@ -425,12 +426,33 @@ export const fetchDashboardMetrics = async (): Promise<DashboardMetrics> => {
 };
 
 export const fetchAdminHealth = async (): Promise<ObservabilityHealthPayload> => {
-    return fetchApi('/admin/health');
+    return fetchApi('/v1/observability').catch(() => fetchApi('/admin/health'));
 };
 
 export const fetchLiveStatus = async (): Promise<LiveStatusPayload> => {
-    return fetchApi('/live-status');
+    const rescues = await fetchApi<any[]>('/v1/rescue/active');
+    return {
+        trackedUsers: (rescues ?? []).map(mapRescueTrackingPayload),
+        providers: [],
+        confirmedBookings: [],
+        activeBookings: [],
+    };
 };
+
+const mapRescueTrackingPayload = (payload: any): RescueTrackingSession => ({
+    id: payload?.id ?? "",
+    postId: payload?.postId ?? payload?.post_id ?? "",
+    reporterUserId: payload?.reporterUserId ?? payload?.reporter_user_id ?? null,
+    reporterName: payload?.reporterName ?? payload?.reporter_name ?? null,
+    reporterEmail: payload?.reporterEmail ?? payload?.reporter_email ?? null,
+    reporterRole: payload?.reporterRole ?? payload?.reporter_role ?? null,
+    status: payload?.status ?? "active",
+    lat: Number(payload?.lat ?? 0),
+    lng: Number(payload?.lng ?? 0),
+    accuracy: payload?.accuracy ?? null,
+    createdAt: payload?.createdAt ?? payload?.created_at ?? new Date().toISOString(),
+    updatedAt: payload?.updatedAt ?? payload?.updated_at ?? new Date().toISOString(),
+});
 
 export const fetchRevenueTrend = async (months?: number): Promise<RevenueTrendPoint[]> => {
     const totalMonths = months ?? 12;
@@ -1167,6 +1189,86 @@ export const fetchQueueJobs = async (queueName: string, status?: string): Promis
 
 export const retryQueueJob = async (queueName: string, jobId: string): Promise<any> => {
     return fetchApi(`/admin/queues/${queueName}/jobs/${jobId}/retry`, { method: 'POST' });
+};
+
+export type KybDocument = {
+    id: string;
+    ongId: string;
+    documentType: string;
+    objectKey: string;
+    publicUrl: string;
+    status: string;
+    reviewerUserId?: string | null;
+    rejectionReason?: string | null;
+    createdAt: string;
+    reviewedAt?: string | null;
+};
+
+export type ModerationJob = {
+    id: string;
+    subjectType: string;
+    subjectId: string;
+    imageUrl?: string | null;
+    status: string;
+    score?: number | null;
+    labels: string[];
+    provider?: string | null;
+    error?: string | null;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type TrustSafetyPostReport = {
+    id: string;
+    postId: string;
+    reporterUserId: string;
+    reason: string;
+    details?: string | null;
+    severity: string;
+    status: string;
+    createdAt: string;
+};
+
+export const fetchKybDocuments = async (ongId: string): Promise<KybDocument[]> => {
+    return fetchApi(`/v1/admin/ongs/${ongId}/kyb-documents`);
+};
+
+export const createKybDocument = async (
+    ongId: string,
+    input: { documentType: string; objectKey: string; publicUrl: string },
+): Promise<KybDocument> => {
+    return fetchApi(`/v1/admin/ongs/${ongId}/kyb-documents`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+    });
+};
+
+export const reviewKybDocument = async (
+    documentId: string,
+    input: { status: 'approved' | 'rejected' | 'pending_review'; rejectionReason?: string },
+): Promise<KybDocument> => {
+    return fetchApi(`/v1/admin/kyb-documents/${documentId}/review`, {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+    });
+};
+
+export const fetchModerationJobs = async (): Promise<ModerationJob[]> => {
+    return fetchApi('/v1/admin/moderation/jobs');
+};
+
+export const reviewModerationJob = async (
+    id: string,
+    input: { status: string; score?: number | null; labels?: string[]; error?: string | null },
+): Promise<ModerationJob> => {
+    return fetchApi(`/v1/admin/moderation/jobs/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+    });
+};
+
+export const fetchTrustSafetyPostReports = async (): Promise<TrustSafetyPostReport[]> => {
+    return fetchApi('/v1/admin/reports/posts');
 };
 
 // Tipos adicionais (já estavam no seu arquivo, apenas mantidos)
