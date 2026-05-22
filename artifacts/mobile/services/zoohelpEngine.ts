@@ -129,8 +129,14 @@ export interface AuthResponseContract {
     ongType?: string | null;
     cnpj?: string | null;
     phone?: string | null;
+    cep?: string | null;
+    street?: string | null;
+    number?: string | null;
+    complement?: string | null;
+    neighborhood?: string | null;
     city?: string | null;
     state?: string | null;
+    foundationYear?: number | null;
     verificationStatus: string;
   } | null;
   accessToken: string;
@@ -394,8 +400,14 @@ export class ZooHelpEngine {
     ongType?: string;
     cnpj?: string;
     phone?: string;
+    cep?: string;
+    street?: string;
+    number?: string;
+    complement?: string;
+    neighborhood?: string;
     city?: string;
     state?: string;
+    foundationYear?: number;
   }) {
     return this.request<AuthResponseContract>("/v1/auth/register", {
       method: "POST",
@@ -444,6 +456,13 @@ export class ZooHelpEngine {
   }) {
     return this.request<MediaUploadIntentContract>("/v1/media/upload-intents", {
       method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  updateAvatar(input: { avatarUrl: string }) {
+    return this.request<{ avatarUrl: string }>("/v1/me/avatar", {
+      method: "PATCH",
       body: JSON.stringify(input),
     });
   }
