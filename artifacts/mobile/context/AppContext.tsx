@@ -32,7 +32,20 @@ interface AppContextType {
     email: string,
     password: string,
     type?: 'person' | 'ong',
-    profile?: { avatar?: string | null; ongType?: string; cnpj?: string; phone?: string; city?: string; state?: string },
+    profile?: {
+      avatar?: string | null;
+      ongType?: string;
+      cnpj?: string;
+      phone?: string;
+      cep?: string;
+      street?: string;
+      number?: string;
+      complement?: string;
+      neighborhood?: string;
+      city?: string;
+      state?: string;
+      foundationYear?: number;
+    },
   ) => Promise<User>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -143,7 +156,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     email: string,
     password: string,
     type: 'person' | 'ong' = 'person',
-    profile: { avatar?: string | null; ongType?: string; cnpj?: string; phone?: string; city?: string; state?: string } = {},
+    profile: {
+      avatar?: string | null;
+      ongType?: string;
+      cnpj?: string;
+      phone?: string;
+      cep?: string;
+      street?: string;
+      number?: string;
+      complement?: string;
+      neighborhood?: string;
+      city?: string;
+      state?: string;
+      foundationYear?: number;
+    } = {},
   ) {
     if (api) {
       const response = await api.register({
@@ -256,11 +282,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const uploadedImage =
       api && !avatarUri.startsWith('http')
-        ? await uploadLocalImageToCloudinary(api, avatarUri)
+        ? await uploadLocalImageToCloudinary(api, avatarUri, user.type === 'ong' ? 'ong-logo' : 'profile-avatar')
         : null;
+    const avatar = uploadedImage?.publicUrl ?? avatarUri;
+    if (api && avatar.startsWith('http')) {
+      await api.updateAvatar({ avatarUrl: avatar });
+    }
     const nextUser = {
       ...user,
-      avatar: uploadedImage?.publicUrl ?? avatarUri,
+      avatar,
     };
 
     await persistUser(nextUser);
