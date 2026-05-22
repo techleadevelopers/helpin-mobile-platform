@@ -91,7 +91,7 @@ export default function SupportCenter() {
     <div className="flex h-screen bg-admin-bg">
       <Sidebar />
       <div className="flex-1 ml-72 overflow-hidden">
-        <Header title="Central de Suporte" subtitle="Chat híbrido com usu�rios e prestadores" />
+        <Header title="Central de Suporte" subtitle="Chat híbrido com usuários ONGses" />
         <main className="flex-1 overflow-y-auto p-8 space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-[320px,1fr] gap-6">
             <Card className="border-0 shadow-floating">
