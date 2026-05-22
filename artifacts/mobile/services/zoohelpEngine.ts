@@ -144,6 +144,11 @@ export interface AuthResponseContract {
   tokenType: "Bearer";
 }
 
+export interface CurrentUserResponseContract {
+  user: UserContract;
+  ongProfile?: AuthResponseContract["ongProfile"];
+}
+
 export interface CreatePostResponseContract {
   post: PostContract;
   media: PostMediaContract[];
@@ -413,6 +418,10 @@ export class ZooHelpEngine {
       method: "POST",
       body: JSON.stringify(input),
     });
+  }
+
+  me() {
+    return this.request<CurrentUserResponseContract>("/v1/me");
   }
 
   createPost(input: {
