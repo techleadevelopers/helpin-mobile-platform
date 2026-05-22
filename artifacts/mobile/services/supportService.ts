@@ -1,8 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getStoredAccessToken } from '@/services/secureSession';
+import { createZooHelpApi } from '@/services/zoohelpApi';
 
-import { AUTH_TOKEN_KEY, createZooHelpApi } from '@/services/zoohelpApi';
-
-const getToken = () => AsyncStorage.getItem(AUTH_TOKEN_KEY);
+const getToken = getStoredAccessToken;
 
 export const supportService = {
   async getMeta() {
