@@ -88,16 +88,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   async function loadStoredData() {
     try {
-      const [storedUser, storedOnboarding, storedLikes, storedFollows] = await Promise.all([
+      const [storedUser, storedOnboarding, storedLikes, storedFollows, storedToken] = await Promise.all([
         AsyncStorage.getItem('user'),
         AsyncStorage.getItem('hasSeenOnboarding'),
         AsyncStorage.getItem('likedPosts'),
         AsyncStorage.getItem('followedOngs'),
+        AsyncStorage.getItem(AUTH_TOKEN_KEY),
       ]);
 
       if (storedUser) {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser) as User;
+        setUser(parsedUser);
         setIsAuthenticated(true);
+        if (storedToken) {
+          const currentUser = await api?.me().catch(() => null);
+          if (currentUser) {
+            await persistUser(mapAuthUser(currentUser));
+          }
+        }
       }
       if (storedOnboarding === 'true') setHasSeenOnboarding(true);
       if (storedLikes) setLikedPosts(JSON.parse(storedLikes));
@@ -118,7 +126,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return nextUser;
   }
 
-  function mapAuthUser(response: Awaited<ReturnType<NonNullable<typeof api>['login']>>): User {
+  function mapAuthUser(response: Pick<Awaited<ReturnType<NonNullable<typeof api>['login']>>, 'user' | 'ongProfile'>): User {
     const ongVerificationStatus = response.ongProfile?.verificationStatus ?? null;
     const isApprovedOng =
       response.user.type === 'ong'
