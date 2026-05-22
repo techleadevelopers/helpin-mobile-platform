@@ -4,7 +4,8 @@ import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import { AUTH_TOKEN_KEY, createZooHelpApi } from '@/services/zoohelpApi';
+import { getStoredAccessToken } from '@/services/secureSession';
+import { createZooHelpApi } from '@/services/zoohelpApi';
 
 const PUSH_TOKEN_KEY = 'zoohelpPushToken';
 const DEFAULT_RADIUS_KM = 8;
@@ -19,7 +20,7 @@ Notifications.setNotificationHandler({
 });
 
 export async function registerRescueAlerts(userId: string) {
-  const api = createZooHelpApi(() => AsyncStorage.getItem(AUTH_TOKEN_KEY));
+  const api = createZooHelpApi(getStoredAccessToken);
   if (!api || Platform.OS === 'web') return null;
 
   if (Platform.OS === 'android') {
