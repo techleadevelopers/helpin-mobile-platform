@@ -122,7 +122,7 @@ export default function PostDetailScreen() {
   const actionLabel =
     activePost.type === 'adoption' ? 'Quero adotar' :
     activePost.type === 'emergency' ? 'Ajudar' :
-    activePost.type === 'campaign' ? 'Doar' :
+    activePost.type === 'campaign' ? 'Apoiar' :
     activePost.type === 'lost' ? 'Encontrei' : 'Contato';
 
   return (
