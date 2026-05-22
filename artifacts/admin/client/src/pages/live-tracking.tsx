@@ -66,7 +66,7 @@ const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   [BookingStatus.CANCELED]: "Cancelado",
   [BookingStatus.PENDING_DISPUTE]: "Pendente de disputa",
   [BookingStatus.RESCHEDULED]: "Reagendado",
-  [BookingStatus.PENDING_PROVIDER_CONFIRMATION]: "Aguardando ONG ou cl�nica",
+  [BookingStatus.PENDING_PROVIDER_CONFIRMATION]: "Aguardando ONG ou clínica",
   [BookingStatus.REJECTED]: "Rejeitado",
   [BookingStatus.NO_SHOW]: "Não compareceu",
   [BookingStatus.PENDING_PAYMENT]: "Aguardando pagamento",
@@ -568,7 +568,7 @@ const DEMO_PROVIDER_DEFINITIONS: DemoProviderDefinition[] = [
     lng: -46.6311,
     status: BookingStatus.STARTED,
     client: "Paula Menezes",
-    meta: "Doa��o bloqueado até check-out mútuo",
+    meta: "Doaçãoo bloqueado até check-out mútuo",
     engineStarted: true,
   },
   {
@@ -718,7 +718,7 @@ const DEMO_PROVIDER_DEFINITIONS: DemoProviderDefinition[] = [
     lng: -48.0690,
     status: BookingStatus.STARTED,
     client: "Larissa Prado",
-    meta: "Doa��o retido até check-out mútuo",
+    meta: "Doaçãoo retido até check-out mútuo",
     engineStarted: true,
   },
   // Novo lote: Eixo Norte/Interior (SP/MG)
@@ -1817,7 +1817,7 @@ export default function LiveTrackingPage() {
       <div className="flex-1 ml-72 overflow-hidden">
         <Header
           title="Live Tracking"
-          subtitle="Monitoramento ao vivo dos ONGs e cl�nicas com serviços ativos."
+          subtitle="Monitoramento ao vivo dos ONGs e clínicas com serviços ativos."
         />
 
         <main className="flex-1 overflow-y-auto p-8">
@@ -1829,7 +1829,7 @@ export default function LiveTrackingPage() {
                     <div>
                       <CardTitle>Mapa de Operações</CardTitle>
                       <p className="text-sm text-gray-500">
-                        Apenas rastreamos prestadores com serviços aceitos ou em andamento.
+                        Apenas rastreamos ONGs com serviços aceitos ou em andamento.
                       </p>
                     </div>
                   <div className="flex items-center gap-2">
@@ -1916,7 +1916,7 @@ export default function LiveTrackingPage() {
                 <Card className="h-full">
                   <CardHeader className="flex flex-col gap-3">
                     <div>
-                      <CardTitle>Lista de Prestadores</CardTitle>
+                      <CardTitle>Lista de ONGs</CardTitle>
                       <p className="text-sm text-gray-500">
                         Rastreie o prestador certo e acompanhe o serviço.
                       </p>
@@ -1966,10 +1966,10 @@ export default function LiveTrackingPage() {
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
                               <ProviderAvatar
-                                name={entry.provider.fullName ?? entry.provider.name ?? "ONG/Cl�nica"}
+                                name={entry.provider.fullName ?? entry.provider.name ?? "ONG/Clínica"}
                                 id={entry.provider.id}
                               />
-                              {entry.provider.fullName ?? entry.provider.name ?? "ONG/Cl�nica"}
+                              {entry.provider.fullName ?? entry.provider.name ?? "ONG/Clínica"}
                             </div>
                             <div className="flex items-center gap-1">
                               <Badge variant="outline">
@@ -2035,7 +2035,7 @@ export default function LiveTrackingPage() {
                         Seguro real com banco parceiro; responsabilidade civil familiar/profissional.
                       </p>
                       <p className="text-xs text-gray-500">
-                        Doa��o liberado somente após confirmação mútua do fim do serviço.
+                        Doaçãoo liberado somente após confirmação mútua do fim do serviço.
                       </p>
                     </CardContent>
                   </Card>
