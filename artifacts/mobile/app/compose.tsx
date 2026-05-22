@@ -107,7 +107,7 @@ export default function ComposeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const params = useLocalSearchParams<{ intent?: string; type?: string }>();
+  const params = useLocalSearchParams<{ intent?: string; type?: string; rescue?: string }>();
   const { addPost, isAuthenticated, isLoading, user } = useApp();
   const requestedType = typeof params.type === 'string' ? params.type : undefined;
   const requestedIntent = typeof params.intent === 'string' ? params.intent : undefined;
@@ -211,6 +211,29 @@ export default function ComposeScreen() {
       Alert.alert('Publicação vazia', 'Escreva algo ou adicione uma foto.');
       return;
     }
+    let nextCoords = coords;
+    let nextLocation = location;
+    if ((selectedType === 'emergency' || urgent || params.rescue === '1') && !nextCoords) {
+      if (Platform.OS === 'web') {
+        Alert.alert('Localizacao obrigatoria', 'Para acionar resgate real, use o app mobile com GPS ativo.');
+        return;
+      }
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert('Localizacao obrigatoria', 'Autorize o GPS para acionar resgate e notificar pessoas proximas.');
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      nextCoords = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+      nextLocation = location.trim() || 'Localizacao atual';
+      setCoords(nextCoords);
+      setLocation(nextLocation);
+    }
     setSubmitting(true);
     if (Platform.OS !== 'web')
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -223,12 +246,12 @@ export default function ComposeScreen() {
       breed: '',
       age: '',
       description: text.trim(),
-      location: location.trim() || 'Localização nÃ­o informada',
-      neighborhood: location.trim() || 'Local nÃ­o informado',
+      location: nextLocation.trim() || 'Localizacao nao informada',
+      neighborhood: nextLocation.trim() || 'Local nao informado',
       image: images[0] ?? null,
       images,
-      latitude: coords?.latitude,
-      longitude: coords?.longitude,
+      latitude: nextCoords?.latitude,
+      longitude: nextCoords?.longitude,
       textOnly: images.length === 0,
       author: {
         id: currentUser.id,
@@ -247,8 +270,12 @@ export default function ComposeScreen() {
     };
 
     try {
-      await addPost(newPost);
-      router.back();
+      const savedPost = await addPost(newPost);
+      if (selectedType === 'emergency' || urgent || params.rescue === '1') {
+        router.replace(`/rescue/status?postId=${encodeURIComponent(savedPost.id)}` as any);
+      } else {
+        router.back();
+      }
     } catch {
       Alert.alert('Erro ao publicar', 'NÃ­o foi possível publicar agora. Tente novamente.');
     } finally {
