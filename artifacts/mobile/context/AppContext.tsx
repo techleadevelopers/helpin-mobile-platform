@@ -1,9 +1,10 @@
 ﻿import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
-import { MOCK_POSTS, Post } from '@/constants/data';
+import { Post } from '@/constants/data';
+import { loadCachedFeed, saveCachedFeed } from '@/services/feedCache';
 import { enqueuePost, listPendingPosts, markPendingPostAttempt, removePendingPost } from '@/services/postOutbox';
-import { flushRescueOutbox, listPendingRescueOperations } from '@/services/rescueOutbox';
+import { enqueueRescueOperation, flushRescueOutbox, listPendingRescueOperations } from '@/services/rescueOutbox';
 import { registerRescueAlerts } from '@/services/rescueNotifications';
 import { clearSessionTokens, getSecureItem, setSecureItem, REFRESH_TOKEN_KEY } from '@/services/secureSession';
 import { AUTH_TOKEN_KEY, createZooHelpApi, mapPost, supportPaymentsEnabled, uploadLocalImageToCloudinary } from '@/services/zoohelpApi';
@@ -70,7 +71,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
-  const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [likedPosts, setLikedPosts] = useState<string[]>([]);
   const [followedOngs, setFollowedOngs] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -117,6 +118,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (storedLikes) setLikedPosts(JSON.parse(storedLikes));
       if (storedFollows) setFollowedOngs(JSON.parse(storedFollows));
 
+      const cachedFeed = await loadCachedFeed();
+      if (cachedFeed.length) setPosts(cachedFeed);
       await refreshOutboxCount();
       await refreshPostsFromBackend();
       await syncPendingOperations();
@@ -245,11 +248,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   async function publishPostToBackend(post: Post, idempotencyKey?: string) {
     if (!api) throw new Error('Backend unavailable');
-    const uploadedImage =
-      post.image && !post.image.startsWith('http')
-        ? await uploadLocalImageToCloudinary(api, post.image)
-        : null;
-    const publicImage = uploadedImage?.publicUrl ?? post.image;
+    const localImages = Array.from(new Set(
+      (post.images?.length ? post.images : post.image ? [post.image] : [])
+        .filter((uri): uri is string => Boolean(uri) && !uri.startsWith('http')),
+    )).slice(0, 4);
+    const uploadedImages = await Promise.all(
+      localImages.map((uri) => uploadLocalImageToCloudinary(api, uri)),
+    );
+    const publicImage = uploadedImages[0]?.publicUrl ?? post.image;
     const response = await api.createPost({
       name: post.name,
       postType: post.type,
@@ -260,7 +266,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       location: post.location,
       neighborhood: post.neighborhood,
       image: publicImage,
-      images: uploadedImage ? [uploadedImage] : [],
+      images: uploadedImages,
       urgent: post.urgent,
       contact: post.contact,
       tags: post.tags,
@@ -287,6 +293,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const synced = await publishPostToBackend(pending.post, pending.idempotencyKey);
           await removePendingPost(pending.id);
           setPosts((prev) => [synced, ...prev.filter((item) => item.id !== pending.post.id)]);
+          await maybeTriggerRescueForSyncedPost(synced);
         } catch (error) {
           await markPendingPostAttempt(
             pending.id,
@@ -323,7 +330,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   async function refreshPostsFromBackend() {
     if (!api) return;
     const feed = await api.feed();
-    setPosts(feed.map(mapPost));
+    const mapped = feed.map(mapPost);
+    setPosts(mapped);
+    await saveCachedFeed(mapped);
   }
 
   async function refreshPosts() {
@@ -331,7 +340,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await syncPendingOperations();
       await refreshPostsFromBackend();
     } catch {
-      setPosts([...MOCK_POSTS]);
+      const cachedFeed = await loadCachedFeed();
+      if (cachedFeed.length) setPosts(cachedFeed);
+    }
+  }
+
+  async function maybeTriggerRescueForSyncedPost(post: Post) {
+    if (!api || (!post.urgent && post.type !== 'emergency') || post.latitude == null || post.longitude == null) {
+      return;
+    }
+    try {
+      await api.triggerRescue({
+        postId: post.id,
+        lat: post.latitude,
+        lng: post.longitude,
+      });
+    } catch {
+      await enqueueRescueOperation({
+        type: 'trigger',
+        postId: post.id,
+        lat: post.latitude,
+        lng: post.longitude,
+      });
     }
   }
 
