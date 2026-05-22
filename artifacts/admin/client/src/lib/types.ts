@@ -130,7 +130,7 @@ export enum ClaimStatus {
     SETTLED = "SETTLED",
 }
 
-// Enums para Missões
+// Enums para MissÃƒÂµes
 export enum MissionStatus {
     ACTIVE = "ACTIVE",
     INACTIVE = "INACTIVE",
@@ -146,12 +146,12 @@ export enum MissionTargetAudience {
     SPECIFIC_SERVICE = "SPECIFIC_SERVICE",
 }
 
-// NOVO: Enum para o status da Indicação
+// NOVO: Enum para o status da IndicaÃƒÂ§ÃƒÂ£o
 export enum ReferralStatus {
     PENDING = "PENDING",
-    CONVERTED = "CONVERTED", // Indicado realizou a primeira ação (ex: primeira reserva)
+    CONVERTED = "CONVERTED", // Indicado realizou a primeira aÃƒÂ§ÃƒÂ£o (ex: primeira reserva)
     REWARDED = "REWARDED",   // Recompensa emitida
-    CANCELED = "CANCELED",   // Indicação cancelada
+    CANCELED = "CANCELED",   // IndicaÃƒÂ§ÃƒÂ£o cancelada
 }
 
 // NOVO: Enum para o status do PanicAlert (conforme README.md)
@@ -169,6 +169,16 @@ export type Provider = {
     email: string;
     phone?: string | null;
     userPhone?: string | null;
+    legalName?: string | null;
+    cnpj?: string | null;
+    ongType?: string | null;
+    cep?: string | null;
+    street?: string | null;
+    number?: string | null;
+    complement?: string | null;
+    neighborhood?: string | null;
+    state?: string | null;
+    foundationYear?: number | null;
     verificationStatus: VerificationStatus;
     visibilityStatus?: ProviderVisibilityStatus;
     visibilityReason?: string | null;
@@ -187,7 +197,7 @@ export type Provider = {
     address?: Address | null;
     createdAt: string;
     updatedAt: string;
-    city?: string;
+    city?: string | null;
     specialties?: string[];
     jobsCompleted?: number;
     yearsOfExperience?: number;
@@ -577,10 +587,10 @@ export type Mission = {
     rewardType: 'FIXED_AMOUNT' | 'POINTS'; // Tipo de recompensa
     status: MissionStatus;
     targetAudience: MissionTargetAudience;
-    targetId?: string | null; // ID do alvo (cliente, ONG ou cl�nica, serviço, etc.)
+    targetId?: string | null; // ID do alvo (cliente, ONG ou clÃ­nica, serviÃƒÂ§o, etc.)
     startDate: string;
     endDate: string;
-    timesCompleted: number; // Quantas vezes a missão foi completada
+    timesCompleted: number; // Quantas vezes a missÃƒÂ£o foi completada
     maxCompletions?: number | null; // Limite de vezes que pode ser completada (0 para ilimitado)
     createdAt: string;
     updatedAt: string;
@@ -635,16 +645,16 @@ export type PanicAlert = {
     userId: string;
     role: 'CLIENT' | 'PROVIDER'; // Adicionado conforme README.md
     message?: string | null;
-    locationLat?: number | null; // Renomeado de 'latitude' e tornado opcional/anulável
-    locationLon?: number | null; // Renomeado de 'longitude' e tornado opcional/anulável
+    locationLat?: number | null; // Renomeado de 'latitude' e tornado opcional/anulÃƒÂ¡vel
+    locationLon?: number | null; // Renomeado de 'longitude' e tornado opcional/anulÃƒÂ¡vel
     status: PanicStatus; // Alterado para o enum PanicStatus
     ackByUserId?: string | null; // Adicionado conforme README.md
-    ackAt?: string | null; // Adicionado conforme README.md (usando string para consistência de data)
+    ackAt?: string | null; // Adicionado conforme README.md (usando string para consistÃƒÂªncia de data)
     dispatchedAt?: string | null; // Adicionado conforme README.md
     closedAt?: string | null; // Adicionado conforme README.md
     createdAt: string;
-    updatedAt?: string; // Adicionado para consistência, mesmo que não explicitamente no PanicAlert do README.md
-    user?: AuthUser; // Mantido para conveniência do frontend
+    updatedAt?: string; // Adicionado para consistÃƒÂªncia, mesmo que nÃƒÂ£o explicitamente no PanicAlert do README.md
+    user?: AuthUser; // Mantido para conveniÃƒÂªncia do frontend
 };
 
 export type Incident = {
@@ -726,7 +736,7 @@ export type QueueJob = {
     finishedAt?: string;
 };
 
-// --- Tipos adicionados para resolver os erros de importação ---
+// --- Tipos adicionados para resolver os erros de importaÃƒÂ§ÃƒÂ£o ---
 
 export type Review = {
     id: string;
@@ -748,23 +758,23 @@ export type Offer = {
     imageUrl?: string | null; // URL da imagem da oferta
     createdAt: string;
     updatedAt: string;
-    target: OfferTarget; // Público-alvo da oferta
-    targetId?: string | null; // ID do alvo específico (serviço/ONG ou cl�nica)
+    target: OfferTarget; // PÃƒÂºblico-alvo da oferta
+    targetId?: string | null; // ID do alvo especÃƒÂ­fico (serviÃƒÂ§o/ONG ou clÃ­nica)
     status: OfferStatus; // Status da oferta
 };
 
-// NOVO: Tipo para o modelo de Indicação (Referral)
+// NOVO: Tipo para o modelo de IndicaÃƒÂ§ÃƒÂ£o (Referral)
 export type Referral = {
     id: string;
     referredUserId: string;
     referredUser?: { fullName?: string }; // Adicionado para exibir o nome no frontend
     referrerUserId: string;
     referrerUser?: { fullName?: string }; // Adicionado para exibir o nome no frontend
-    referralCode?: string | null; // Código de indicação usado
-    status: ReferralStatus; // Status da indicação
+    referralCode?: string | null; // CÃƒÂ³digo de indicaÃƒÂ§ÃƒÂ£o usado
+    status: ReferralStatus; // Status da indicaÃƒÂ§ÃƒÂ£o
     createdAt: string;
     updatedAt: string;
-    convertedAt?: string; // Data de conversão
+    convertedAt?: string; // Data de conversÃƒÂ£o
     rewardIssued: boolean; // Se a recompensa foi emitida
     notes?: string; // Notas adicionais para o admin
 };
