@@ -276,7 +276,7 @@ export default function UserManagement() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Use a API real para buscar usu�rios
+  // Use a API real para buscar usuários
   const { data: clients, isLoading, isError, error } = useQuery<Client[], Error>({
     queryKey: ['/clients'],
     queryFn: () => fetchClients(),
@@ -515,7 +515,7 @@ const handleDeleteUser = (id: string) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'usu�rios.csv';
+    link.download = 'usuários.csv';
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -527,7 +527,7 @@ const handleDeleteUser = (id: string) => {
       <div className="flex-1 ml-72 flex flex-col">
         <Header 
           title="Gestão de Usuários"
-          subtitle="Gerencie contas de usu�rios, perfis e programas de fidelidade."
+          subtitle="Gerencie contas de usuários, perfis e programas de fidelidade."
         />
         
         <main className="flex-1 overflow-y-auto p-8 scrollbar-premium">
@@ -597,7 +597,7 @@ const handleDeleteUser = (id: string) => {
                     <UserCheck className="text-emerald-600" size={20} />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Usu�rios Verificados</p>
+                    <p className="text-sm font-medium text-gray-600">Usuários Verificados</p>
                     <p className="text-2xl font-bold text-gray-900">{stats.verified}</p>
                   </div>
                 </div>
@@ -626,7 +626,7 @@ const handleDeleteUser = (id: string) => {
                   <div className="relative flex-1 max-w-md">
                     <Input
                       type="text"
-                      placeholder="Buscar usu�rios..."
+                      placeholder="Buscar usuários..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10 border-gray-200 rounded-xl focus:ring-2 focus:ring-light-blue focus:border-transparent"
@@ -684,7 +684,7 @@ const handleDeleteUser = (id: string) => {
             </CardContent>
           </Card>
 
-          {/* Lista segmentada de Prestadores e Usu�rios */}
+          {/* Lista segmentada de ONGs e Usuários */}
           {isLoading ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {[...Array(2)].map((_, index) => (
@@ -715,12 +715,12 @@ const handleDeleteUser = (id: string) => {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {renderUserSection(
-                "Prestadores",
+                "ONGs",
                 providerUsers,
                 "Nenhum prestador encontrado com os filtros atuais."
               )}
               {renderUserSection(
-                "Usu�rios",
+                "Usuários",
                 clientUsers,
                 "Nenhum cliente encontrado com os filtros atuais."
               )}
