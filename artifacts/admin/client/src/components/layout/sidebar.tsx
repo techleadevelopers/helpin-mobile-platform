@@ -1,9 +1,8 @@
-import React from "react";
+﻿import React from "react";
 import { Link, useLocation } from "wouter";
 import {
   Sparkles,
   ChartLine,
-  Users,
   ClipboardCheck,
   ChartPie,
   UsersRound,
@@ -13,8 +12,6 @@ import {
   LogOut,
   Handshake,
   DollarSign,
-  LifeBuoy,
-  CalendarClock,
   Radar,
   MessageSquare,
   Gift,
@@ -40,18 +37,10 @@ export default function Sidebar() {
   const [location, setLocation] = useLocation();
   const { logout } = useAuth();
 
-  // Badges: dependerão dos endpoints no backend
+  // Badges: dependerÃ£o dos endpoints no backend
   const { data: pendingProvidersData } = useQuery({
     queryKey: ["verification-queue"],
     queryFn: () => fetchVerificationQueue(),
-  });
-  const { data: pendingDisputesData } = useQuery({
-    queryKey: ["pending-disputes"],
-    queryFn: () => fetch("/api/disputes/pending-count").then((res) => res.json()),
-  });
-  const { data: pendingSafetyAlertsData } = useQuery({
-    queryKey: ["pending-safety-alerts"],
-    queryFn: () => fetch("/api/safety/pending-count").then((res) => res.json()),
   });
 
   const primary: NavItem[] = [
@@ -83,11 +72,11 @@ export default function Sidebar() {
       label: "Casos e Resgates",
       isActive: location === "/booking-oversight",
     },
-    { path: "/dispute-management", icon: Handshake, label: "Moderação e Golpes", badge: pendingDisputesData?.count || 0, isActive: location === "/dispute-management" },
+    { path: "/dispute-management", icon: Handshake, label: "Moderação e Golpes", isActive: location === "/dispute-management" },
     { path: "/live-tracking", icon: Radar, label: "Live Tracking", isActive: location === "/live-tracking" },
     { path: "/observability", icon: Activity, label: "Saúde da Plataforma", isActive: location === "/observability" },
     { path: "/payment-management", icon: DollarSign, label: "Doações e Payouts", isActive: location === "/payment-management" },
-    { path: "/safety-alerts", icon: ShieldAlert, label: "Trust & Safety", badge: pendingSafetyAlertsData?.count || 0, isActive: location === "/safety-alerts" },
+    { path: "/safety-alerts", icon: ShieldAlert, label: "Trust & Safety", isActive: location === "/safety-alerts" },
     { path: "/support-center", icon: MessageSquare, label: "Central de Suporte", isActive: location === "/support-center" },
   ];
 
@@ -217,3 +206,4 @@ export default function Sidebar() {
     </div>
   );
 }
+
