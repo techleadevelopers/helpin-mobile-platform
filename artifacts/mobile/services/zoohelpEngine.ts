@@ -378,6 +378,14 @@ export class ZooHelpEngine {
     return this.request<{ status: string; service: string }>("/healthz");
   }
 
+  webSocketUrl(path: string, accessToken?: string | null) {
+    const base = this.config.apiBaseUrl.replace(/^http/i, "ws");
+    const separator = path.includes("?") ? "&" : "?";
+    return accessToken
+      ? `${base}${path}${separator}access_token=${encodeURIComponent(accessToken)}`
+      : `${base}${path}`;
+  }
+
   feed(input: { lat?: number; lng?: number; radiusKm?: number; type?: PostType; authorType?: AccountType } = {}) {
     const params = new URLSearchParams();
     if (input.lat != null) params.set("lat", String(input.lat));
@@ -449,10 +457,13 @@ export class ZooHelpEngine {
     tags?: string[];
     latitude?: number;
     longitude?: number;
+    idempotencyKey?: string;
   }) {
+    const { idempotencyKey, ...body } = input;
     return this.request<CreatePostResponseContract>("/v1/posts", {
       method: "POST",
-      body: JSON.stringify(input),
+      headers: idempotencyKey ? { "idempotency-key": idempotencyKey } : undefined,
+      body: JSON.stringify(body),
     });
   }
 
@@ -504,8 +515,20 @@ export class ZooHelpEngine {
     return this.request<ChatConversationContract[]>("/v1/chat/rooms");
   }
 
+  chatRoom(roomId: string) {
+    return this.request<ChatConversationContract>(`/v1/chat/rooms/${encodeURIComponent(roomId)}`);
+  }
+
   chatMessages(roomId: string) {
     return this.request<ChatMessageContract[]>(`/v1/chat/rooms/${encodeURIComponent(roomId)}/messages`);
+  }
+
+  chatWebSocketUrl(roomId: string, accessToken?: string | null) {
+    return this.webSocketUrl(`/v1/chat/rooms/${encodeURIComponent(roomId)}/ws`, accessToken);
+  }
+
+  rescueWebSocketUrl(rescueId: string, accessToken?: string | null) {
+    return this.webSocketUrl(`/v1/rescue/active/${encodeURIComponent(rescueId)}/ws`, accessToken);
   }
 
   sendChatMessage(roomId: string, body: string) {
