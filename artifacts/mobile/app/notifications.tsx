@@ -1,4 +1,3 @@
-﻿import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -7,9 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColors } from '@/hooks/useColors';
 import { ackNotification, getNotifications, markNotificationAsRead, type AppNotification } from '@/services/notificationService';
-import { AUTH_TOKEN_KEY } from '@/services/zoohelpApi';
+import { getStoredAccessToken } from '@/services/secureSession';
 
-const getToken = () => AsyncStorage.getItem(AUTH_TOKEN_KEY);
+const getToken = getStoredAccessToken;
 
 export default function NotificationsScreen() {
   const colors = useColors();
