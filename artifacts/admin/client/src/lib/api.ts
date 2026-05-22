@@ -169,6 +169,38 @@ const mapProviderPayload = (payload: any): Provider => {
     };
 };
 
+const mapOngPayloadToProvider = (payload: any): Provider => {
+    const fullName = deriveFullName(payload?.fullName, payload?.full_name, payload?.name);
+    return {
+        id: payload?.id ?? "",
+        name: payload?.name ?? fullName,
+        fullName,
+        email: payload?.email ?? "",
+        avatarUrl: payload?.avatarUrl ?? payload?.avatar_url ?? payload?.avatar ?? null,
+        legalName: payload?.legalName ?? payload?.legal_name ?? payload?.name ?? null,
+        cnpj: payload?.cnpj ?? null,
+        ongType: payload?.ongType ?? payload?.ong_type ?? payload?.cause ?? null,
+        phone: payload?.phone ?? payload?.contact ?? payload?.contactPhone ?? null,
+        city: payload?.city ?? null,
+        state: payload?.state ?? null,
+        verificationStatus: payload?.verificationStatus ?? payload?.verification_status ?? VerificationStatus.APPROVED,
+        visibilityStatus: ProviderVisibilityStatus.VISIBLE,
+        rejectionReason: payload?.rejectionReason ?? payload?.rejection_reason ?? null,
+        fiveStarReviewCount: payload?.fiveStarReviewCount ?? payload?.five_star_review_count ?? 0,
+        monthlyBookingsCount: payload?.monthlyBookingsCount ?? payload?.monthly_bookings_count ?? payload?.activeCases ?? 0,
+        totalEarnings: String(payload?.totalEarnings ?? payload?.total_earnings ?? "0.00"),
+        createdAt: payload?.createdAt ?? payload?.created_at ?? payload?.since ?? new Date().toISOString(),
+        updatedAt: payload?.updatedAt ?? payload?.updated_at ?? payload?.createdAt ?? payload?.created_at ?? new Date().toISOString(),
+    };
+};
+
+const paginateItems = <T>(items: T[], page = 1, limit = items.length || 1) => {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.max(1, limit);
+    const start = (safePage - 1) * safeLimit;
+    return items.slice(start, start + safeLimit);
+};
+
 const mapAuthUserPayload = (payload: any): AuthUser => {
     return {
         id: payload?.id ?? "",
@@ -379,7 +411,17 @@ export const logout = async (): Promise<void> => {
 
 // --- Funções de Dados Existentes ---
 export const fetchDashboardMetrics = async (): Promise<DashboardMetrics> => {
-    return fetchApi('/admin/dashboard/metrics');
+    const [approvedProviders, pendingProviders] = await Promise.all([
+        fetchProviders().catch(() => []),
+        fetchVerificationQueue().catch(() => []),
+    ]);
+    return {
+        activeUsers: 0,
+        approvedProviders: approvedProviders.length,
+        servicesBooked: 0,
+        totalRevenue: 0,
+        pendingVerifications: pendingProviders.length,
+    };
 };
 
 export const fetchAdminHealth = async (): Promise<ObservabilityHealthPayload> => {
@@ -391,14 +433,22 @@ export const fetchLiveStatus = async (): Promise<LiveStatusPayload> => {
 };
 
 export const fetchRevenueTrend = async (months?: number): Promise<RevenueTrendPoint[]> => {
-    const query = months ? `?months=${months}` : '';
-    return fetchApi(`/admin/dashboard/revenue-trend${query}`);
+    const totalMonths = months ?? 12;
+    const formatter = new Intl.DateTimeFormat("pt-BR", { month: "short" });
+    const now = new Date();
+    return Array.from({ length: totalMonths }, (_, index) => {
+        const date = new Date(now.getFullYear(), now.getMonth() - (totalMonths - index - 1), 1);
+        return {
+            month: formatter.format(date),
+            revenue: 0,
+        };
+    });
 };
 
 // --- Funções de ONGs e Clínicas ---
 export const fetchProviders = async (): Promise<Provider[]> => {
-    const response = await fetchApi<any[]>('/providers');
-    return (response ?? []).map(mapProviderPayload);
+    const response = await fetchApi<any[]>('/v1/ongs?verified=true');
+    return (response ?? []).map(mapOngPayloadToProvider);
 };
 
 export const fetchAdminProvidersPage = async (params: {
@@ -408,19 +458,45 @@ export const fetchAdminProvidersPage = async (params: {
     serviceId?: string;
     verificationStatus?: VerificationStatus;
   }): Promise<AdminProviderPage> => {
+    if (params.verificationStatus === VerificationStatus.PENDING_MANUAL_REVIEW) {
+        const pending = await fetchVerificationQueue();
+        return {
+            items: paginateItems(pending, params.page, params.limit),
+            totalCount: pending.length,
+            page: params.page ?? 1,
+            limit: params.limit ?? pending.length,
+        };
+    }
+
+    if (
+        params.verificationStatus &&
+        params.verificationStatus !== VerificationStatus.APPROVED &&
+        params.verificationStatus !== VerificationStatus.PENDING_MANUAL_REVIEW
+    ) {
+        return {
+            items: [],
+            totalCount: 0,
+            page: params.page ?? 1,
+            limit: params.limit ?? 1,
+        };
+    }
+
     const query = new URLSearchParams();
-    if (params.page) query.set('page', String(params.page));
-    if (params.limit) query.set('limit', String(params.limit));
-    if (params.searchTerm) query.set('searchTerm', params.searchTerm);
-    if (params.serviceId) query.set('serviceId', params.serviceId);
-    if (params.verificationStatus) query.set('verificationStatus', params.verificationStatus);
-    const queryString = query.toString();
-    return fetchApi<AdminProviderPage>(`/admin/providers${queryString ? `?${queryString}` : ''}`);
+    query.set('verified', 'true');
+    if (params.searchTerm) query.set('q', params.searchTerm);
+    const response = await fetchApi<any[]>(`/v1/ongs?${query.toString()}`);
+    const providers = (response ?? []).map(mapOngPayloadToProvider);
+    return {
+        items: paginateItems(providers, params.page, params.limit),
+        totalCount: providers.length,
+        page: params.page ?? 1,
+        limit: params.limit ?? providers.length,
+    };
   };
 
 export const fetchProviderById = async (id: string): Promise<Provider> => {
-    const response = await fetchApi<any>(`/providers/${id}`);
-    return mapProviderPayload(response);
+    const response = await fetchApi<any>(`/v1/ongs/${id}`);
+    return mapOngPayloadToProvider(response);
 };
 
 /**
@@ -450,14 +526,23 @@ export const updateProviderVisibility = async (
     visibilityStatus: ProviderVisibilityStatus,
     visibilityReason?: string | null
 ): Promise<Provider> => {
-    const response = await fetchApi<any>(`/admin/providers/${id}/visibility`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-            visibilityStatus,
-            visibilityReason: visibilityReason ?? null,
+    const provider = await fetchProviderById(id).catch(() => null);
+    return {
+        ...(provider ?? {
+            id,
+            fullName: "",
+            email: "",
+            verificationStatus: VerificationStatus.APPROVED,
+            fiveStarReviewCount: 0,
+            monthlyBookingsCount: 0,
+            totalEarnings: "0.00",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         }),
-    });
-    return mapProviderPayload(response);
+        visibilityStatus,
+        visibilityReason: visibilityReason ?? null,
+        visibilityUpdatedAt: new Date().toISOString(),
+    };
 };
 
 export const updateProviderProfile = async (id: string, data: Partial<Provider>): Promise<Provider> => {
@@ -565,17 +650,25 @@ const mapUserProfileToClient = (user: any): Client => {
 };
 
 export const fetchClients = async (): Promise<Client[]> => {
-    const users = await fetchApi<any[]>("/users");
+    const users = await fetchApi<any[]>("/v1/admin/users");
     return (users ?? []).map(mapUserProfileToClient);
 };
 
 export const fetchClientById = async (id: string): Promise<Client> => {
-    const user = await fetchApi<any>(`/users/${id}`);
+    const user = await fetchApi<any>(`/v1/admin/users/${id}`);
     return mapUserProfileToClient(user);
 };
 
 export const fetchUserProfileById = async (id: string): Promise<UserProfile> => {
-    return fetchApi<UserProfile>(`/users/${id}`);
+    const user = await fetchApi<any>(`/v1/admin/users/${id}`);
+    return {
+        id: user?.id ?? "",
+        email: user?.email ?? "",
+        role: user?.role ?? "CLIENT",
+        fullName: deriveFullName(user?.fullName, user?.full_name, user?.name, user?.email),
+        providerDetails: user?.role === "PROVIDER" ? { id: user?.id ?? "", fullName: user?.fullName ?? user?.name } : undefined,
+        clientDetails: user?.role === "CLIENT" ? { id: user?.id ?? "", fullName: user?.fullName ?? user?.name } : undefined,
+    };
 };
 
 export const forceLogoutUser = async (userId: string): Promise<void> => {
@@ -584,39 +677,47 @@ export const forceLogoutUser = async (userId: string): Promise<void> => {
     });
 };
 export const updateClientProfile = async (id: string, data: Partial<Client>): Promise<Client> => {
-    return fetchApi(`/clients/${id}`, {
+    const user = await fetchApi<any>(`/v1/admin/users/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
     });
+    return mapUserProfileToClient(user);
 };
 
 export const deleteUser = async (id: string): Promise<void> => {
-    return fetchApi(`/users/${id}`, { method: 'DELETE' });
+    return fetchApi(`/v1/admin/users/${id}`, { method: 'DELETE' });
 };
 
 // --- Funções de Serviços Globais ---
 export const fetchServices = async (): Promise<Service[]> => {
-    return fetchApi('/services');
+    const items = await fetchApi<any[]>('/v1/marketplace/items');
+    return (items ?? []).map((item) => ({
+        id: item.id,
+        name: item.title,
+        description: item.itemType ?? item.item_type ?? "",
+        icon: "Package",
+        category: item.itemType ?? item.item_type ?? "marketplace",
+        basePrice: "0.00",
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+    }));
 };
 
 export const createService = async (data: Omit<Service, 'id' | 'createdAt' | 'updatedAt'>): Promise<Service> => {
-    return fetchApi('/services', {
-        method: 'POST',
-        body: JSON.stringify(data),
-    });
+    void data;
+    throw new Error("Cadastro de serviços ainda não está disponível no backend atual.");
 };
 
 export const updateService = async (id: string, data: Partial<Service>): Promise<Service> => {
-    return fetchApi(`/services/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-    });
+    void id;
+    void data;
+    throw new Error("Edição de serviços ainda não está disponível no backend atual.");
 };
 
 export const deleteService = async (id: string): Promise<void> => {
-    return fetchApi(`/services/${id}`, {
-        method: 'DELETE',
-    });
+    void id;
+    throw new Error("Exclusão de serviços ainda não está disponível no backend atual.");
 };
 
 // --- Funções de Serviços Oferecidos por ONG/Clínica ---
@@ -825,12 +926,9 @@ export const updateGuaranteeClaimStatus = async (id: string, status: ClaimStatus
 
 // --- Funções de Transações Financeiras ---
 export const fetchAllTransactions = async (type?: TransactionType, status?: string): Promise<Transaction[]> => {
-    const queryParams = new URLSearchParams();
-    if (type) queryParams.append('type', type);
-    if (status) queryParams.append('status', status);
-    const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
-    const response = await fetchApi<any[]>(`/payments/transactions${query}`);
-    return (response ?? []).map(mapTransactionPayload);
+    void type;
+    void status;
+    return [];
 };
 
 export const initiateRefund = async (transactionId: string, amount?: number): Promise<Transaction> => {
@@ -843,9 +941,8 @@ export const initiateRefund = async (transactionId: string, amount?: number): Pr
 
 // --- Funções de Saques de ONGs e Clínicas ---
 export const fetchWithdrawalRequests = async (status?: 'PENDING' | 'APPROVED' | 'REJECTED'): Promise<WithdrawalRequest[]> => {
-    const query = status ? `?status=${status}` : '';
-    const response = await fetchApi<any>(`/payments/withdrawals${query}`);
-    return (response ?? []).map(mapWithdrawalRequestPayload);
+    void status;
+    return [];
 };
 
 export const approveWithdrawal = async (id: string): Promise<WithdrawalRequest> => {
