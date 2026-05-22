@@ -511,8 +511,11 @@ export class ZooHelpEngine {
     });
   }
 
-  chatRooms() {
-    return this.request<ChatConversationContract[]>("/v1/chat/rooms");
+  chatRooms(input: { postId?: string } = {}) {
+    const params = new URLSearchParams();
+    if (input.postId) params.set("post_id", input.postId);
+    const suffix = params.toString() ? `?${params}` : "";
+    return this.request<ChatConversationContract[]>(`/v1/chat/rooms${suffix}`);
   }
 
   chatRoom(roomId: string) {
