@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Dimensions,
@@ -19,11 +19,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { StatusBadge } from '@/components/StatusBadge';
-import { AUTHOR_TO_ONG, MOCK_POSTS, POST_TYPE_CONFIG } from '@/constants/data';
+import { AUTHOR_TO_ONG, POST_TYPE_CONFIG, type Post } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { shareZooHelpItem } from '@/services/share';
-import { createZooHelpApi } from '@/services/zoohelpApi';
+import { createZooHelpApi, mapPost } from '@/services/zoohelpApi';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -67,9 +67,18 @@ export default function PostDetailScreen() {
   const router = useRouter();
   const { likedPosts, toggleLike, posts } = useApp();
   const [liked, setLiked] = useState(false);
+  const [remotePost, setRemotePost] = useState<Post | null>(null);
 
-  const post = posts.find((p) => p.id === id) ?? MOCK_POSTS.find((p) => p.id === id);
+  const post = posts.find((p) => p.id === id) ?? remotePost;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
+
+  useEffect(() => {
+    if (!id || posts.some((p) => p.id === id)) return;
+    createZooHelpApi()
+      ?.post(id)
+      .then((item) => setRemotePost(mapPost(item)))
+      .catch(() => setRemotePost(null));
+  }, [id, posts]);
 
   if (!post) {
     return (
@@ -104,7 +113,7 @@ export default function PostDetailScreen() {
 
   async function handleOpenChat() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const rooms = await createZooHelpApi()?.chatRooms().catch(() => []);
+    const rooms = await createZooHelpApi()?.chatRooms({ postId: activePost.id }).catch(() => []);
     const room = rooms?.find((item) => item.postId === activePost.id);
     if (!room) {
       Alert.alert('Chat indisponivel', 'O chat deste caso ainda nao foi confirmado no servidor.');
