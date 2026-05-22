@@ -16,6 +16,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { AUTHOR_TO_ONG, Post } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
+import { formatDistanceKm } from '@/services/geoDistance';
 import { shareZooHelpItem } from '@/services/share';
 
 const CARD_IMAGE_HEIGHT = 148;
@@ -25,8 +26,6 @@ const ANIMAL_PLACEHOLDERS: Record<string, string> = {
   cat: 'https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=700&q=85',
   other: 'https://images.unsplash.com/photo-1548767797-d8c844163c4a?w=700&q=85',
 };
-
-const DISTANCES = ['0.3 km', '0.8 km', '1.2 km', '1.5 km', '2.1 km', '3.4 km'];
 
 const CTA_LABELS: Record<string, string> = {
   adoption:  'Quero adotar ',
@@ -123,7 +122,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
       : [ANIMAL_PLACEHOLDERS[post.animalType]];
   const imageUri = imageUris[0];
   const hasPhotoGrid = imageUris.length > 1;
-  const distance = DISTANCES[index % DISTANCES.length];
+  const distance = formatDistanceKm(post.distanceKm);
   const ctaLabel = CTA_LABELS[post.type] ?? 'Ver mais';
   const ctaColor = CTA_COLORS[post.type] ?? '#4CAF50';
 
@@ -312,10 +311,12 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
 
           {/* Bottom overlays */}
           <View style={styles.imageBottomRow}>
-            <View style={styles.distanceBadge}>
-              <MaterialCommunityIcons name="navigation-variant" size={11} color="#FFFFFF" />
-              <Text style={styles.distanceText}>{distance}</Text>
-            </View>
+            {distance && (
+              <View style={styles.distanceBadge}>
+                <MaterialCommunityIcons name="navigation-variant" size={11} color="#FFFFFF" />
+                <Text style={styles.distanceText}>{distance}</Text>
+              </View>
+            )}
             {hasPhotoGrid && (
               <View style={styles.photoCountBadge}>
                 <MaterialCommunityIcons name="image-multiple-outline" size={11} color="#FFFFFF" />
