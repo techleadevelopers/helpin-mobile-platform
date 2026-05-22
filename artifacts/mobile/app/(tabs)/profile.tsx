@@ -156,7 +156,7 @@ export default function ProfileScreen() {
 
   function openRescueComposer() {
     setIsAlertOverlayVisible(false);
-    router.push('/compose?intent=help&type=emergency');
+    router.push('/compose?intent=help&type=emergency&rescue=1');
   }
 
   async function pickProfilePhoto() {
