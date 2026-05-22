@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchLiveStatus } from "@/lib/api";
-import { Booking, BookingStatus, LiveStatusPayload, Provider, VerificationStatus } from "@/lib/types";
+import { Booking, BookingStatus, LiveStatusPayload, Provider, RescueTrackingSession, VerificationStatus } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
 import { MapContainer, Marker, TileLayer } from "react-leaflet";
 import L, { type LatLngExpression, type Map as LeafletMap } from "leaflet";
@@ -16,6 +16,7 @@ import { useThrottle } from "@/hooks/use-throttle";
 type ActiveProviderEntry = {
   provider: Provider;
   booking: Booking;
+  trackedUser?: RescueTrackingSession;
   lat: number;
   lng: number;
   engineStarted: boolean;
@@ -164,6 +165,7 @@ function ProviderAvatar({
 }
 
 const EMPTY_LIVE_STATUS: LiveStatusPayload = {
+  trackedUsers: [],
   providers: [],
   confirmedBookings: [],
   activeBookings: [],
@@ -1687,6 +1689,46 @@ const DEMO_ACTIVE_PROVIDERS: ActiveProviderEntry[] = DEMO_PROVIDER_DEFINITIONS.m
   }),
 );
 
+const buildTrackedUserEntry = (session: RescueTrackingSession): ActiveProviderEntry => {
+  const name = session.reporterName ?? session.reporterEmail ?? "Usuario em resgate";
+  const id = session.reporterUserId ?? session.id;
+  return {
+    provider: {
+      id,
+      name,
+      fullName: name,
+      email: session.reporterEmail ?? "",
+      verificationStatus: VerificationStatus.APPROVED,
+      fiveStarReviewCount: 0,
+      monthlyBookingsCount: 0,
+      totalEarnings: "0",
+      createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
+      latitude: String(session.lat),
+      longitude: String(session.lng),
+    },
+    booking: {
+      id: session.id,
+      clientId: id,
+      providerId: id,
+      providerServiceId: "rescue-live-tracking",
+      scheduledDate: new Date(session.createdAt).toLocaleDateString("pt-BR"),
+      scheduledTime: new Date(session.createdAt).toLocaleTimeString("pt-BR"),
+      status: session.status === "ended" ? BookingStatus.FINISHED : BookingStatus.STARTED,
+      totalPrice: 0,
+      clientFullName: name,
+      notes: `Resgate ${session.postId}${session.reporterRole ? ` - ${session.reporterRole}` : ""}`,
+      createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
+    },
+    trackedUser: session,
+    lat: session.lat,
+    lng: session.lng,
+    engineStarted: session.status === "active",
+    isJoaquim: /\bjoaquim\b/i.test(name),
+  };
+};
+
 export default function LiveTrackingPage() {
   const [demoMode, setDemoMode] = useState(() => {
     if (typeof window === "undefined") {
@@ -1707,9 +1749,10 @@ export default function LiveTrackingPage() {
   });
 
   const liveStatus = liveStatusData ?? EMPTY_LIVE_STATUS;
-  const providers = liveStatus.providers;
-  const confirmedBookings = liveStatus.confirmedBookings;
-  const inProgressBookings = liveStatus.activeBookings;
+  const trackedUsers: RescueTrackingSession[] = liveStatus.trackedUsers ?? [];
+  const providers: Provider[] = liveStatus.providers ?? [];
+  const confirmedBookings: Booking[] = liveStatus.confirmedBookings ?? [];
+  const inProgressBookings: Booking[] = liveStatus.activeBookings ?? [];
 
   const activeBookings = useMemo(
     () => [...inProgressBookings, ...confirmedBookings],
@@ -1731,16 +1774,24 @@ export default function LiveTrackingPage() {
   const [trackingId, setTrackingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (providers.length || activeBookings.length) {
+    if (trackedUsers.length || providers.length || activeBookings.length) {
       setLastUpdated(new Date());
     }
-  }, [providers.length, activeBookings.length]);
+  }, [trackedUsers.length, providers.length, activeBookings.length]);
 
   const activeProviders = useMemo((): ActiveProviderEntry[] => {
+    if (trackedUsers.length) {
+      return trackedUsers
+        .map(buildTrackedUserEntry)
+        .sort((a: ActiveProviderEntry, b: ActiveProviderEntry) =>
+          b.booking.updatedAt.localeCompare(a.booking.updatedAt)
+        );
+    }
+
     if (!providers.length || !activeBookingsByProvider.size) {
       return [];
     }
-    const entries = providers.reduce<ActiveProviderEntry[]>((acc, provider) => {
+    const entries = providers.reduce<ActiveProviderEntry[]>((acc: ActiveProviderEntry[], provider: Provider) => {
       const booking = activeBookingsByProvider.get(provider.id);
       if (!booking) return acc;
       const coords = resolveCoordinates(provider, booking);
@@ -1760,7 +1811,7 @@ export default function LiveTrackingPage() {
       });
       return acc;
     }, []);
-    return entries.sort((a, b) => {
+    return entries.sort((a: ActiveProviderEntry, b: ActiveProviderEntry) => {
       if (a.engineStarted !== b.engineStarted) {
         return a.engineStarted ? -1 : 1;
       }
@@ -1771,12 +1822,11 @@ export default function LiveTrackingPage() {
         a.provider.fullName?.localeCompare(b.provider.fullName ?? "") ?? 0
       );
     });
-  }, [providers, activeBookingsByProvider]);
+  }, [trackedUsers, providers, activeBookingsByProvider]);
 
   const throttledActiveProviders = useThrottle(activeProviders, 500);
   const displayedProviders = demoMode ? DEMO_ACTIVE_PROVIDERS : throttledActiveProviders;
   const activeCount = displayedProviders.length;
-  const estimatedRevenue = activeCount * 420;
   const performancePercent = activeCount
     ? Math.round(
         (displayedProviders.filter((entry) => entry.engineStarted).length / activeCount) * 100,
@@ -1817,7 +1867,7 @@ export default function LiveTrackingPage() {
       <div className="flex-1 ml-72 overflow-hidden">
         <Header
           title="Live Tracking"
-          subtitle="Monitoramento ao vivo dos ONGs e clínicas com serviços ativos."
+          subtitle="Monitoramento ao vivo de todos os usuarios com resgate ativo."
         />
 
         <main className="flex-1 overflow-y-auto p-8">
@@ -1829,7 +1879,7 @@ export default function LiveTrackingPage() {
                     <div>
                       <CardTitle>Mapa de Operações</CardTitle>
                       <p className="text-sm text-gray-500">
-                        Apenas rastreamos ONGs com serviços aceitos ou em andamento.
+                        Rastreamento de resgate ativo para usuario comum, voluntario, ONG ou clinica.
                       </p>
                     </div>
                   <div className="flex items-center gap-2">
@@ -1903,7 +1953,7 @@ export default function LiveTrackingPage() {
                     )}
                     {!displayedProviders.length && !isFetching && (
                       <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500 bg-white/80">
-                        Nenhum prestador ativo detectado no momento.
+                        Nenhum usuario com resgate ativo detectado no momento.
                       </div>
                     )}
                   </div>
@@ -1916,38 +1966,34 @@ export default function LiveTrackingPage() {
                 <Card className="h-full">
                   <CardHeader className="flex flex-col gap-3">
                     <div>
-                      <CardTitle>Lista de ONGs</CardTitle>
+                      <CardTitle>Usuarios em Live Tracking</CardTitle>
                       <p className="text-sm text-gray-500">
-                        Rastreie o prestador certo e acompanhe o serviço.
+                        Rastreie quem acionou o resgate e acompanhe a coordenada em tempo real.
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-3 border-t border-gray-200 pt-4">
                       <div className="flex-1 min-w-[160px] rounded-2xl border border-white/40 bg-white/20 px-4 py-3 shadow-lg backdrop-blur">
                         <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                          Serviços Ativos
+                          Resgates Ativos
                         </p>
                         <p className="text-2xl font-semibold text-slate-900">{activeCount}</p>
                         <p className="text-[11px] text-gray-400">monitorados</p>
                       </div>
                       <div className="flex-1 min-w-[160px] rounded-2xl border border-white/40 bg-white/20 px-4 py-3 shadow-lg backdrop-blur">
                         <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                          Volume financeiro Estimada
+                          Cobertura operacional
                         </p>
                         <p className="text-2xl font-semibold text-slate-900">
-                          {new Intl.NumberFormat("pt-BR", {
-                            style: "currency",
-                            currency: "BRL",
-                            minimumFractionDigits: 0,
-                          }).format(estimatedRevenue)}
+                          {activeCount}
                         </p>
-                        <p className="text-[11px] text-emerald-600 font-semibold">+355% Lucro</p>
+                        <p className="text-[11px] text-emerald-600 font-semibold">tempo real</p>
                       </div>
                       <div className="flex-1 min-w-[160px] rounded-2xl border border-white/40 bg-white/20 px-4 py-3 shadow-lg backdrop-blur">
                         <p className="text-[11px] uppercase tracking-wide text-gray-500">
                           Performance
                         </p>
                         <p className="text-2xl font-semibold text-slate-900">{performancePercent}%</p>
-                        <p className="text-[11px] text-gray-400">Serviços sem atraso</p>
+                        <p className="text-[11px] text-gray-400">resgates ativos</p>
                       </div>
                     </div>
                   </CardHeader>
@@ -1966,14 +2012,14 @@ export default function LiveTrackingPage() {
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
                               <ProviderAvatar
-                                name={entry.provider.fullName ?? entry.provider.name ?? "ONG/Clínica"}
+                                name={entry.provider.fullName ?? entry.provider.name ?? "Usuario"}
                                 id={entry.provider.id}
                               />
-                              {entry.provider.fullName ?? entry.provider.name ?? "ONG/Clínica"}
+                              {entry.provider.fullName ?? entry.provider.name ?? "Usuario"}
                             </div>
                             <div className="flex items-center gap-1">
                               <Badge variant="outline">
-                                {entry.engineStarted ? "Em serviço" : "Confirmado"}
+                                {entry.engineStarted ? "Resgate ativo" : "Encerrado"}
                               </Badge>
                               {entry.isJoaquim && (
                                 <Badge variant="secondary">Joaquim</Badge>
@@ -1981,7 +2027,7 @@ export default function LiveTrackingPage() {
                             </div>
                           </div>
                           <p className="mt-1 text-xs text-gray-500">
-                            Cliente{" "}
+                            Usuario{" "}
                             {entry.booking.clientFullName ??
                               entry.booking.client?.fullName ??
                               entry.booking.client?.name ??
@@ -2009,7 +2055,7 @@ export default function LiveTrackingPage() {
                     })}
                     {!displayedProviders.length && !isFetching && (
                       <div className="rounded-2xl border border-dashed border-gray-200 bg-white/60 p-6 text-center text-sm text-gray-500">
-                        Nenhum prestador com serviço aceito ou em andamento encontrado.
+                        Nenhum usuario com resgate ativo encontrado.
                       </div>
                     )}
                   </CardContent>
