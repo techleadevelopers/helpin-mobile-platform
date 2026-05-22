@@ -470,9 +470,25 @@ export type Booking = {
 };
 
 export type LiveStatusPayload = {
+    trackedUsers?: RescueTrackingSession[];
     providers: Provider[];
     confirmedBookings: Booking[];
     activeBookings: Booking[];
+};
+
+export type RescueTrackingSession = {
+    id: string;
+    postId: string;
+    reporterUserId?: string | null;
+    reporterName?: string | null;
+    reporterEmail?: string | null;
+    reporterRole?: string | null;
+    status: string;
+    lat: number;
+    lng: number;
+    accuracy?: number | null;
+    createdAt: string;
+    updatedAt: string;
 };
 
 export type BookingStatusCounts = {
