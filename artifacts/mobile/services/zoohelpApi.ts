@@ -1,17 +1,18 @@
 import { ZooHelpEngine, type AccountType, type PostContract, type PostType } from '@/services/zoohelpEngine';
 import type { Author, Post } from '@/constants/data';
 import { Platform } from 'react-native';
+import { ACCESS_TOKEN_KEY, getStoredAccessToken } from '@/services/secureSession';
 
 declare const process: { env?: Record<string, string | undefined> };
 
 const DEFAULT_API_BASE_URL = 'https://zoohelp-core-production.up.railway.app';
-const API_BASE_URL = (process.env?.EXPO_PUBLIC_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
+export const API_BASE_URL = (process.env?.EXPO_PUBLIC_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
 const GOOGLE_MAPS_API_KEY = process.env?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-const AUTH_TOKEN_KEY = 'authToken';
+const AUTH_TOKEN_KEY = ACCESS_TOKEN_KEY;
 
 export const backendEnabled = Boolean(API_BASE_URL);
 
-export function createZooHelpApi(getAccessToken?: () => Promise<string | null> | string | null) {
+export function createZooHelpApi(getAccessToken: () => Promise<string | null> | string | null = getStoredAccessToken) {
   if (!API_BASE_URL) return null;
   return new ZooHelpEngine({
     apiBaseUrl: API_BASE_URL,
