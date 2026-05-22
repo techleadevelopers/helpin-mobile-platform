@@ -6,7 +6,7 @@ import { enqueuePost, listPendingPosts, markPendingPostAttempt, removePendingPos
 import { flushRescueOutbox, listPendingRescueOperations } from '@/services/rescueOutbox';
 import { registerRescueAlerts } from '@/services/rescueNotifications';
 import { clearSessionTokens, getSecureItem, setSecureItem, REFRESH_TOKEN_KEY } from '@/services/secureSession';
-import { AUTH_TOKEN_KEY, createZooHelpApi, mapPost, uploadLocalImageToCloudinary } from '@/services/zoohelpApi';
+import { AUTH_TOKEN_KEY, createZooHelpApi, mapPost, supportPaymentsEnabled, uploadLocalImageToCloudinary } from '@/services/zoohelpApi';
 
 interface User {
   id: string;
@@ -336,6 +336,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function donateToOng(ongId: string, amountCents = 1000) {
+    if (!supportPaymentsEnabled) {
+      throw new Error('Apoio financeiro ainda nao esta habilitado');
+    }
     if (api) {
       await api.createDonationIntent({ ongId, amountCents, currency: 'BRL' });
     }
