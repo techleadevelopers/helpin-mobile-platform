@@ -74,6 +74,29 @@ const getProviderInitials = (provider?: Provider | null) => {
 const getProviderAvatarUrl = (provider: Provider) =>
   provider.avatarUrl?.trim() || null;
 
+const formatValue = (value?: string | number | null) => {
+  const normalized = String(value ?? "").trim();
+  return normalized || "Nao informado";
+};
+
+const formatOngAge = (foundationYear?: number | null) => {
+  if (!foundationYear) return "Nao informado";
+  const currentYear = new Date().getFullYear();
+  const age = currentYear - foundationYear;
+  if (age <= 0) return `Fundada em ${foundationYear}`;
+  return `${age} anos (${foundationYear})`;
+};
+
+const formatAddressLine = (provider: Provider) => {
+  const street = provider.street?.trim();
+  const number = provider.number?.trim();
+  const neighborhood = provider.neighborhood?.trim();
+  const cityState = [provider.city, provider.state].map((v) => v?.trim()).filter(Boolean).join(" / ");
+  const firstLine = [street, number].filter(Boolean).join(", ");
+  const secondLine = [neighborhood, cityState].filter(Boolean).join(" - ");
+  return [firstLine, secondLine].filter(Boolean).join(" | ") || "Nao informado";
+};
+
 export default function VerificationQueue() {
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -91,7 +114,7 @@ export default function VerificationQueue() {
   const updateProviderStatusMutation = useMutation({
     mutationFn: ({ id, status, rejectionReason }: { id: string; status: VerificationStatus; rejectionReason?: string }) =>
       apiUpdateProviderStatus(id, status, rejectionReason),
-    onSuccess: (updatedProvider) => {
+    onSuccess: (updatedProvider: Provider) => {
       queryClient.invalidateQueries({ queryKey: ['/verification/pending-queue'] });
       queryClient.invalidateQueries({ queryKey: ['/providers'] });
       toast({
@@ -305,7 +328,11 @@ export default function VerificationQueue() {
                                   </Badge>
                                 </div>
                                 <p className="text-sm text-gray-600">{provider.email}</p>
-                                <p className="text-xs text-gray-500 mt-1">{statusInfo.text}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {[provider.cnpj ? `CNPJ ${provider.cnpj}` : null, [provider.city, provider.state].filter(Boolean).join(" / ")]
+                                    .filter(Boolean)
+                                    .join(" • ") || statusInfo.text}
+                                </p>
                               </div>
                             </div>
 
@@ -346,6 +373,45 @@ export default function VerificationQueue() {
                   {selectedProviderStatusInfo && (
                     <p className="text-sm text-gray-500 mb-4">{selectedProviderStatusInfo.text}</p>
                   )}
+
+                  <div className="mb-5 rounded-3xl border border-gray-100 bg-slate-50/70 p-4">
+                    <p className="mb-3 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-gray-400">
+                      Dados do cadastro
+                    </p>
+                    <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
+                      <div>
+                        <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">Nome juridico</p>
+                        <p className="font-semibold text-gray-900">{formatValue(selectedProvider.legalName || selectedProvider.fullName)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">CNPJ</p>
+                        <p className="font-semibold text-gray-900">{formatValue(selectedProvider.cnpj)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">Idade da ONG</p>
+                        <p className="font-semibold text-gray-900">{formatOngAge(selectedProvider.foundationYear)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">Tipo</p>
+                        <p className="font-semibold text-gray-900">{formatValue(selectedProvider.ongType)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">Telefone</p>
+                        <p className="font-semibold text-gray-900">{formatValue(selectedProvider.phone || selectedProvider.userPhone)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">CEP</p>
+                        <p className="font-semibold text-gray-900">{formatValue(selectedProvider.cep)}</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">Endereco</p>
+                        <p className="font-semibold text-gray-900">{formatAddressLine(selectedProvider)}</p>
+                        {selectedProvider.complement && (
+                          <p className="mt-1 text-xs text-gray-500">Complemento: {selectedProvider.complement}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
                   <div className="grid grid-cols-2 gap-4 mb-5 text-xs uppercase tracking-wide text-gray-500">
                     <div>
