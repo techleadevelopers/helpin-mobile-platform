@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Alert,
   Image,
   ImageBackground,
   Linking,
@@ -23,6 +24,7 @@ import { AUTHOR_TO_ONG, MOCK_ONGS, MOCK_POSTS } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { shareZooHelpItem } from '@/services/share';
+import { supportPaymentsEnabled } from '@/services/zoohelpApi';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -88,6 +90,13 @@ export default function OngProfileScreen() {
   }
 
   function handleDonate() {
+    if (!supportPaymentsEnabled) {
+      Alert.alert(
+        'Apoio comunitario futuro',
+        'O ZooHelp vai comecar sem cobranca. Apoio opcional, como R$1 para manter a infraestrutura, so sera habilitado depois de uso real, confianca e impacto comprovado.',
+      );
+      return;
+    }
     setDonated(true);
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     donateToOng(ongId).catch(() => {});
@@ -250,18 +259,18 @@ export default function OngProfileScreen() {
             style={styles.donateBtnWrapper}
           >
             <LinearGradient
-              colors={donated ? ['#4CAF50', '#2E7D32'] : ['#FF6B6B', '#E53E3E']}
+              colors={donated ? ['#4CAF50', '#2E7D32'] : supportPaymentsEnabled ? ['#FF6B6B', '#E53E3E'] : ['#6B7280', '#4B5563']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.donateBtn}
             >
               <MaterialCommunityIcons
-                name={donated ? 'check-circle' : 'hand-coin'}
+                name={donated ? 'check-circle' : supportPaymentsEnabled ? 'hand-coin' : 'heart-outline'}
                 size={20}
                 color="#FFFFFF"
               />
               <Text style={styles.donateBtnText}>
-                {donated ? 'Obrigado! ' : 'Doar / Ajudar ONG'}
+                {donated ? 'Obrigado! ' : supportPaymentsEnabled ? 'Doar / Ajudar ONG' : 'Apoio opcional futuro'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
