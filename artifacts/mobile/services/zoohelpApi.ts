@@ -9,6 +9,7 @@ const DEFAULT_API_BASE_URL = 'https://zoohelp-core-production.up.railway.app';
 export const API_BASE_URL = (process.env?.EXPO_PUBLIC_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
 const GOOGLE_MAPS_API_KEY = process.env?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 const AUTH_TOKEN_KEY = ACCESS_TOKEN_KEY;
+export const supportPaymentsEnabled = process.env?.EXPO_PUBLIC_SUPPORT_PAYMENTS_ENABLED === 'true';
 
 export const backendEnabled = Boolean(API_BASE_URL);
 
