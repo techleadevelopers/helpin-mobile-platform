@@ -55,7 +55,7 @@ function getStatusInfo(status: string) {
         badge: "bg-blue-100 text-blue-700 border-blue-200",
         icon: AlertCircle,
         iconBg: "bg-blue-100 text-blue-600",
-        text: "VerificaÃ§ão pendente",
+        text: "Verificação pendente",
         priority: "Baixa",
       };
   }
@@ -164,7 +164,7 @@ export default function VerificationQueue() {
         handleApproveProvider(selectedProvider.id);
       } else if (k === 'r') {
         e.preventDefault();
-        const reason = prompt('Motivo da rejeiÃ§ão?') || '';
+        const reason = prompt('Motivo da rejeição?') || '';
         handleRejectProvider(selectedProvider.id, reason);
       } else if (k === 'b') {
         e.preventDefault();
@@ -185,8 +185,8 @@ export default function VerificationQueue() {
       
       <div className="flex-1 ml-72 overflow-hidden">
         <Header 
-          title="Fila de VerificaÃ§ão"
-          subtitle={`${queue?.length || 0} ONGs e clínicas aguardando revisão de verificaÃ§ão.`}
+          title="Fila de Verificação"
+          subtitle={`${queue?.length || 0} ONGs e clínicas aguardando revisão de verificação.`}
         />
         
         <main className="flex-1 overflow-y-auto p-8 scrollbar-premium">
