@@ -23,6 +23,7 @@ import { AUTHOR_TO_ONG, MOCK_POSTS, POST_TYPE_CONFIG } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { shareZooHelpItem } from '@/services/share';
+import { createZooHelpApi } from '@/services/zoohelpApi';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -101,10 +102,16 @@ export default function PostDetailScreen() {
     });
   }
 
-  function handleOpenChat() {
+  async function handleOpenChat() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const rooms = await createZooHelpApi()?.chatRooms().catch(() => []);
+    const room = rooms?.find((item) => item.postId === activePost.id);
+    if (!room) {
+      Alert.alert('Chat indisponivel', 'O chat deste caso ainda nao foi confirmado no servidor.');
+      return;
+    }
     router.push(
-      `/chat/${activePost.author.id}?postName=${encodeURIComponent(activePost.name)}&authorName=${encodeURIComponent(activePost.author.name)}&chatType=adoption`
+      `/chat/${room.id}?postName=${encodeURIComponent(activePost.name)}&authorName=${encodeURIComponent(activePost.author.name)}&chatType=adoption`
     );
   }
 
@@ -241,7 +248,7 @@ export default function PostDetailScreen() {
                       borderColor: colors.primary + '20',
                     },
                   ]}
-                  onPress={() => router.push('/chat/c1')}
+                  onPress={handleOpenChat}
                   activeOpacity={0.85}
                 >
                   <MaterialCommunityIcons name="message-outline" size={16} color={colors.primary} />
