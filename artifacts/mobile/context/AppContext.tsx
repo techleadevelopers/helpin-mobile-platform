@@ -2,7 +2,10 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { MOCK_POSTS, Post } from '@/constants/data';
+import { enqueuePost, listPendingPosts, markPendingPostAttempt, removePendingPost } from '@/services/postOutbox';
+import { flushRescueOutbox, listPendingRescueOperations } from '@/services/rescueOutbox';
 import { registerRescueAlerts } from '@/services/rescueNotifications';
+import { clearSessionTokens, getSecureItem, setSecureItem, REFRESH_TOKEN_KEY } from '@/services/secureSession';
 import { AUTH_TOKEN_KEY, createZooHelpApi, mapPost, uploadLocalImageToCloudinary } from '@/services/zoohelpApi';
 
 interface User {
@@ -52,10 +55,12 @@ interface AppContextType {
   completeOnboarding: () => Promise<void>;
   toggleLike: (postId: string) => void;
   toggleFollowOng: (ongId: string) => void;
-  addPost: (post: Post) => Promise<void>;
+  addPost: (post: Post) => Promise<Post>;
   refreshPosts: () => Promise<void>;
   donateToOng: (ongId: string, amountCents?: number) => Promise<void>;
   updateUserAvatar: (avatarUri: string) => Promise<void>;
+  pendingOutboxCount: number;
+  syncPendingOperations: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -69,9 +74,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [likedPosts, setLikedPosts] = useState<string[]>([]);
   const [followedOngs, setFollowedOngs] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingOutboxCount, setPendingOutboxCount] = useState(0);
 
   const api = useMemo(
-    () => createZooHelpApi(() => AsyncStorage.getItem(AUTH_TOKEN_KEY)),
+    () => createZooHelpApi(() => getSecureItem(AUTH_TOKEN_KEY)),
     [],
   );
 
@@ -93,7 +99,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         AsyncStorage.getItem('hasSeenOnboarding'),
         AsyncStorage.getItem('likedPosts'),
         AsyncStorage.getItem('followedOngs'),
-        AsyncStorage.getItem(AUTH_TOKEN_KEY),
+        getSecureItem(AUTH_TOKEN_KEY),
       ]);
 
       if (storedUser) {
@@ -111,7 +117,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (storedLikes) setLikedPosts(JSON.parse(storedLikes));
       if (storedFollows) setFollowedOngs(JSON.parse(storedFollows));
 
+      await refreshOutboxCount();
       await refreshPostsFromBackend();
+      await syncPendingOperations();
     } catch {
       // Keep local mock fallback available in development/offline mode.
     } finally {
@@ -151,8 +159,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   async function login(email: string, password: string) {
     if (api) {
       const response = await api.login(email, password);
-      await AsyncStorage.setItem(AUTH_TOKEN_KEY, response.accessToken);
-      await AsyncStorage.setItem('refreshToken', response.refreshToken);
+      await setSecureItem(AUTH_TOKEN_KEY, response.accessToken);
+      await setSecureItem(REFRESH_TOKEN_KEY, response.refreshToken);
       return persistUser(mapAuthUser(response));
     }
 
@@ -187,8 +195,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         accountType: type,
         ...profile,
       });
-      await AsyncStorage.setItem(AUTH_TOKEN_KEY, response.accessToken);
-      await AsyncStorage.setItem('refreshToken', response.refreshToken);
+      await setSecureItem(AUTH_TOKEN_KEY, response.accessToken);
+      await setSecureItem(REFRESH_TOKEN_KEY, response.refreshToken);
       const nextUser = mapAuthUser(response);
       if (type === 'ong' && response.ongProfile?.verificationStatus !== 'APPROVED') {
         nextUser.verified = false;
@@ -201,7 +209,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function logout() {
-    await AsyncStorage.multiRemove(['user', AUTH_TOKEN_KEY, 'refreshToken']);
+    await AsyncStorage.removeItem('user');
+    await clearSessionTokens();
     setUser(null);
     setIsAuthenticated(false);
   }
@@ -234,35 +243,81 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     api?.followOng(ongId).catch(() => {});
   }
 
-  async function addPost(post: Post) {
-    if (api) {
-      const uploadedImage =
-        post.image && !post.image.startsWith('http')
-          ? await uploadLocalImageToCloudinary(api, post.image)
-          : null;
-      const publicImage = uploadedImage?.publicUrl ?? post.image;
-      const response = await api.createPost({
-        name: post.name,
-        postType: post.type,
-        animalType: post.animalType,
-        breed: post.breed,
-        age: post.age,
-        description: post.description,
-        location: post.location,
-        neighborhood: post.neighborhood,
-        image: publicImage,
-        images: uploadedImage ? [uploadedImage] : [],
-        urgent: post.urgent,
-        contact: post.contact,
-        tags: post.tags,
-        latitude: post.latitude,
-        longitude: post.longitude,
-      });
-      setPosts((prev) => [mapPost(response.post), ...prev]);
-      return;
-    }
+  async function publishPostToBackend(post: Post, idempotencyKey?: string) {
+    if (!api) throw new Error('Backend unavailable');
+    const uploadedImage =
+      post.image && !post.image.startsWith('http')
+        ? await uploadLocalImageToCloudinary(api, post.image)
+        : null;
+    const publicImage = uploadedImage?.publicUrl ?? post.image;
+    const response = await api.createPost({
+      name: post.name,
+      postType: post.type,
+      animalType: post.animalType,
+      breed: post.breed,
+      age: post.age,
+      description: post.description,
+      location: post.location,
+      neighborhood: post.neighborhood,
+      image: publicImage,
+      images: uploadedImage ? [uploadedImage] : [],
+      urgent: post.urgent,
+      contact: post.contact,
+      tags: post.tags,
+      latitude: post.latitude,
+      longitude: post.longitude,
+      idempotencyKey,
+    });
+    return mapPost(response.post);
+  }
 
-    setPosts((prev) => [post, ...prev]);
+  async function refreshOutboxCount() {
+    const [pendingPosts, pendingRescues] = await Promise.all([
+      listPendingPosts(),
+      listPendingRescueOperations(),
+    ]);
+    setPendingOutboxCount(pendingPosts.length + pendingRescues.length);
+  }
+
+  async function syncPendingOperations() {
+    if (api) {
+      const pendingPosts = await listPendingPosts();
+      for (const pending of pendingPosts) {
+        try {
+          const synced = await publishPostToBackend(pending.post, pending.idempotencyKey);
+          await removePendingPost(pending.id);
+          setPosts((prev) => [synced, ...prev.filter((item) => item.id !== pending.post.id)]);
+        } catch (error) {
+          await markPendingPostAttempt(
+            pending.id,
+            error instanceof Error ? error.message : 'Falha de rede',
+          );
+        }
+      }
+      await flushRescueOutbox(api);
+    }
+    await refreshOutboxCount();
+  }
+
+  async function addPost(post: Post) {
+    try {
+      const synced = await publishPostToBackend(post);
+      setPosts((prev) => [synced, ...prev]);
+      return synced;
+    } catch (error) {
+      await enqueuePost(post, error instanceof Error ? error.message : 'Falha de rede');
+      await refreshOutboxCount();
+      const pendingPost = {
+        ...post,
+        tags: Array.from(new Set(['pendente', ...post.tags])),
+        createdAt: 'pendente',
+      };
+      setPosts((prev) => [
+        pendingPost,
+        ...prev,
+      ]);
+      return pendingPost;
+    }
   }
 
   async function refreshPostsFromBackend() {
@@ -273,6 +328,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   async function refreshPosts() {
     try {
+      await syncPendingOperations();
       await refreshPostsFromBackend();
     } catch {
       setPosts([...MOCK_POSTS]);
@@ -324,6 +380,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         refreshPosts,
         donateToOng,
         updateUserAvatar,
+        pendingOutboxCount,
+        syncPendingOperations,
         isLoading,
       }}
     >
