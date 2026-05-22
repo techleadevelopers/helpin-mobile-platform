@@ -53,7 +53,7 @@ export default function FeedScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { posts, refreshPosts, user, addPost } = useApp();
+  const { posts, refreshPosts, user, addPost, pendingOutboxCount, syncPendingOperations } = useApp();
   const [activeFilter, setActiveFilter] = useState<FeedFilter>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading] = useState(false);
@@ -101,10 +101,11 @@ export default function FeedScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    await syncPendingOperations().catch(() => {});
     refreshPosts();
     await new Promise((r) => setTimeout(r, 900));
     setRefreshing(false);
-  }, [refreshPosts]);
+  }, [refreshPosts, syncPendingOperations]);
 
   const renderPost = useCallback(
     ({ item, index }: { item: Post; index: number }) => <PostCard post={item} index={index} />,
@@ -120,6 +121,7 @@ export default function FeedScreen() {
   })();
 
   const displayName = user?.name?.split(' ')[0] ?? 'Conta';
+  const urgentCount = filteredPosts.filter((post) => post.urgent || post.type === 'emergency').length;
 
   async function pickQuickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -216,13 +218,14 @@ export default function FeedScreen() {
     };
 
     try {
-      await addPost(post);
+      const savedPost = await addPost(post);
       setQuickText('');
       setQuickImage(null);
       setQuickLocation('');
       setQuickCoords(null);
       setQuickUrgent(true);
       setActiveFilter('all');
+      router.push(`/rescue/status?postId=${encodeURIComponent(savedPost.id)}` as any);
     } catch {
       Alert.alert('Erro ao publicar', 'Nao foi possivel publicar agora. Tente novamente.');
     } finally {
@@ -350,6 +353,18 @@ export default function FeedScreen() {
       </View>
 
       {/* ── Filter chips ── */}
+      <View style={[styles.opsStrip, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.opsStripLeft}>
+          <View style={[styles.liveDot, { backgroundColor: pendingOutboxCount ? '#D4A259' : '#2D6A4F' }]} />
+          <Text style={[styles.opsStripTitle, { color: colors.foreground }]}>
+            {pendingOutboxCount ? `${pendingOutboxCount} envio${pendingOutboxCount > 1 ? 's' : ''} pendente${pendingOutboxCount > 1 ? 's' : ''}` : 'Rede operacional ativa'}
+          </Text>
+        </View>
+        <TouchableOpacity onPress={() => syncPendingOperations()} activeOpacity={0.75}>
+          <Text style={[styles.opsStripAction, { color: colors.primary }]}>Sincronizar</Text>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
         data={FILTERS}
         horizontal
@@ -390,7 +405,7 @@ export default function FeedScreen() {
            activeFilter === 'emergency' ? 'Emergências' : 'Campanhas'}
         </Text>
         <Text style={[styles.sectionCount, { color: colors.mutedForeground }]}>
-          {filteredPosts.length} casos
+          {urgentCount} urgentes
         </Text>
       </View>
     </View>
@@ -436,6 +451,22 @@ export default function FeedScreen() {
           />
         }
       />
+      <View style={[styles.emergencyDock, { paddingBottom: insets.bottom + 12 }]}>
+        <TouchableOpacity
+          style={styles.emergencyButton}
+          onPress={() => router.push('/compose?intent=help&type=emergency&rescue=1')}
+          activeOpacity={0.88}
+        >
+          <View style={styles.emergencyIcon}>
+            <MaterialCommunityIcons name="alert-circle" size={18} color="#FFFFFF" />
+          </View>
+          <View style={styles.emergencyTextWrap}>
+            <Text style={styles.emergencyTitle}>Acionar resgate agora</Text>
+            <Text style={styles.emergencySubtitle}>GPS, foto e alerta imediato</Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={18} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -626,5 +657,77 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 0,
+  },
+  opsStrip: {
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 8,
+    minHeight: 40,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  opsStripLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  opsStripTitle: {
+    fontSize: 12,
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+  opsStripAction: {
+    fontSize: 12,
+    fontFamily: 'Montserrat_700Bold',
+  },
+  emergencyDock: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 0,
+  },
+  emergencyButton: {
+    minHeight: 58,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#C94444',
+    shadowColor: '#C94444',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 5,
+  },
+  emergencyIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  emergencyTextWrap: {
+    flex: 1,
+  },
+  emergencyTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Montserrat_700Bold',
+  },
+  emergencySubtitle: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 11,
+    fontFamily: 'Montserrat_500Medium',
   },
 });
