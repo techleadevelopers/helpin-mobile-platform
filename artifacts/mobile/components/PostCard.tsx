@@ -31,7 +31,7 @@ const DISTANCES = ['0.3 km', '0.8 km', '1.2 km', '1.5 km', '2.1 km', '3.4 km'];
 const CTA_LABELS: Record<string, string> = {
   adoption:  'Quero adotar ',
   emergency: 'Ajudar agora',
-  campaign:  'Fazer doação ',
+  campaign:  'Apoiar campanha',
   lost:      'Vi esse pet ',
   found:     'Entrar em contato',
 };
