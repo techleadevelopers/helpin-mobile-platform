@@ -61,9 +61,14 @@ export default function RegisterScreen() {
   const [ongName, setOngName] = useState('');
   const [ongType, setOngType] = useState('');
   const [ongCnpj, setOngCnpj] = useState('');
+  const [ongFoundationYear, setOngFoundationYear] = useState('');
   const [ongEmail, setOngEmail] = useState('');
   const [ongPhone, setOngPhone] = useState('');
   const [ongCep, setOngCep] = useState('');
+  const [ongStreet, setOngStreet] = useState('');
+  const [ongNumber, setOngNumber] = useState('');
+  const [ongComplement, setOngComplement] = useState('');
+  const [ongNeighborhood, setOngNeighborhood] = useState('');
   const [ongCity, setOngCity] = useState('');
   const [ongState, setOngState] = useState('');
   const [ongPassword, setOngPassword] = useState('');
@@ -131,7 +136,7 @@ export default function RegisterScreen() {
         if (!email.trim() || !email.includes('@')) { Alert.alert('E-mail inválido', 'Informe um e-mail válido.'); return; }
         goNext(2);
       } else if (step === 2) {
-        if (password.length < 6) { Alert.alert('Senha fraca', 'A senha deve ter pelo menos 6 caracteres.'); return; }
+        if (password.length < 8) { Alert.alert('Senha fraca', 'A senha deve ter pelo menos 8 caracteres.'); return; }
         if (password !== confirmPassword) { Alert.alert('Senhas diferentes', 'As senhas nao coincidem.'); return; }
         if (!acceptedTerms) { Alert.alert('Termos de Uso', 'Aceite os Termos de Uso e a Politica de Privacidade para continuar.'); return; }
         handleSubmit();
@@ -143,6 +148,14 @@ export default function RegisterScreen() {
       if (step === 1) {
         if (!ongName.trim()) { Alert.alert('Campo obrigatório', 'Informe o nome da ONG.'); return; }
         if (!ongType) { Alert.alert('Campo obrigatorio', 'Selecione o tipo de atuacao.'); return; }
+        if (ongFoundationYear.trim()) {
+          const year = Number(ongFoundationYear);
+          const currentYear = new Date().getFullYear();
+          if (!Number.isInteger(year) || year < 1900 || year > currentYear) {
+            Alert.alert('Ano invalido', 'Informe um ano de fundacao valido.');
+            return;
+          }
+        }
         goNext(2);
       } else if (step === 2) {
         if (!ongEmail.trim() || !ongEmail.includes('@')) { Alert.alert('E-mail inválido', 'Informe um e-mail válido.'); return; }
@@ -150,11 +163,13 @@ export default function RegisterScreen() {
         goNext(3);
       } else if (step === 3) {
         if (ongCep.replace(/\D/g, '').length !== 8) { Alert.alert('CEP obrigatorio', 'Informe um CEP valido com 8 digitos.'); return; }
+        if (!ongStreet.trim()) { Alert.alert('Rua obrigatoria', 'Informe a rua da ONG.'); return; }
+        if (!ongNumber.trim()) { Alert.alert('Numero obrigatorio', 'Informe o numero da ONG.'); return; }
         if (!ongCity.trim()) { Alert.alert('Campo obrigatorio', 'Informe a cidade.'); return; }
         if (ongState.trim().length !== 2) { Alert.alert('UF obrigatoria', 'Informe a UF com 2 letras.'); return; }
         goNext(4);
       } else if (step === 4) {
-        if (ongPassword.length < 6) { Alert.alert('Senha fraca', 'A senha deve ter pelo menos 6 caracteres.'); return; }
+        if (ongPassword.length < 8) { Alert.alert('Senha fraca', 'A senha deve ter pelo menos 8 caracteres.'); return; }
         if (!acceptedTerms) { Alert.alert('Termos de Uso', 'Aceite os Termos de Uso e a Politica de Privacidade para continuar.'); return; }
         handleSubmit();
       }
@@ -180,8 +195,14 @@ export default function RegisterScreen() {
           ongType,
           ...(cnpjDigits.length === 14 ? { cnpj: ongCnpj } : {}),
           phone: ongPhone,
+          cep: ongCep,
+          street: ongStreet.trim(),
+          number: ongNumber.trim(),
+          complement: ongComplement.trim(),
+          neighborhood: ongNeighborhood.trim(),
           city: ongCity,
           state: ongState,
+          ...(ongFoundationYear.trim() ? { foundationYear: Number(ongFoundationYear) } : {}),
         });
       }
       Alert.alert(
@@ -231,12 +252,20 @@ export default function RegisterScreen() {
     setCepLoading(true);
     try {
       const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
-      const payload = (await response.json()) as { erro?: boolean; localidade?: string; uf?: string };
+      const payload = (await response.json()) as {
+        erro?: boolean;
+        localidade?: string;
+        uf?: string;
+        logradouro?: string;
+        bairro?: string;
+      };
       if (!response.ok || payload.erro) {
         Alert.alert('CEP nao encontrado', 'Confira o CEP e tente novamente.');
         return;
       }
       if (lastCepLookupRef.current !== digits) return;
+      setOngStreet(payload.logradouro ?? '');
+      setOngNeighborhood(payload.bairro ?? '');
       setOngCity(payload.localidade ?? '');
       setOngState((payload.uf ?? '').toUpperCase());
     } catch {
@@ -468,11 +497,11 @@ export default function RegisterScreen() {
                 <View style={styles.fields}>
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Senha</Text>
-                    <View style={[styles.inputRow, { borderColor: password.length >= 6 ? '#2D6A4F' : '#E2E8F0' }]}>
-                      <MaterialCommunityIcons name="lock-outline" size={20} color={password.length >= 6 ? '#2D6A4F' : '#A0AEC0'} />
+                    <View style={[styles.inputRow, { borderColor: password.length >= 8 ? '#2D6A4F' : '#E2E8F0' }]}>
+                      <MaterialCommunityIcons name="lock-outline" size={20} color={password.length >= 8 ? '#2D6A4F' : '#A0AEC0'} />
                       <TextInput
                         style={styles.input}
-                        placeholder="Mínimo 6 caracteres"
+                        placeholder="Minimo 8 caracteres"
                         placeholderTextColor="#A0AEC0"
                         secureTextEntry={!showPassword}
                         value={password}
@@ -635,6 +664,22 @@ export default function RegisterScreen() {
                       ONGs com CNPJ valido recebem o selo de verificacao no perfil.
                     </Text>
                   </View>
+
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>Ano de fundacao</Text>
+                    <View style={[styles.inputRow, { borderColor: ongFoundationYear ? '#2D6A4F' : '#E2E8F0' }]}>
+                      <MaterialCommunityIcons name="calendar-heart" size={20} color={ongFoundationYear ? '#2D6A4F' : '#A0AEC0'} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Ex: 2018"
+                        placeholderTextColor="#A0AEC0"
+                        keyboardType="numeric"
+                        value={ongFoundationYear}
+                        onChangeText={(text) => setOngFoundationYear(text.replace(/\D/g, '').slice(0, 4))}
+                        maxLength={4}
+                      />
+                    </View>
+                  </View>
                 </View>
 
                 <TouchableOpacity style={styles.primaryBtn} onPress={validateAndNext} activeOpacity={0.88}>
@@ -727,6 +772,63 @@ export default function RegisterScreen() {
                     {cepLoading && <Text style={styles.cepLoadingText}>Consultando CEP...</Text>}
                   </View>
 
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>Rua</Text>
+                    <View style={[styles.inputRow, { borderColor: ongStreet ? '#2D6A4F' : '#E2E8F0' }]}>
+                      <MaterialCommunityIcons name="road-variant" size={20} color={ongStreet ? '#2D6A4F' : '#A0AEC0'} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Rua / Avenida"
+                        placeholderTextColor="#A0AEC0"
+                        value={ongStreet}
+                        onChangeText={setOngStreet}
+                        autoCapitalize="words"
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.row}>
+                    <View style={[styles.fieldGroup, { width: 118 }]}>
+                      <Text style={styles.fieldLabel}>Numero</Text>
+                      <View style={[styles.inputRow, { borderColor: ongNumber ? '#2D6A4F' : '#E2E8F0' }]}>
+                        <TextInput
+                          style={styles.ufInput}
+                          placeholder="No."
+                          placeholderTextColor="#A0AEC0"
+                          value={ongNumber}
+                          onChangeText={setOngNumber}
+                        />
+                      </View>
+                    </View>
+                    <View style={[styles.fieldGroup, { flex: 1 }]}>
+                      <Text style={styles.fieldLabel}>Bairro</Text>
+                      <View style={[styles.inputRow, { borderColor: ongNeighborhood ? '#2D6A4F' : '#E2E8F0' }]}>
+                        <TextInput
+                          style={styles.input}
+                          placeholder="Bairro"
+                          placeholderTextColor="#A0AEC0"
+                          value={ongNeighborhood}
+                          onChangeText={setOngNeighborhood}
+                          autoCapitalize="words"
+                        />
+                      </View>
+                    </View>
+                  </View>
+
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>Complemento</Text>
+                    <View style={styles.inputRow}>
+                      <MaterialCommunityIcons name="home-edit-outline" size={20} color="#A0AEC0" />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Sala, casa, ponto de referencia"
+                        placeholderTextColor="#A0AEC0"
+                        value={ongComplement}
+                        onChangeText={setOngComplement}
+                      />
+                    </View>
+                  </View>
+
                   <View style={styles.row}>
                     <View style={[styles.fieldGroup, { flex: 1 }]}>
                       <Text style={styles.fieldLabel}>Cidade</Text>
@@ -775,11 +877,11 @@ export default function RegisterScreen() {
                 <View style={styles.fields}>
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Senha</Text>
-                    <View style={[styles.inputRow, { borderColor: ongPassword.length >= 6 ? '#2D6A4F' : '#E2E8F0' }]}>
-                      <MaterialCommunityIcons name="lock-outline" size={20} color={ongPassword.length >= 6 ? '#2D6A4F' : '#A0AEC0'} />
+                    <View style={[styles.inputRow, { borderColor: ongPassword.length >= 8 ? '#2D6A4F' : '#E2E8F0' }]}>
+                      <MaterialCommunityIcons name="lock-outline" size={20} color={ongPassword.length >= 8 ? '#2D6A4F' : '#A0AEC0'} />
                       <TextInput
                         style={styles.input}
-                        placeholder="Mínimo 6 caracteres"
+                        placeholder="Minimo 8 caracteres"
                         placeholderTextColor="#A0AEC0"
                         secureTextEntry={!showOngPassword}
                         value={ongPassword}
@@ -838,7 +940,7 @@ export default function RegisterScreen() {
 }
 
 function StrengthBar({ password, color = '#2D6A4F' }: { password: string; color?: string }) {
-  const strength = password.length === 0 ? 0 : password.length < 6 ? 1 : password.length < 10 ? 2 : 3;
+  const strength = password.length === 0 ? 0 : password.length < 8 ? 1 : password.length < 12 ? 2 : 3;
   const labels = ['', 'Fraca', 'Boa', 'Forte'];
   const colors = ['', '#8E8E93', color, color];
   if (!password) return null;
