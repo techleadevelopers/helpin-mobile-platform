@@ -14,23 +14,23 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { EmptyState } from '@/components/EmptyState';
-import { ChatConversation, MOCK_CONVERSATIONS } from '@/constants/data';
 import { useColors } from '@/hooks/useColors';
 import { createZooHelpApi } from '@/services/zoohelpApi';
+import type { ChatConversationContract } from '@/services/zoohelpEngine';
 
 export default function ChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [conversations, setConversations] = useState<ChatConversation[]>(MOCK_CONVERSATIONS);
+  const [conversations, setConversations] = useState<ChatConversationContract[]>([]);
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
   useEffect(() => {
-    createZooHelpApi()?.chatRooms().then(setConversations).catch(() => {});
+    createZooHelpApi()?.chatRooms().then(setConversations).catch(() => setConversations([]));
   }, []);
 
-  function renderConversation({ item }: { item: ChatConversation }) {
+  function renderConversation({ item }: { item: ChatConversationContract }) {
     return (
       <TouchableOpacity
         style={[styles.convRow, { backgroundColor: colors.card, shadowColor: colors.shadow }]}
