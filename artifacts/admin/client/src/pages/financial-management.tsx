@@ -25,10 +25,10 @@ const summaryCards = [
     description: "Entradas confirmadas este mês",
   },
   {
-    title: "Total a Repassar (Prestadores)",
+    title: "Total a Repassar (ONGs)",
     value: "R$ 157.320,00",
     icon: <ClipboardList size={22} className="text-blue-600" />,
-    description: "Doa��os pendentes",
+    description: "Doaçãoos pendentes",
   },
   {
     title: "Lucro Líquido Limpejá",
@@ -120,7 +120,7 @@ export default function FinancialManagement() {
             <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <CardTitle className="text-lg">Tabela de Repasses</CardTitle>
-                <p className="text-sm text-gray-500">Verifique os prestadores que ainda aguardam pagamento.</p>
+                <p className="text-sm text-gray-500">Verifique os ONGs que ainda aguardam pagamento.</p>
               </div>
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="flex items-center gap-2">
