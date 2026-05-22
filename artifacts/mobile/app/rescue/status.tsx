@@ -105,7 +105,7 @@ export default function RescueStatusScreen() {
     if (!resolvedPostId) return;
     setOpeningChat(true);
     try {
-      const rooms = await createZooHelpApi()?.chatRooms();
+      const rooms = await createZooHelpApi()?.chatRooms({ postId: resolvedPostId });
       const room = rooms?.find((item) => item.postId === resolvedPostId);
       if (room) {
         router.push(`/chat/${room.id}` as any);
