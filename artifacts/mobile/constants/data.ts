@@ -31,6 +31,7 @@ export interface Post {
   tags: string[];
   latitude?: number;
   longitude?: number;
+  distanceKm?: number;
 }
 
 export interface ChatConversation {
