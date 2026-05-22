@@ -5,7 +5,7 @@ import { FlatList, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PostCard } from '@/components/PostCard';
-import { MOCK_POSTS, Post } from '@/constants/data';
+import { Post } from '@/constants/data';
 import { useColors } from '@/hooks/useColors';
 import { createZooHelpApi, mapPost } from '@/services/zoohelpApi';
 
@@ -23,18 +23,13 @@ export default function SearchScreen() {
       setResults([]);
       return;
     }
-    const api = createZooHelpApi();
-    api?.search(term)
-      .then((data) => setResults(data.posts.map(mapPost)))
-      .catch(() => {
-        const lower = term.toLowerCase();
-        setResults(MOCK_POSTS.filter((post) =>
-          [post.name, post.description, post.location, post.neighborhood, ...post.tags]
-            .join(' ')
-            .toLowerCase()
-            .includes(lower),
-        ));
-      });
+    const timeout = setTimeout(() => {
+      const api = createZooHelpApi();
+      api?.search(term)
+        .then((data) => setResults(data.posts.map(mapPost)))
+        .catch(() => setResults([]));
+    }, 300);
+    return () => clearTimeout(timeout);
   }, [query]);
 
   return (
