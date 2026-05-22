@@ -102,8 +102,7 @@ export default function FeedScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await syncPendingOperations().catch(() => {});
-    refreshPosts();
-    await new Promise((r) => setTimeout(r, 900));
+    await refreshPosts().catch(() => {});
     setRefreshing(false);
   }, [refreshPosts, syncPendingOperations]);
 
