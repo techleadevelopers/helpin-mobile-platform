@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -16,36 +16,19 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
-import { MOCK_CONVERSATIONS } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
+import { connectChatRoom, type ChatRealtimeStatus } from '@/services/chatRealtime';
 import { createZooHelpApi } from '@/services/zoohelpApi';
+import type { ChatConversationContract } from '@/services/zoohelpEngine';
 
 interface Message {
   id: string;
   text: string;
   sender: 'me' | 'other';
   time: string;
+  status?: 'sending' | 'sent' | 'failed';
 }
-
-const INITIAL_MESSAGES: Record<string, Message[]> = {
-  c1: [
-    { id: 'm1', text: 'Olá! Vi o post da Mel. Ela é muito linda!', sender: 'other', time: '14:28' },
-    { id: 'm2', text: 'Sim! A Mel é uma fofa. Você tem interesse em adotá-la?', sender: 'me', time: '14:29' },
-    { id: 'm3', text: 'Tenho sim! Moro em apartamento, isso seria problema?', sender: 'other', time: '14:31' },
-    { id: 'm4', text: 'Nío! Ela se adapta bem. Precisamos conversar sobre o processo de adoção.', sender: 'me', time: '14:32' },
-    { id: 'm5', text: 'Olá! Tenho interesse em adotar a Mel. Podemos conversar?', sender: 'other', time: '14:32' },
-  ],
-  c2: [
-    { id: 'm1', text: 'Vi o post do Thor! Acho que o vi no parque hoje cedo.', sender: 'other', time: '12:15' },
-    { id: 'm2', text: 'Sério?! Onde exatamente? Ele sumiu ontem à tarde.', sender: 'me', time: '12:16' },
-    { id: 'm3', text: 'Perto do lago do Ibirapuera. Era um Golden com coleira azul?', sender: 'other', time: '12:17' },
-  ],
-  c3: [
-    { id: 'm1', text: 'Quero contribuir com ração. Como faço?', sender: 'other', time: 'Ontem' },
-    { id: 'm2', text: 'Que gentileza! Pode trazer diretamente ao abrigo ou transferir via PIX.', sender: 'me', time: 'Ontem' },
-  ],
-};
 
 export default function ChatRoomScreen() {
   const { id, postName, authorName, chatType } = useLocalSearchParams<{
@@ -58,45 +41,104 @@ export default function ChatRoomScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useApp();
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES[id as string] ?? []);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [room, setRoom] = useState<ChatConversationContract | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<ChatRealtimeStatus>('connecting');
   const [text, setText] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
-  const conversation = MOCK_CONVERSATIONS.find((c) => c.id === id);
-  const participant = conversation?.participant ?? (authorName ? { name: authorName, verified: false } : null);
+  const participant = room?.participant ?? (authorName ? { name: authorName, verified: false } : null);
   const isAdoptionChat = chatType === 'adoption' && !!postName;
-
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
-  React.useEffect(() => {
+  const appendMessage = useCallback((message: Message) => {
+    setMessages((prev) => {
+      if (prev.some((item) => item.id === message.id)) return prev;
+      return [message, ...prev];
+    });
+  }, []);
+
+  useEffect(() => {
     if (!id) return;
-    createZooHelpApi()
-      ?.chatMessages(id)
-      .then((items) => {
-        setMessages(items.map((item) => ({
-          id: item.id,
-          text: item.body,
-          sender: item.senderId === 'me' || item.senderId === user?.id ? 'me' as const : 'other' as const,
-          time: item.createdAt,
-        })).reverse());
-      })
-      .catch(() => {});
-  }, [id, user?.id]);
+    let mounted = true;
+    const api = createZooHelpApi();
+
+    Promise.all([
+      api?.chatRoom(id).catch(() => null),
+      api?.chatMessages(id).catch(() => []),
+    ]).then(([loadedRoom, items]) => {
+      if (!mounted) return;
+      if (loadedRoom) setRoom(loadedRoom);
+      setMessages((items ?? []).map((item) => ({
+        id: item.id,
+        text: item.body,
+        sender: item.senderId === user?.id ? 'me' : 'other',
+        time: item.createdAt,
+        status: 'sent',
+      })));
+    });
+
+    const realtime = connectChatRoom(id, {
+      onStatus: setConnectionStatus,
+      onMessage: (event) => {
+        appendMessage({
+          id: event.messageId,
+          text: event.body,
+          sender: event.senderId === user?.id ? 'me' : 'other',
+          time: event.createdAt,
+          status: 'sent',
+        });
+      },
+    });
+
+    return () => {
+      mounted = false;
+      realtime.close();
+    };
+  }, [appendMessage, id, user?.id]);
 
   function sendMessage() {
-    if (!text.trim()) return;
+    const body = text.trim();
+    if (!body || !id) return;
     const now = new Date();
+    const tempId = `local-${Date.now()}`;
     const newMsg: Message = {
-      id: Date.now().toString(),
-      text: text.trim(),
+      id: tempId,
+      text: body,
       sender: 'me',
       time: `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`,
+      status: 'sending',
     };
     setMessages((prev) => [newMsg, ...prev]);
-    createZooHelpApi()?.sendChatMessage(id as string, newMsg.text).catch(() => {});
     setText('');
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    createZooHelpApi()
+      ?.sendChatMessage(id, body)
+      .then((response) => {
+        setMessages((prev) => {
+          if (prev.some((item) => item.id === response.message.id)) {
+            return prev.filter((item) => item.id !== tempId);
+          }
+          return prev.map((item) => (
+            item.id === tempId
+              ? {
+                  id: response.message.id,
+                  text: response.message.body,
+                  sender: 'me',
+                  time: response.message.createdAt,
+                  status: 'sent',
+                }
+              : item
+          ));
+        });
+      })
+      .catch(() => {
+        setMessages((prev) => prev.map((item) => (
+          item.id === tempId ? { ...item, status: 'failed' } : item
+        )));
+      });
   }
 
   function renderMessage({ item }: { item: Message }) {
@@ -116,7 +158,7 @@ export default function ChatRoomScreen() {
             {item.text}
           </Text>
           <Text style={[styles.bubbleTime, { color: isMe ? 'rgba(255,255,255,0.7)' : colors.mutedForeground }]}>
-            {item.time}
+            {item.status === 'sending' ? 'enviando' : item.status === 'failed' ? 'falhou' : item.time}
           </Text>
         </View>
       </View>
@@ -124,6 +166,12 @@ export default function ChatRoomScreen() {
   }
 
   const hasText = text.trim().length > 0;
+  const connectionLabel =
+    connectionStatus === 'connected'
+      ? 'Conectado'
+      : connectionStatus === 'reconnecting'
+        ? 'Reconectando'
+        : 'Conectando';
 
   return (
     <KeyboardAvoidingView
@@ -131,7 +179,6 @@ export default function ChatRoomScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
-      {/* Header */}
       <View
         style={[
           styles.header,
@@ -150,30 +197,30 @@ export default function ChatRoomScreen() {
           <Text style={[styles.headerName, { color: colors.foreground }]} numberOfLines={1}>
             {participant?.name ?? 'Chat'}
           </Text>
-          {conversation?.postTitle && (
-            <Text style={[styles.headerPost, { color: colors.primary }]} numberOfLines={1}>
-              {conversation.postTitle}
-            </Text>
-          )}
+          <Text style={[styles.headerPost, { color: colors.primary }]} numberOfLines={1}>
+            {room?.postTitle ?? (postName ? decodeURIComponent(postName) : 'Conversa ZooHelp')}
+          </Text>
+          <Text style={[styles.connectionText, { color: connectionStatus === 'connected' ? '#2D6A4F' : colors.mutedForeground }]}>
+            {connectionLabel}
+          </Text>
         </View>
         <TouchableOpacity
-          onPress={() => Alert.alert('Opções do chat', 'Denunciar, bloquear e arquivar serío integrados à moderação.')}
+          onPress={() => Alert.alert('Opcoes do chat', 'Denuncia e bloqueio usam a fila de moderacao do backend.')}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <MaterialCommunityIcons name="dots-vertical" size={22} color={colors.foreground} />
         </TouchableOpacity>
       </View>
 
-      {/* Adoption context banner */}
       {isAdoptionChat && (
         <View style={[styles.adoptionBanner, { backgroundColor: '#4CAF5010', borderColor: '#4CAF5030' }]}>
           <View style={[styles.adoptionBannerIcon, { backgroundColor: '#4CAF5020' }]}>
-            <MaterialCommunityIcons name="home-heart" size={16} color="#4CAF50" />  
+            <MaterialCommunityIcons name="home-heart" size={16} color="#4CAF50" />
           </View>
           <View style={styles.adoptionBannerInfo}>
-            <Text style={[styles.adoptionBannerTitle, { color: '#4CAF50' }]}>Pedido de adoção</Text>
+            <Text style={[styles.adoptionBannerTitle, { color: '#4CAF50' }]}>Pedido de adocao</Text>
             <Text style={[styles.adoptionBannerPost, { color: colors.mutedForeground }]} numberOfLines={1}>
-              {decodeURIComponent(postName as string)}
+              {postName ? decodeURIComponent(postName) : room?.postTitle}
             </Text>
           </View>
           <MaterialCommunityIcons name="paw" size={18} color="#4CAF5060" />
@@ -192,18 +239,15 @@ export default function ChatRoomScreen() {
         keyboardShouldPersistTaps="handled"
         scrollEnabled={!!messages.length}
         ListEmptyComponent={
-          isAdoptionChat ? (
-            <View style={styles.emptyChatWrap}>
-              <MaterialCommunityIcons name="chat-outline" size={36} color={colors.mutedForeground} />
-              <Text style={[styles.emptyChatText, { color: colors.mutedForeground }]}>
-                Inicie a conversa sobre a adoção
-              </Text>
-            </View>
-          ) : null
+          <View style={styles.emptyChatWrap}>
+            <MaterialCommunityIcons name="chat-outline" size={36} color={colors.mutedForeground} />
+            <Text style={[styles.emptyChatText, { color: colors.mutedForeground }]}>
+              Nenhuma mensagem ainda
+            </Text>
+          </View>
         }
       />
 
-      {/* Input bar */}
       <View
         style={[
           styles.inputBar,
@@ -232,6 +276,7 @@ export default function ChatRoomScreen() {
           ]}
           onPress={sendMessage}
           activeOpacity={0.85}
+          disabled={!hasText}
         >
           <MaterialCommunityIcons
             name="send"
@@ -258,6 +303,7 @@ const styles = StyleSheet.create({
   headerInfo: { flex: 1 },
   headerName: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
   headerPost: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 1 },
+  connectionText: { fontSize: 10, fontFamily: 'Inter_600SemiBold', marginTop: 2 },
   msgList: { paddingHorizontal: 16, paddingTop: 12, gap: 12 },
   msgRow: { flexDirection: 'row', gap: 8, maxWidth: '85%' },
   msgRowMe: { alignSelf: 'flex-end', flexDirection: 'row-reverse' },
@@ -298,7 +344,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   adoptionBannerInfo: { flex: 1 },
-  adoptionBannerTitle: { fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.4 },
+  adoptionBannerTitle: { fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase' },
   adoptionBannerPost: { fontSize: 13, fontFamily: 'Inter_500Medium', marginTop: 1 },
   emptyChatWrap: {
     flex: 1,
