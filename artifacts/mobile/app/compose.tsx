@@ -58,7 +58,7 @@ const ANIMAL_OPTIONS: Array<{ value: 'dog' | 'cat' | 'other'; icon: MCIcon; labe
   { value: 'other', icon: 'paw',  label: 'Outro' },
 ];
 
-const STEPS = ['Tipo', 'ConteÃºdo', 'MÃ­dia', 'Publicar'];
+const STEPS = ['Tipo', 'Conteúdo', 'MÃ­dia', 'Publicar'];
 
 /* â”€â”€ Animated pill â”€â”€ */
 function TypePill({
@@ -353,7 +353,7 @@ export default function ComposeScreen() {
                 </View>
                 <View style={[styles.audienceBadge, { backgroundColor: colors.muted }]}>
                   <MaterialCommunityIcons name="earth" size={10} color={colors.mutedForeground} />
-                  <Text style={[styles.audienceText, { color: colors.mutedForeground }]}>PÃºblico</Text>
+                  <Text style={[styles.audienceText, { color: colors.mutedForeground }]}>Público</Text>
                 </View>
               </View>
             </View>
@@ -368,7 +368,7 @@ export default function ComposeScreen() {
               selectedType === 'post'
                 ? 'Compartilhe algo com a comunidade ZooHelp...'
                 : selectedType === 'adoption'
-                ? 'Descreva o animal: comportamento, saÃºde, necessidades...'
+                ? 'Descreva o animal: comportamento, saúde, necessidades...'
                 : selectedType === 'lost'
                 ? 'Onde e quando desapareceu? Como Ã© o animal?'
                 : selectedType === 'found'
@@ -568,7 +568,7 @@ export default function ComposeScreen() {
           </View>
           {[
             { icon: 'account-check' as MCIcon,  text: 'Sua identidade Ã© verificada pela plataforma' },
-            { icon: 'eye-outline' as MCIcon,    text: 'DenÃºncias sÃ­o monitoradas em tempo real' },
+            { icon: 'eye-outline' as MCIcon,    text: 'Denúncias sÃ­o monitoradas em tempo real' },
             { icon: 'lock-outline' as MCIcon,   text: 'DoaçÃµes com rastreabilidade total' },
           ].map((item) => (
             <View key={item.text} style={styles.trustRow}>
