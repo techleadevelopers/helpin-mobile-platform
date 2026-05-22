@@ -54,7 +54,7 @@ export default function FeedScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { posts, refreshPosts, user, addPost } = useApp();
+  const { posts, refreshPosts, user, addPost, pendingOutboxCount, syncPendingOperations } = useApp();
   const [activeFilter, setActiveFilter] = useState<FeedFilter>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading] = useState(false);
@@ -102,10 +102,10 @@ export default function FeedScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    refreshPosts();
-    await new Promise((r) => setTimeout(r, 900));
+    await syncPendingOperations().catch(() => {});
+    await refreshPosts().catch(() => {});
     setRefreshing(false);
-  }, [refreshPosts]);
+  }, [refreshPosts, syncPendingOperations]);
 
   const renderPost = useCallback(
     ({ item, index }: { item: Post; index: number }) => <PostCard post={item} index={index} />,
@@ -221,13 +221,14 @@ export default function FeedScreen() {
     };
 
     try {
-      await addPost(post);
+      const savedPost = await addPost(post);
       setQuickText('');
       setQuickImage(null);
       setQuickLocation('');
       setQuickCoords(null);
       setQuickUrgent(true);
       setActiveFilter('all');
+      router.push(`/rescue/status?postId=${encodeURIComponent(savedPost.id)}` as any);
     } catch {
       Alert.alert('Erro ao publicar', 'Nao foi possivel publicar agora. Tente novamente.');
     } finally {
@@ -352,6 +353,18 @@ export default function FeedScreen() {
             </TouchableOpacity>
           </View>
         </View>
+      </View>
+
+      <View style={[styles.opsStrip, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.opsStripLeft}>
+          <View style={[styles.liveDot, { backgroundColor: pendingOutboxCount ? '#D4A259' : '#2D6A4F' }]} />
+          <Text style={[styles.opsStripTitle, { color: colors.foreground }]}>
+            {pendingOutboxCount ? `${pendingOutboxCount} envio${pendingOutboxCount > 1 ? 's' : ''} pendente${pendingOutboxCount > 1 ? 's' : ''}` : 'Rede operacional ativa'}
+          </Text>
+        </View>
+        <TouchableOpacity onPress={() => syncPendingOperations()} activeOpacity={0.75}>
+          <Text style={[styles.opsStripAction, { color: colors.primary }]}>Sincronizar</Text>
+        </TouchableOpacity>
       </View>
 
       {/* ── Filter chips ── */}
@@ -629,5 +642,36 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 0,
+  },
+  opsStrip: {
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 8,
+    minHeight: 40,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  opsStripLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  opsStripTitle: {
+    fontSize: 12,
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+  opsStripAction: {
+    fontSize: 12,
+    fontFamily: 'Montserrat_700Bold',
   },
 });
