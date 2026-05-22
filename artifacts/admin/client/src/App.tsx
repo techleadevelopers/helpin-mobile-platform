@@ -24,7 +24,7 @@ import LiveTracking from "@/pages/live-tracking";
 import ReferralManagement from "@/pages/referrals/referral-management";
 import SupportCenter from "@/pages/support-center";
 import ObservabilityPage from "@/pages/observability/observability";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { TelemetryAlertsBridge } from "@/hooks/use-telemetry-alerts";
 import { Skeleton } from "./components/ui/skeleton";
 import { AnimatePresence, motion } from "framer-motion";
@@ -177,11 +177,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <AuthProvider>
-          <TelemetryAlertsBridge />
-          <AppRouter />
-          <CommandPalette />
-        </AuthProvider>
+        <TelemetryAlertsBridge />
+        <AppRouter />
+        <CommandPalette />
       </TooltipProvider>
     </QueryClientProvider>
   );
