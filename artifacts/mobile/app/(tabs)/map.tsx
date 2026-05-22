@@ -26,13 +26,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { StaticMapTiles } from '@/components/StaticMapTiles';
 import { StatusBadge } from '@/components/StatusBadge';
-import { MOCK_POSTS, Post, POST_TYPE_CONFIG, PostType } from '@/constants/data';
+import { Post, POST_TYPE_CONFIG, PostType } from '@/constants/data';
 import { useColors } from '@/hooks/useColors';
+import { formatDistanceKm } from '@/services/geoDistance';
 import { createZooHelpApi, getStaticMapUrl, mapPost } from '@/services/zoohelpApi';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
-
-const DISTANCES = ['0.3 km', '0.8 km', '1.2 km', '1.5 km', '2.1 km', '3.4 km'];
 
 const TYPE_ICONS: Record<PostType, MCIcon> = {
   adoption:  'home-heart',
@@ -116,7 +115,7 @@ function CaseCard({ item, index }: { item: Post; index: number }) {
   const colors = useColors();
   const router = useRouter();
   const cfg = POST_TYPE_CONFIG[item.type];
-  const distance = DISTANCES[index % DISTANCES.length];
+  const distance = formatDistanceKm(item.distanceKm);
   const icon = TYPE_ICONS[item.type];
 
   return (
@@ -155,11 +154,15 @@ function CaseCard({ item, index }: { item: Post; index: number }) {
 
         <View style={styles.caseMeta}>
           <StatusBadge type={item.type} size="sm" />
-          <View style={[styles.metaDot, { backgroundColor: colors.border }]} />
-          <View style={styles.distanceChip}>
-            <MaterialCommunityIcons name="navigation-variant" size={10} color={colors.primary} />
-            <Text style={[styles.distanceText, { color: colors.primary }]}>{distance}</Text>
-          </View>
+          {distance && (
+            <>
+              <View style={[styles.metaDot, { backgroundColor: colors.border }]} />
+              <View style={styles.distanceChip}>
+                <MaterialCommunityIcons name="navigation-variant" size={10} color={colors.primary} />
+                <Text style={[styles.distanceText, { color: colors.primary }]}>{distance}</Text>
+              </View>
+            </>
+          )}
         </View>
 
         <View style={styles.caseLocationRow}>
@@ -183,7 +186,7 @@ export default function MapScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState<FilterValue>('all');
-  const [nearbyPosts, setNearbyPosts] = useState<Post[]>(MOCK_POSTS);
+  const [nearbyPosts, setNearbyPosts] = useState<Post[]>([]);
   const [locationLabel, setLocationLabel] = useState('Sao Paulo, SP');
   const [mapImageUrl, setMapImageUrl] = useState<string | null>(null);
   const [mapCoords, setMapCoords] = useState(DEFAULT_MAP_COORDS);
@@ -222,7 +225,12 @@ export default function MapScreen() {
           lng: position.coords.longitude,
           radiusKm: 30,
         });
-        if (nearby && mounted) setNearbyPosts(nearby.map((item) => mapPost(item.post)));
+        if (nearby && mounted) {
+          setNearbyPosts(nearby.map((item) => ({
+            ...mapPost(item.post),
+            distanceKm: item.distanceKm,
+          })));
+        }
       } catch {
         await loadMapImage(DEFAULT_MAP_COORDS.lat, DEFAULT_MAP_COORDS.lng);
       }
