@@ -18,7 +18,11 @@ export async function getCurrentCoords() {
 
 export async function watchCurrentPosition(
   handler: (coords: Location.LocationObjectCoords) => void,
-  options: { intervalMs?: number; distanceMeters?: number } = {},
+  options: {
+    intervalMs?: number;
+    distanceMeters?: number;
+    mode?: 'balanced' | 'rescue';
+  } = {},
 ) {
   const allowed = await ensureLocationPermission();
   if (!allowed) return null;
@@ -26,9 +30,9 @@ export async function watchCurrentPosition(
   stopWatchingPosition();
   watcher = await Location.watchPositionAsync(
     {
-      accuracy: Location.Accuracy.High,
-      timeInterval: options.intervalMs ?? 5000,
-      distanceInterval: options.distanceMeters ?? 10,
+      accuracy: options.mode === 'rescue' ? Location.Accuracy.High : Location.Accuracy.Balanced,
+      timeInterval: options.intervalMs ?? (options.mode === 'rescue' ? 15000 : 30000),
+      distanceInterval: options.distanceMeters ?? (options.mode === 'rescue' ? 25 : 75),
     },
     (location) => handler(location.coords),
   );
