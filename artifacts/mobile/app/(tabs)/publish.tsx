@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CityAutocomplete } from '@/components/CityAutocomplete';
 import { MOCK_AUTHORS, Post, PostType } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
@@ -49,6 +50,7 @@ export default function PublishScreen() {
   const [age, setAge] = useState('');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [contact, setContact] = useState('');
   const [urgent, setUrgent] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -89,7 +91,10 @@ export default function PublishScreen() {
       description: description.trim(),
       location: location.trim(),
       neighborhood: location.trim(),
+      latitude: coords?.latitude,
+      longitude: coords?.longitude,
       image: imageUri,
+      images: imageUri ? [imageUri] : [],
       textOnly: !imageUri,
       author: user
         ? { id: user.id, name: user.name, avatar: null, verified: user.verified, type: user.type }
@@ -248,7 +253,6 @@ export default function PublishScreen() {
         { label: 'Nome do animal *', value: name, setter: setName, placeholder: 'Ex: Mel, Thor, Desconhecido' },
         { label: 'Raça', value: breed, setter: setBreed, placeholder: 'Ex: Vira-lata, Golden Retriever' },
         { label: 'Idade', value: age, setter: setAge, placeholder: 'Ex: 2 anos, Filhote, Adulto' },
-        { label: 'Localização *', value: location, setter: setLocation, placeholder: 'Bairro, Cidade, Estado' },
         { label: 'Contato', value: contact, setter: setContact, placeholder: 'WhatsApp ou telefone' },
       ].map((field) => (
         <View key={field.label}>
@@ -264,6 +268,25 @@ export default function PublishScreen() {
           </View>
         </View>
       ))}
+
+      <View>
+        <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Buscar cidade</Text>
+        <CityAutocomplete
+          value={location}
+          accentColor={selectedTypeConfig.color}
+          placeholder="Ex: Campinas"
+          onChangeText={(value) => {
+            setLocation(value);
+            setCoords(null);
+          }}
+          onSelectCity={(city) => {
+            setLocation(city.label);
+            if (city.latitude != null && city.longitude != null) {
+              setCoords({ latitude: city.latitude, longitude: city.longitude });
+            }
+          }}
+        />
+      </View>
 
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Descrição *</Text>
       <View
