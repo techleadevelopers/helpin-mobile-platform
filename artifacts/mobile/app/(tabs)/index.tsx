@@ -336,7 +336,7 @@ export default function FeedScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.quickTool, { backgroundColor: colors.muted }]}
-                onPress={() => Alert.alert('Ajuda rapida', 'Use foto, local e urgencia para publicar um pedido direto no feed.')}
+                onPress={() => router.push('/compose?intent=help&type=emergency&rescue=1')}
                 activeOpacity={0.75}
               >
                 <MaterialCommunityIcons name="dots-horizontal" size={16} color={colors.mutedForeground} />
