@@ -426,7 +426,9 @@ export const fetchDashboardMetrics = async (): Promise<DashboardMetrics> => {
 };
 
 export const fetchAdminHealth = async (): Promise<ObservabilityHealthPayload> => {
-    return fetchApi('/v1/observability').catch(() => fetchApi('/admin/health'));
+    return fetchApi<ObservabilityHealthPayload>('/v1/observability').catch(() =>
+        fetchApi<ObservabilityHealthPayload>('/admin/health')
+    );
 };
 
 export const fetchLiveStatus = async (): Promise<LiveStatusPayload> => {
