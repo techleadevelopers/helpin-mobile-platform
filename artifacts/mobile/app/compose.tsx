@@ -26,6 +26,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CityAutocomplete } from '@/components/CityAutocomplete';
 import { Post, PostType, POST_TYPE_CONFIG } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
@@ -500,27 +501,31 @@ export default function ComposeScreen() {
         {/* â”€â”€ LOCATION â”€â”€ */}
         <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Localização</Text>
-          <View style={[styles.locationInput, { borderColor: colors.border }]}>
-            <MaterialCommunityIcons name="map-marker-outline" size={16} color={currentType.color} />
-            <TextInput
-              style={[styles.locationText, { color: colors.foreground }]}
-              placeholder="Bairro, cidade, estado..."
-              placeholderTextColor={colors.mutedForeground}
-              value={location}
-              onChangeText={setLocation}
-            />
-            {location.length > 0 && (
-              <TouchableOpacity
-                onPress={() => {
-                  setLocation('');
-                  setCoords(null);
-                  setMapImageUrl(null);
-                }}
-              >
-                <MaterialCommunityIcons name="close-circle" size={15} color={colors.mutedForeground} />
-              </TouchableOpacity>
-            )}
-          </View>
+          <CityAutocomplete
+            value={location}
+            accentColor={currentType.color}
+            placeholder="Busque uma cidade. Ex: Campinas"
+            onChangeText={(value) => {
+              setLocation(value);
+              setCoords(null);
+              setMapImageUrl(null);
+            }}
+            onSelectCity={(city) => {
+              setLocation(city.label);
+              if (city.latitude != null && city.longitude != null) {
+                setCoords({ latitude: city.latitude, longitude: city.longitude });
+                getStaticMapUrl({
+                  lat: city.latitude,
+                  lng: city.longitude,
+                  zoom: 12,
+                  width: 640,
+                  height: 320,
+                }).then((staticMap) => {
+                  if (staticMap) setMapImageUrl(staticMap);
+                });
+              }
+            }}
+          />
           <View style={[styles.mapPreview, { backgroundColor: colors.muted }]}>
             {mapImageUrl ? (
               <Image source={{ uri: mapImageUrl }} style={styles.mapPreviewImage} contentFit="cover" />
@@ -615,10 +620,9 @@ export default function ComposeScreen() {
       >
         <View style={styles.dockIcons}>
           {[
-  { icon: 'image-outline' as MCIcon, color: '#2D6A4F', label: 'Foto', onPress: pickImage },
-  { icon: 'microphone-outline' as MCIcon, color: '#2C5F8A', label: 'Ãudio', onPress: () => Alert.alert('Ãudio', 'Upload de áudio será liberado junto com moderação de mÃ­dia.') },
-  { icon: 'map-marker-outline' as MCIcon, color: '#D4A259', label: 'Local', onPress: detectLocation },
-].map(({ icon, color, label, onPress }) => (
+            { icon: 'image-outline' as MCIcon, color: '#2D6A4F', label: 'Foto', onPress: pickImage },
+            { icon: 'map-marker-outline' as MCIcon, color: '#D4A259', label: 'Local', onPress: detectLocation },
+          ].map(({ icon, color, label, onPress }) => (
             <TouchableOpacity key={icon} style={styles.dockBtn} onPress={onPress} activeOpacity={0.7}>
               <View style={[styles.dockIcon, { backgroundColor: color + '18', borderColor: color + '30', shadowColor: color }]}>
                 <MaterialCommunityIcons name={icon} size={18} color={color} />
