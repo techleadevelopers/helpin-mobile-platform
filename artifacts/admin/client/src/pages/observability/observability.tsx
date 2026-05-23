@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import type { ReactNode } from "react";
 import {
   LineChart,
   Line,
@@ -8,24 +9,29 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { Activity, Server, Users, ShieldCheck } from "lucide-react";
+import {
+  Activity,
+  Database,
+  ExternalLink,
+  Gauge,
+  Network,
+  RadioTower,
+  Server,
+  Users,
+} from "lucide-react";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import { Skeleton } from "@/components/ui/skeleton";
-import { fetchAdminHealth } from "@/lib/api";
+import { API_BASE_URL, fetchAdminHealth } from "@/lib/api";
 import type {
   ObservabilityHealthPayload,
+  ObservabilityLatencyPoint,
   ObservabilitySentryData,
   ObservabilitySentryError,
-  ObservabilityLatencyPoint,
   ObservabilitySentryIssue,
 } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-
-const percentFormatter = new Intl.NumberFormat("pt-BR", {
-  maximumFractionDigits: 2,
-});
 
 const timeLabel = (value: string) =>
   new Date(value).toLocaleTimeString("pt-BR", {
@@ -42,7 +48,26 @@ const formatLatency = (value?: number) => {
 };
 
 const formatLatencyValue = (value?: number) =>
-  typeof value === "number" ? `${value.toFixed(0)} ms` : "—";
+  typeof value === "number" ? `${value.toFixed(0)} ms` : "-";
+
+const formatStatus = (value?: string) =>
+  value ? value.replaceAll("_", " ") : "nao informado";
+
+const formatUptime = (seconds?: number) => {
+  if (!seconds || seconds < 0) {
+    return "0 min";
+  }
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) {
+    return `${days}d ${hours}h`;
+  }
+  if (hours > 0) {
+    return `${hours}h ${minutes}min`;
+  }
+  return `${minutes}min`;
+};
 
 export const buildLatencyChartData = (
   series?: ObservabilityLatencyPoint[],
@@ -73,7 +98,7 @@ export default function ObservabilityPage() {
     ObservabilityHealthPayload,
     Error
   >({
-    queryKey: ["/admin/health"],
+    queryKey: ["/v1/observability"],
     queryFn: fetchAdminHealth,
     refetchInterval: 10_000,
     refetchOnWindowFocus: false,
@@ -84,15 +109,18 @@ export default function ObservabilityPage() {
     [data],
   );
 
-  const systemStatusUp = data?.db?.status === "up";
+  const systemStatusUp = data?.status === "ok" && data?.db?.status === "up";
   const sentryInfo = data?.sentry;
-  const sentryData = sentryInfo && isSentryData(sentryInfo) ? sentryInfo : undefined;
+  const sentryData =
+    sentryInfo && isSentryData(sentryInfo) ? sentryInfo : undefined;
   const sentryError =
     sentryInfo && !isSentryData(sentryInfo) ? sentryInfo.error : undefined;
   const hasSentryData = Boolean(sentryData);
-  const activeUserCount = 137;
-  const radiusLatencyAverage = data?.latencyAverages?.radiusLatency;
-  const registerLatencyAverage = data?.latencyAverages?.registerLatency;
+  const activeSessionCount =
+    data?.activeSessions ?? data?.activeRescueSessions ?? 0;
+  const metricsHref = `${API_BASE_URL}/metrics`;
+  const observabilityHref = `${API_BASE_URL}/v1/observability`;
+  const grafanaHref = "http://localhost:3001/d/zoohelp-core-overview";
 
   return (
     <div className="flex h-screen bg-admin-bg">
@@ -101,199 +129,140 @@ export default function ObservabilityPage() {
       <div className="flex-1 ml-72 overflow-hidden">
         <Header
           title="Observabilidade"
-          subtitle="Monitoramento em tempo real da saúde da API, do Sentry e da experiência dos usuários."
+          subtitle="Saude operacional real da API, filas, banco, Prometheus, Grafana e tracing."
         />
 
         <main className="flex-1 overflow-y-auto p-8 space-y-6">
           {isError && (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-600">
-              Erro ao carregar o painel de observabilidade: {error?.message}
+              Erro ao carregar observabilidade: {error?.message}
             </div>
           )}
 
           <section className="grid grid-cols-12 gap-6">
-            <div className="col-span-12 md:col-span-6 xl:col-span-3">
-              <div
-                className={cn(
-                  systemStatusUp
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                    : "border-red-200 bg-red-50 text-red-900",
-                  "flex flex-col gap-2 rounded-2xl border p-5 shadow-sm",
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold uppercase tracking-wide">
-                    Status do Sistema
-                  </div>
-                  <Server className="h-5 w-5" />
-                </div>
-                <p className="text-3xl font-semibold">
-                  {systemStatusUp ? "Online" : "Degradado"}
-                </p>
-                <p className="text-sm text-gray-600">
-                  Latência API: {formatLatency(data?.apiLatencyMs)}
-                </p>
-                <p className="text-sm text-gray-600">
-                  Latência DB: {formatLatency(data?.db?.latencyMs)}
-                </p>
-                <div className="flex flex-col gap-1">
-                  <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">
-                    Heap (Uso / Total)
-                  </p>
-                  <p className="text-sm font-mono font-semibold">
-                    {(data?.memory?.heapUsedMb ?? 0).toFixed(2)} /{" "}
-                    {(data?.memory?.heapTotalMb ?? 0).toFixed(2)} MB
-                  </p>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">
-                    RSS (Total Processo)
-                  </p>
-                  <p className="text-sm font-mono font-semibold">
-                    {(data?.memory?.rssMb ?? 0).toFixed(2)} MB
-                  </p>
-                </div>
-              </div>
-            </div>
+            <StatusCard
+              className={
+                systemStatusUp
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                  : "border-red-200 bg-red-50 text-red-900"
+              }
+              icon={<Server className="h-5 w-5" />}
+              title="Status do Sistema"
+              value={systemStatusUp ? "Online" : "Degradado"}
+              lines={[
+                `API: ${formatLatency(data?.apiLatencyMs)}`,
+                `DB: ${formatLatency(data?.db?.latencyMs)}`,
+                `Uptime: ${formatUptime(data?.runtime?.uptimeSeconds)}`,
+                `Pool DB: ${data?.db?.idleConnections ?? 0} idle / ${
+                  data?.db?.poolSize ?? 0
+                } abertas`,
+              ]}
+            />
 
-            <div className="col-span-12 md:col-span-6 xl:col-span-3">
-              <div className="flex flex-col gap-2 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold uppercase tracking-wide">
-                    Crashes (Sentry)
-                  </div>
-                  <Activity className="h-5 w-5 text-pink-500" />
-                </div>
-                <p className="text-3xl font-semibold">
-                  {hasSentryData
-                    ? sentryData?.totalUnresolved
-                    : sentryError
+            <StatusCard
+              icon={<Activity className="h-5 w-5 text-pink-500" />}
+              title="Crashes Sentry"
+              value={
+                hasSentryData && sentryData?.totalUnresolved !== null
+                  ? String(sentryData?.totalUnresolved)
+                  : sentryError
                     ? "Erro"
-                    : "—"}
-                </p>
-                <div className="text-sm text-gray-600">
-                  <div>
-                    Android: {hasSentryData ? sentryData?.byPlatform.android : "—"}
-                  </div>
-                  <div>
-                    iOS: {hasSentryData ? sentryData?.byPlatform.ios : "—"}
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500">
-                  Tempo de sincronização: {formatLatency(data?.sentryLatencyMs)}
-                </p>
-                {sentryError ? (
-                  <p className="text-xs text-red-500">
-                    {sentryError.statusCode
-                      ? `Sentry respondeu ${sentryError.statusCode}`
-                      : "Falha ao autenticar no Sentry."}
-                  </p>
-                ) : !hasSentryData ? (
-                  <p className="text-xs text-gray-400">
-                    Configure o token da API do Sentry para enxergar dados reais.
-                  </p>
-                ) : (
-                  <p className="text-xs text-gray-500">
-                    Dados sincronizados nas últimas 24h.
-                  </p>
-                )}
-              </div>
-            </div>
+                    : "-"
+              }
+              lines={[
+                `Android: ${hasSentryData ? sentryData?.byPlatform.android : "-"}`,
+                `iOS: ${hasSentryData ? sentryData?.byPlatform.ios : "-"}`,
+                sentryData?.configured
+                  ? "Sentry configurado"
+                  : "Sentry sem DSN configurado",
+              ]}
+            />
 
-            {/* BLOCO USUÁRIOS ONLINE */}
-            <div className="col-span-12 md:col-span-6 xl:col-span-3">
-              <div className="flex flex-col gap-2 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold uppercase tracking-wide">
-                    Usuários Online
-                  </div>
-                  <Users className="h-5 w-5 text-sky-500" />
-                </div>
-                <p className="text-3xl font-semibold">
-                  {/* Garante que se 'data' for nulo, exibe "—" em vez de quebrar */}
-                  {activeUserCount}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Estimativa via Redis / Websockets
-                </p>
-              </div>
-            </div>
+            <StatusCard
+              icon={<Users className="h-5 w-5 text-sky-500" />}
+              title="Sessoes Ativas"
+              value={String(activeSessionCount)}
+              lines={[
+                `Resgates ativos: ${data?.activeRescueSessions ?? 0}`,
+                `Salas de chat: ${data?.activeChatRooms ?? 0}`,
+                `Ambiente: ${data?.runtime?.appEnv ?? "-"}`,
+              ]}
+            />
 
-            {/* BLOCO CONVERSÃO DE SEGURO */}
-            <div className="col-span-12 md:col-span-6 xl:col-span-3">
-              <div className="flex flex-col gap-2 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold uppercase tracking-wide">
-                    Conversão de Seguro
-                  </div>
-                  <ShieldCheck className="h-5 w-5 text-indigo-500" />
-                </div>
-                <p className="text-3xl font-semibold">
-                  {/* O uso de ?. evita erro se insuranceConversion não existir */}
-                  {data?.insuranceConversion?.insuredRate !== undefined
-                    ? `${percentFormatter.format(
-                        data.insuranceConversion.insuredRate,
-                      )}%`
-                    : "—"}
-                </p>
-                <p className="text-sm text-gray-600">
-                  Serviços encerrados com seguro de R$ 59, 99 ou 199
-                </p>
-              </div>
-            </div>
+            <StatusCard
+              icon={<RadioTower className="h-5 w-5 text-indigo-500" />}
+              title="Filas Criticas"
+              value={String(data?.queues?.deadLetterPushJobs ?? 0)}
+              lines={[
+                `Push queued: ${data?.queues?.queuedPushJobs ?? 0}`,
+                `Moderacao queued: ${data?.queues?.queuedModerationJobs ?? 0}`,
+                "Valor principal: Push DLQ",
+              ]}
+            />
           </section>
 
           <section className="grid grid-cols-12 gap-6">
-            <div className="col-span-12 md:col-span-6">
-              <div className="flex flex-col gap-2 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Tempo Médio de Busca (Radius)
-                </div>
-                <p className="text-3xl font-semibold">
-                  {formatLatencyValue(radiusLatencyAverage)}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Média dos pontos mais recentes registrados na rota de busca por
-                  proximidade.
-                </p>
-              </div>
-            </div>
+            <EvidenceCard
+              icon={<Gauge className="h-5 w-5 text-emerald-500" />}
+              title="Prometheus"
+              value={formatStatus(data?.stack?.prometheus)}
+              href={metricsHref}
+              linkLabel="Abrir /metrics"
+            />
+            <EvidenceCard
+              icon={<Activity className="h-5 w-5 text-orange-500" />}
+              title="Grafana"
+              value={data?.links?.grafanaDashboardUid ?? "zoohelp-core-overview"}
+              href={grafanaHref}
+              linkLabel="Abrir dashboard"
+            />
+            <EvidenceCard
+              icon={<Network className="h-5 w-5 text-violet-500" />}
+              title="OpenTelemetry"
+              value={formatStatus(data?.stack?.opentelemetry)}
+              detail={data?.stack?.otlpEndpoint ?? "OTLP desativado"}
+            />
+            <EvidenceCard
+              icon={<Database className="h-5 w-5 text-sky-500" />}
+              title="Evidencia API"
+              value={data?.links?.prometheusJob ?? "zoohelp-backend"}
+              href={observabilityHref}
+              linkLabel="Abrir JSON"
+            />
+          </section>
 
-            <div className="col-span-12 md:col-span-6">
-              <div className="flex flex-col gap-2 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Latência de Cadastro
-                </div>
-                <p className="text-3xl font-semibold">
-                  {formatLatencyValue(registerLatencyAverage)}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Média da latência da rota de registro de novos usu�rios.
-                </p>
-              </div>
-            </div>
+          <section className="grid grid-cols-12 gap-6">
+            <MetricPanel
+              title="Latencia DB"
+              value={formatLatencyValue(data?.db?.latencyMs)}
+              description="SELECT 1 medido pelo backend em tempo real."
+            />
+            <MetricPanel
+              title="Busca por Proximidade"
+              value={formatLatencyValue(data?.latencyAverages?.radiusLatency)}
+              description="Proxy operacional para latencia de banco enquanto nao ha serie historica."
+            />
           </section>
 
           <section className="grid grid-cols-12 gap-6">
             <div className="col-span-12 xl:col-span-8">
               <div className="flex h-full flex-col rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-wide">
-                      Gráfico de Latência
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Tempo médio das rotas críticas (Cadastro, Radius, Caso
-                      e Doa��o PIX) nas últimas horas
-                    </p>
-                  </div>
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-wide">
+                    Grafico de Latencia
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Series reais aparecem quando o backend persistir historico de
+                    latencia. O endpoint atual ja expoe snapshot e Prometheus.
+                  </p>
                 </div>
                 <div className="mt-6 h-64">
                   {isLoading ? (
                     <Skeleton className="h-full rounded-2xl" />
                   ) : chartData.length === 0 ? (
                     <div className="flex h-full items-center justify-center text-sm text-gray-500">
-                      Sem amostras de latência registradas.
+                      Sem serie historica registrada. Use Prometheus/Grafana para
+                      historico real.
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
@@ -308,8 +277,8 @@ export default function ObservabilityPage() {
                         <Tooltip
                           formatter={(value: number) =>
                             value !== null && value !== undefined
-                              ? [`${value.toFixed(1)} ms`, 'Latência']
-                              : ['—', 'Latência']
+                              ? [`${value.toFixed(1)} ms`, "Latencia"]
+                              : ["-", "Latencia"]
                           }
                           labelFormatter={(label) => `Hora: ${label}`}
                         />
@@ -320,7 +289,6 @@ export default function ObservabilityPage() {
                           name="Cadastro"
                           strokeWidth={3}
                           dot={false}
-                          activeDot={{ r: 5 }}
                           connectNulls
                         />
                         <Line
@@ -330,34 +298,13 @@ export default function ObservabilityPage() {
                           name="Busca por Proximidade"
                           strokeWidth={3}
                           dot={false}
-                          activeDot={{ r: 5 }}
-                          connectNulls
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="bookingLatency"
-                          stroke="#f97316"
-                          name="Casos"
-                          strokeWidth={3}
-                          dot={false}
-                          activeDot={{ r: 5 }}
-                          connectNulls
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="paymentLatency"
-                          stroke="#facc15"
-                          name="Doa��os PIX"
-                          strokeWidth={3}
-                          dot={false}
-                          activeDot={{ r: 5 }}
                           connectNulls
                         />
                         <Line
                           type="monotone"
                           dataKey="criticalAverage"
                           stroke="#6b7280"
-                          name="Média Crítica"
+                          name="Media Critica"
                           strokeWidth={2}
                           dot={false}
                           strokeDasharray="5 5"
@@ -372,37 +319,37 @@ export default function ObservabilityPage() {
 
             <div className="col-span-12 xl:col-span-4">
               <div className="flex h-full flex-col rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold uppercase tracking-wide">
-                    Logs de Erro
-                  </p>
-                </div>
+                <p className="text-sm font-semibold uppercase tracking-wide">
+                  Logs de Erro
+                </p>
                 <div className="mt-4 space-y-4 overflow-y-auto">
                   {hasSentryData && sentryData?.recentIssues?.length ? (
-                    sentryData?.recentIssues?.map((issue: ObservabilitySentryIssue) => (
-                      <div
-                        key={issue.id}
-                        className="space-y-1 rounded-xl border border-gray-100 bg-gray-50 p-4"
-                      >
-                        <p className="text-sm font-semibold text-gray-800">
-                          {issue.title}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Plataforma: {issue.platform} · Última ocorrência:{" "}
-                          {timeLabel(issue.lastSeen)}
-                        </p>
-                        {issue.stackTrace && (
-                          <details className="mt-2 text-xs text-gray-500">
-                            <summary className="cursor-pointer hover:text-gray-700">
-                              Ver stack trace
-                            </summary>
-                            <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded-xl bg-white p-2 text-[11px] text-gray-600">
-                              {issue.stackTrace}
-                            </pre>
-                          </details>
-                        )}
-                      </div>
-                    ))
+                    sentryData.recentIssues.map(
+                      (issue: ObservabilitySentryIssue) => (
+                        <div
+                          key={issue.id}
+                          className="space-y-1 rounded-xl border border-gray-100 bg-gray-50 p-4"
+                        >
+                          <p className="text-sm font-semibold text-gray-800">
+                            {issue.title}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Plataforma: {issue.platform} | Ultima ocorrencia:{" "}
+                            {timeLabel(issue.lastSeen)}
+                          </p>
+                          {issue.stackTrace && (
+                            <details className="mt-2 text-xs text-gray-500">
+                              <summary className="cursor-pointer hover:text-gray-700">
+                                Ver stack trace
+                              </summary>
+                              <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded-xl bg-white p-2 text-[11px] text-gray-600">
+                                {issue.stackTrace}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                      ),
+                    )
                   ) : sentryError ? (
                     <p className="text-sm text-red-500">
                       {sentryError.statusCode
@@ -411,7 +358,7 @@ export default function ObservabilityPage() {
                     </p>
                   ) : (
                     <p className="text-sm text-gray-500">
-                      Nenhum erro não resolvido disponível no momento.
+                      Nenhum erro nao resolvido disponivel no momento.
                     </p>
                   )}
                 </div>
@@ -419,6 +366,109 @@ export default function ObservabilityPage() {
             </div>
           </section>
         </main>
+      </div>
+    </div>
+  );
+}
+
+type StatusCardProps = {
+  title: string;
+  value: string;
+  lines: string[];
+  icon: ReactNode;
+  className?: string;
+};
+
+function StatusCard({
+  title,
+  value,
+  lines,
+  icon,
+  className,
+}: StatusCardProps) {
+  return (
+    <div className="col-span-12 md:col-span-6 xl:col-span-3">
+      <div
+        className={cn(
+          "flex h-full flex-col gap-2 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm",
+          className,
+        )}
+      >
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold uppercase tracking-wide">
+            {title}
+          </div>
+          {icon}
+        </div>
+        <p className="text-3xl font-semibold">{value}</p>
+        <div className="space-y-1 text-sm text-gray-600">
+          {lines.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type EvidenceCardProps = {
+  title: string;
+  value: string;
+  icon: ReactNode;
+  detail?: string;
+  href?: string;
+  linkLabel?: string;
+};
+
+function EvidenceCard({
+  title,
+  value,
+  icon,
+  detail,
+  href,
+  linkLabel,
+}: EvidenceCardProps) {
+  return (
+    <div className="col-span-12 md:col-span-6 xl:col-span-3">
+      <div className="flex h-full flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold uppercase tracking-wide">
+            {title}
+          </div>
+          {icon}
+        </div>
+        <p className="text-sm font-semibold">{value}</p>
+        {detail && <p className="break-all text-xs text-gray-500">{detail}</p>}
+        {href && linkLabel && (
+          <a
+            className="inline-flex items-center gap-2 text-xs font-semibold text-sky-700"
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {linkLabel} <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type MetricPanelProps = {
+  title: string;
+  value: string;
+  description: string;
+};
+
+function MetricPanel({ title, value, description }: MetricPanelProps) {
+  return (
+    <div className="col-span-12 md:col-span-6">
+      <div className="flex flex-col gap-2 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          {title}
+        </div>
+        <p className="text-3xl font-semibold">{value}</p>
+        <p className="text-xs text-gray-500">{description}</p>
       </div>
     </div>
   );
