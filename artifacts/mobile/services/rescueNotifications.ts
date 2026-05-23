@@ -69,6 +69,6 @@ export async function registerRescueAlerts(userId: string) {
     lat: position.coords.latitude,
     lng: position.coords.longitude,
     radiusKm: DEFAULT_RADIUS_KM,
-    criticalAlerts: false,
+    criticalAlerts: true,
   });
 }
