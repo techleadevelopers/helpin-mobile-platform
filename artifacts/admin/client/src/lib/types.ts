@@ -298,11 +298,6 @@ export type RevenueTrendPoint = {
     revenue: number;
 };
 
-export type ObservabilityLatencyPoint = {
-    timestamp: string;
-    latencyMs: number;
-};
-
 export type ObservabilitySentryIssue = {
     id: string;
     title: string;
@@ -325,7 +320,9 @@ export type ObservabilityInsuranceConversion = {
 };
 
 export type ObservabilitySentryData = {
-    totalUnresolved: number;
+    configured?: boolean;
+    status?: string;
+    totalUnresolved: number | null;
     crashFreeSessions: number | null;
     byPlatform: {
         android: number;
@@ -358,12 +355,51 @@ export type ObservabilityLatencyAverages = {
     paymentLatency?: number;
 };
 
+export type ObservabilityQueueHealth = {
+    queuedPushJobs: number;
+    deadLetterPushJobs: number;
+    queuedModerationJobs: number;
+};
+
+export type ObservabilityRuntimeHealth = {
+    uptimeSeconds: number;
+    startedAt: string;
+    appEnv: string;
+};
+
+export type ObservabilityStackStatus = {
+    prometheus: string;
+    grafana: string;
+    opentelemetry: string;
+    otlpEndpoint?: string | null;
+    traces: string;
+    logs: string;
+};
+
+export type ObservabilityLinks = {
+    metricsPath: string;
+    readinessPath: string;
+    grafanaDashboardUid: string;
+    prometheusJob: string;
+};
+
 export type ObservabilityHealthPayload = {
     status: 'ok' | 'degraded';
+    service?: string;
+    tracing?: string;
+    metrics?: string;
+    redisRateLimit?: string;
+    eventBus?: string;
+    pushWorker?: string;
+    postgis?: string;
+    payments?: string;
+    paymentProvider?: string;
     timestamp: string;
     db: {
         status: 'up' | 'down';
         latencyMs: number;
+        poolSize?: number;
+        idleConnections?: number;
     };
     memory: {
         rssMb: number;
@@ -371,10 +407,16 @@ export type ObservabilityHealthPayload = {
         heapTotalMb: number;
     };
     activeSessions: number;
-    insuranceConversion: ObservabilityInsuranceConversion;
-    latencySeries: ObservabilityLatencyPoint[];
-    latencyAverages: ObservabilityLatencyAverages;
-    sentry: ObservabilitySentryData | ObservabilitySentryError;
+    activeRescueSessions?: number;
+    activeChatRooms?: number;
+    queues?: ObservabilityQueueHealth;
+    runtime?: ObservabilityRuntimeHealth;
+    stack?: ObservabilityStackStatus;
+    links?: ObservabilityLinks;
+    insuranceConversion?: ObservabilityInsuranceConversion;
+    latencySeries?: ObservabilityLatencyPoint[];
+    latencyAverages?: ObservabilityLatencyAverages;
+    sentry?: ObservabilitySentryData | ObservabilitySentryError;
     apiLatencyMs: number;
     sentryLatencyMs: number;
 };
