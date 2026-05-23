@@ -120,8 +120,25 @@ export default function PostDetailScreen() {
       return;
     }
     router.push(
-      `/chat/${room.id}?postName=${encodeURIComponent(activePost.name)}&authorName=${encodeURIComponent(activePost.author.name)}&chatType=adoption`
+      `/chat/${room.id}?postName=${encodeURIComponent(activePost.name)}&authorName=${encodeURIComponent(activePost.author.name)}&chatType=${activePost.type === 'emergency' ? 'rescue' : 'adoption'}`
     );
+  }
+
+  function handleRoute() {
+    if (activePost.latitude == null || activePost.longitude == null) {
+      Alert.alert('Rota indisponivel', 'Este caso ainda nao tem coordenada confirmada.');
+      return;
+    }
+
+    const label = encodeURIComponent(activePost.name || 'Caso ZooHelp');
+    const destination = `${activePost.latitude},${activePost.longitude}`;
+    const url =
+      Platform.OS === 'ios'
+        ? `http://maps.apple.com/?daddr=${destination}&q=${label}`
+        : `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Rota indisponivel', 'Nao foi possivel abrir o mapa agora.');
+    });
   }
 
   function handleShare() {
@@ -130,9 +147,11 @@ export default function PostDetailScreen() {
 
   const actionLabel =
     activePost.type === 'adoption' ? 'Quero adotar' :
-    activePost.type === 'emergency' ? 'Ajudar' :
+    activePost.type === 'emergency' ? 'Ajudar agora' :
     activePost.type === 'campaign' ? 'Apoiar' :
     activePost.type === 'lost' ? 'Encontrei' : 'Contato';
+
+  const isEmergency = activePost.type === 'emergency' || activePost.urgent;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -334,7 +353,18 @@ export default function PostDetailScreen() {
           <MaterialCommunityIcons name="share-variant-outline" size={20} color={colors.mutedForeground} />
         </TouchableOpacity>
 
-        {post.type === 'adoption' && (
+        {isEmergency && (
+          <TouchableOpacity
+            style={[styles.bottomChatBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
+            onPress={handleRoute}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="navigation-variant-outline" size={16} color={colors.mutedForeground} />
+            <Text style={[styles.chatBtnText, { color: colors.mutedForeground }]}>Rota</Text>
+          </TouchableOpacity>
+        )}
+
+        {(post.type === 'adoption' || isEmergency) && (
           <TouchableOpacity
             style={[styles.bottomChatBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
             onPress={handleOpenChat}
@@ -350,7 +380,7 @@ export default function PostDetailScreen() {
             styles.mainActionBtn,
             { backgroundColor: cfg.bgColor },
           ]}
-          onPress={handleContact}
+          onPress={isEmergency ? handleOpenChat : handleContact}
           activeOpacity={0.85}
         >
           <Text style={styles.mainActionText}>{actionLabel}</Text>
