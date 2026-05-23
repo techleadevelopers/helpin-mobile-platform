@@ -5,7 +5,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Platform,
   ScrollView,
@@ -190,6 +189,7 @@ export default function MapScreen() {
   const [locationLabel, setLocationLabel] = useState('Sao Paulo, SP');
   const [mapImageUrl, setMapImageUrl] = useState<string | null>(null);
   const [mapCoords, setMapCoords] = useState(DEFAULT_MAP_COORDS);
+  const [expandedMap, setExpandedMap] = useState(false);
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
@@ -285,7 +285,7 @@ export default function MapScreen() {
           colors={['#E8F5E9', '#E3F2FD', '#F3E5F5']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.mapGradient}
+          style={[styles.mapGradient, expandedMap && styles.mapGradientExpanded]}
         >
           <StaticMapTiles latitude={mapCoords.lat} longitude={mapCoords.lng} zoom={13} opacity={0.95} />
           {mapImageUrl && (
@@ -324,11 +324,11 @@ export default function MapScreen() {
           {/* Expand CTA */}
           <TouchableOpacity
             style={[styles.expandBtn, { backgroundColor: '#FFFFFF', shadowColor: '#000' }]}
-            onPress={() => Alert.alert('Mapa em tempo real', 'Os casos próximos abaixo usam GPS quando autorizado. Mapa nativo completo será plugado nesta tela.')}
+            onPress={() => setExpandedMap((value) => !value)}
             activeOpacity={0.8}
           >
-            <MaterialCommunityIcons name="fullscreen" size={14} color={colors.foreground} />
-            <Text style={[styles.expandText, { color: colors.foreground }]}>Expandir mapa</Text>
+            <MaterialCommunityIcons name={expandedMap ? 'fullscreen-exit' : 'fullscreen'} size={14} color={colors.foreground} />
+            <Text style={[styles.expandText, { color: colors.foreground }]}>{expandedMap ? 'Reduzir mapa' : 'Expandir mapa'}</Text>
           </TouchableOpacity>
         </LinearGradient>
 
@@ -454,6 +454,9 @@ const styles = StyleSheet.create({
   mapGradient: {
     height: 165,
     position: 'relative',
+  },
+  mapGradientExpanded: {
+    height: 320,
   },
   realMapImage: {
     ...StyleSheet.absoluteFillObject,
