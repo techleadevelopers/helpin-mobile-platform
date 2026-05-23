@@ -2,7 +2,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Platform,
   StyleSheet,
@@ -94,7 +93,7 @@ export default function ChatScreen() {
               shadowColor: colors.primary,
             },
           ]}
-          onPress={() => Alert.alert('Novo chat', 'Abra um caso ou ONG para iniciar uma conversa contextual.')}
+          onPress={() => router.push('/search')}
         >
           <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.primary} />
         </TouchableOpacity>
