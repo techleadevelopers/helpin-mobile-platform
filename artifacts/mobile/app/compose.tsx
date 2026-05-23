@@ -145,6 +145,7 @@ export default function ComposeScreen() {
 
   function selectType(type: PostType) {
     setSelectedType(type);
+    if (type === 'emergency') setUrgent(true);
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
