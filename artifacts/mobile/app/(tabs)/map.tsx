@@ -23,11 +23,10 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
+import { OperationalStatus } from '@/components/OperationalStatus';
 import { StaticMapTiles } from '@/components/StaticMapTiles';
-import { StatusBadge } from '@/components/StatusBadge';
 import { Post, POST_TYPE_CONFIG, PostType } from '@/constants/data';
 import { useColors } from '@/hooks/useColors';
-import { formatDistanceKm } from '@/services/geoDistance';
 import { createZooHelpApi, getStaticMapUrl, mapPost } from '@/services/zoohelpApi';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -114,7 +113,6 @@ function CaseCard({ item, index }: { item: Post; index: number }) {
   const colors = useColors();
   const router = useRouter();
   const cfg = POST_TYPE_CONFIG[item.type];
-  const distance = formatDistanceKm(item.distanceKm);
   const icon = TYPE_ICONS[item.type];
 
   return (
@@ -151,18 +149,7 @@ function CaseCard({ item, index }: { item: Post; index: number }) {
           {item.breed}{item.age ? ` · ${item.age}` : ''}
         </Text>
 
-        <View style={styles.caseMeta}>
-          <StatusBadge type={item.type} size="sm" />
-          {distance && (
-            <>
-              <View style={[styles.metaDot, { backgroundColor: colors.border }]} />
-              <View style={styles.distanceChip}>
-                <MaterialCommunityIcons name="navigation-variant" size={10} color={colors.primary} />
-                <Text style={[styles.distanceText, { color: colors.primary }]}>{distance}</Text>
-              </View>
-            </>
-          )}
-        </View>
+        <OperationalStatus post={item} variant="compact" />
 
         <View style={styles.caseLocationRow}>
           <MaterialCommunityIcons name="map-marker-outline" size={11} color={colors.mutedForeground} />
