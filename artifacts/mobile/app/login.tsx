@@ -17,7 +17,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
-import { createZooHelpApi } from '@/services/zoohelpApi';
 
 const ZOOHELP_LOGIN_LOGO =
   'https://res.cloudinary.com/limpeja/image/upload/v1779564981/Gemini_Generated_Image_isin7wisin7wisin-removebg-preview_yx0k5g.png';
@@ -48,18 +47,6 @@ export default function LoginScreen() {
       Alert.alert('Erro', 'Nao foi possivel fazer login. Tente novamente.');
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function handlePasswordReset() {
-    if (!email.trim()) {
-      Alert.alert('Informe seu e-mail', 'Digite seu e-mail para receber as instruções.');
-      return;
-    }
-    try {
-      await createZooHelpApi()?.requestPasswordReset(email.trim());
-    } finally {
-      Alert.alert('Recuperacao enviada', 'Se o e-mail existir, enviaremos as instrucoes de recuperacao.');
     }
   }
 
@@ -122,7 +109,7 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.forgotBtn} onPress={handlePasswordReset}>
+          <TouchableOpacity style={styles.forgotBtn} onPress={() => router.push({ pathname: '/forgot-password', params: { email } } as any)}>
             <Text style={[styles.forgotText, { color: colors.secondary }]}>
               Esqueceu sua senha?
             </Text>
