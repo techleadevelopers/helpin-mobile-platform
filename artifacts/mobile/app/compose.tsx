@@ -127,6 +127,8 @@ export default function ComposeScreen() {
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationPrecision, setLocationPrecision] = useState<'none' | 'city' | 'address' | 'gps'>('none');
   const [addressLookupFailed, setAddressLookupFailed] = useState(false);
+  const [addressManualFallbackVisible, setAddressManualFallbackVisible] = useState(false);
+  const [manualNumber, setManualNumber] = useState('');
   const [manualNeighborhood, setManualNeighborhood] = useState('');
   const [manualCity, setManualCity] = useState('');
   const [manualState, setManualState] = useState('');
@@ -152,11 +154,15 @@ export default function ComposeScreen() {
       const items = await searchAddressSuggestions(input);
       setSuggestions(items);
       setShowSuggestions(items.length > 0);
-      if (items.length === 0) setAddressLookupFailed(true);
+      if (items.length === 0) {
+        setAddressLookupFailed(true);
+        setAddressManualFallbackVisible(true);
+      }
     } catch {
       setSuggestions([]);
       setShowSuggestions(false);
       setAddressLookupFailed(true);
+      setAddressManualFallbackVisible(true);
     }
   }
 
@@ -198,6 +204,7 @@ export default function ComposeScreen() {
     setAddressResult(null);
     setMapImageUrl(null);
     setAddressLookupFailed(false);
+    setAddressManualFallbackVisible(false);
     if (locationPrecision !== 'gps') setLocationPrecision('none');
     
     if (typingTimeout) clearTimeout(typingTimeout);
@@ -230,20 +237,27 @@ export default function ComposeScreen() {
     setAddressResult(null);
     if (query.length < 6 || locationPrecision === 'gps' || (Platform.OS === 'web' && showSuggestions)) {
       setAddressSearching(false);
-      if (query.length < 3 || locationPrecision === 'gps') setAddressLookupFailed(false);
+      if (query.length < 3 || locationPrecision === 'gps') {
+        setAddressLookupFailed(false);
+        setAddressManualFallbackVisible(false);
+      }
       return;
     }
 
     setAddressSearching(true);
     setAddressLookupFailed(false);
+    setAddressManualFallbackVisible(false);
+    const fallbackTimer = setTimeout(() => setAddressManualFallbackVisible(true), 900);
     const timer = setTimeout(() => {
       geocodeAddress(query)
         .then(async (result) => {
           if (!result) {
             setAddressResult(null);
             setAddressLookupFailed(true);
+            setAddressManualFallbackVisible(true);
             return;
           }
+          setAddressManualFallbackVisible(false);
           const nextCoords = { latitude: result.latitude, longitude: result.longitude };
           setAddressResult({ label: result.label, ...nextCoords });
           setCoords(nextCoords);
@@ -260,12 +274,14 @@ export default function ComposeScreen() {
         .catch(() => {
           setAddressResult(null);
           setAddressLookupFailed(true);
+          setAddressManualFallbackVisible(true);
         })
         .finally(() => setAddressSearching(false));
     }, 500);
 
     return () => {
       clearTimeout(timer);
+      clearTimeout(fallbackTimer);
       setAddressSearching(false);
     };
   }, [location, locationPrecision, showSuggestions]);
@@ -322,6 +338,7 @@ export default function ComposeScreen() {
       setCoords({ latitude, longitude });
       setLocationPrecision('gps');
       setAddressLookupFailed(false);
+      setAddressManualFallbackVisible(false);
       setLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
 
       const staticMap = await getStaticMapUrl({
@@ -343,8 +360,9 @@ export default function ComposeScreen() {
 
   function buildAddressLabel() {
     if (addressResult?.label) return addressResult.label;
+    const street = [location.trim(), manualNumber.trim()].filter(Boolean).join(', ');
     const cityState = [manualCity.trim(), manualState.trim()].filter(Boolean).join(' - ');
-    const manualLabel = [location.trim(), manualNeighborhood.trim(), cityState].filter(Boolean).join(', ');
+    const manualLabel = [street, manualNeighborhood.trim(), cityState].filter(Boolean).join(', ');
     return manualLabel || location.trim();
   }
 
@@ -701,8 +719,18 @@ export default function ComposeScreen() {
           if (suggestions.length > 0) setShowSuggestions(true);
         }}
       />
+      {addressLookupFailed && location.trim().length >= 3 && (
+        <TextInput
+          style={styles.manualNumberInput}
+          value={manualNumber}
+          onChangeText={setManualNumber}
+          placeholder="Nº"
+          placeholderTextColor="#8A928B"
+          keyboardType="numbers-and-punctuation"
+        />
+      )}
     </View>
-    {addressLookupFailed && location.trim().length >= 3 && (
+    {(addressLookupFailed || addressManualFallbackVisible) && location.trim().length >= 3 && (
       <View style={styles.manualLocationRow}>
         <TextInput
           style={styles.manualLocationInput}
@@ -1016,6 +1044,20 @@ manualLocationRow: {
   alignItems: 'center',
   gap: 6,
   marginTop: 8,
+},
+manualNumberInput: {
+  width: 44,
+  height: 28,
+  borderWidth: 1,
+  borderColor: '#E4EAE5',
+  borderRadius: 10,
+  backgroundColor: '#FFFFFF',
+  paddingHorizontal: 7,
+  paddingVertical: 0,
+  fontSize: 11,
+  fontFamily: 'Inter_700Bold',
+  color: '#1D2A20',
+  textAlign: 'center',
 },
 manualLocationInput: {
   flex: 1,
