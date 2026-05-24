@@ -42,8 +42,8 @@ export function EmptyState({ icon, title, subtitle, actionLabel, onAction, iconC
           style={[
             styles.button,
             {
-              backgroundColor: color,
-              shadowColor: color,
+              backgroundColor: colors.primary,
+              shadowColor: colors.primary,
             },
           ]}
           onPress={onAction}
