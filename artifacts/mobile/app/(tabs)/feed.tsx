@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { BlurView } from 'expo-blur';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -32,6 +32,7 @@ import { SkeletonCard } from '@/components/SkeletonCard';
 import { MOCK_AUTHORS, Post, PostType } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
+import { geocodeAddress } from '@/services/zoohelpApi';
 
 type FeedFilter = PostType | 'all' | 'ong';
 
@@ -47,13 +48,16 @@ const FILTERS: Array<{ label: string; value: FeedFilter; icon: MCIcon; color: st
   { label: 'ONGs',        value: 'ong',        icon: 'shield-check',      color: '#2F80ED', activeBg: '#586158' },
 ];
 
+const ZOOHELP_HEADER_LOGO =
+  'https://res.cloudinary.com/limpeja/image/upload/v1779564981/Gemini_Generated_Image_isin7wisin7wisin-removebg-preview_yx0k5g.png';
+
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<Post>);
 
 export default function FeedScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { posts, refreshPosts, user, addPost, pendingOutboxCount, syncPendingOperations } = useApp();
+  const { posts, refreshPosts, user, addPost, syncPendingOperations } = useApp();
   const [activeFilter, setActiveFilter] = useState<FeedFilter>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading] = useState(false);
@@ -63,6 +67,10 @@ export default function FeedScreen() {
   const [quickLocation, setQuickLocation] = useState('');
   const [quickCoords, setQuickCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [quickSubmitting, setQuickSubmitting] = useState(false);
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const [addressQuery, setAddressQuery] = useState('');
+  const [addressSearching, setAddressSearching] = useState(false);
+  const [addressResult, setAddressResult] = useState<{ label: string; latitude: number; longitude: number } | null>(null);
   const quickInputRef = useRef<TextInput>(null);
 
   const scrollY = useSharedValue(0);
@@ -73,7 +81,7 @@ export default function FeedScreen() {
     }, [])
   );
 
-  const topPad = Platform.OS === 'web' ? 67 : insets.top;
+  const topPad = Platform.OS === 'web' ? 16 : insets.top;
 
   const scrollHandler = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
@@ -122,6 +130,31 @@ export default function FeedScreen() {
   const displayName = user?.name?.split(' ')[0] ?? 'Conta';
   const urgentCount = filteredPosts.filter((post) => post.urgent || post.type === 'emergency').length;
 
+  useEffect(() => {
+    const query = addressQuery.trim();
+    setAddressResult(null);
+    if (!locationPickerOpen || query.length < 6) {
+      setAddressSearching(false);
+      return;
+    }
+
+    setAddressSearching(true);
+    const timer = setTimeout(() => {
+      geocodeAddress(query)
+        .then((result) => {
+          if (!result) return;
+          setAddressResult({
+            label: result.label,
+            latitude: result.latitude,
+            longitude: result.longitude,
+          });
+        })
+        .finally(() => setAddressSearching(false));
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [addressQuery, locationPickerOpen]);
+
   async function pickQuickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -153,6 +186,17 @@ export default function FeedScreen() {
       longitude: position.coords.longitude,
     });
     setQuickLocation('Localizacao atual');
+    setLocationPickerOpen(false);
+  }
+
+  function applyAddressResult() {
+    if (!addressResult) return;
+    setQuickLocation(addressResult.label);
+    setQuickCoords({
+      latitude: addressResult.latitude,
+      longitude: addressResult.longitude,
+    });
+    setLocationPickerOpen(false);
   }
 
   async function handleQuickPost() {
@@ -222,6 +266,9 @@ export default function FeedScreen() {
       setQuickImage(null);
       setQuickLocation('');
       setQuickCoords(null);
+      setAddressQuery('');
+      setAddressResult(null);
+      setLocationPickerOpen(false);
       setQuickUrgent(true);
       setActiveFilter('all');
       router.push(`/rescue/status?postId=${encodeURIComponent(savedPost.id)}` as any);
@@ -235,7 +282,7 @@ export default function FeedScreen() {
   const ListHeader = (
     <View>
       {/* ── Main Header ── */}
-      <View style={[styles.header, { paddingTop: topPad + 10 }]}>
+      <View style={[styles.header, { paddingTop: topPad + 6 }]}>
         <Animated.View style={[styles.headerTop, headerAnimStyle]}>
           <View style={styles.headerLeft}>
             <Text style={[styles.greeting, { color: colors.mutedForeground }]}>
@@ -243,7 +290,7 @@ export default function FeedScreen() {
             </Text>
             <View style={styles.logoRow}>
               <Image
-                source={require('@/assets/images/icon.png')}
+                source={{ uri: ZOOHELP_HEADER_LOGO }}
                 style={styles.logoIcon}
                 resizeMode="contain"
               />
@@ -270,10 +317,21 @@ export default function FeedScreen() {
               <View style={[styles.notifDot, { backgroundColor: '#FF3B30' }]} />
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => router.push('/(tabs)/profile')}
+              onPress={() => {
+                if (user?.id) {
+                  router.push({ pathname: '/(tabs)/user/[id]', params: { id: user.id } });
+                } else {
+                  router.push('/(tabs)/profile');
+                }
+              }}
               activeOpacity={0.85}
             >
-              <Avatar name={displayName} size={38} verified={user?.verified} bgColor="#4CAF50" />
+              <Avatar
+                name={displayName}
+                size={38}
+                imageUrl={user?.avatar}
+                uploadPlaceholder
+              />
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -304,6 +362,20 @@ export default function FeedScreen() {
                 returnKeyType="send"
                 onSubmitEditing={handleQuickPost}
               />
+              {quickImage && (
+                <TouchableOpacity
+                  style={styles.quickImagePreviewWrap}
+                  onPress={() => setQuickImage(null)}
+                  activeOpacity={0.82}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remover foto anexada"
+                >
+                  <Image source={{ uri: quickImage }} style={styles.quickImagePreview} resizeMode="cover" />
+                  <View style={styles.quickImageRemove}>
+                    <MaterialCommunityIcons name="close" size={10} color="#FFFFFF" />
+                  </View>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 
@@ -318,7 +390,7 @@ export default function FeedScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.quickTool, { backgroundColor: quickLocation ? colors.primary + '18' : colors.muted }]}
-                onPress={detectQuickLocation}
+                onPress={() => setLocationPickerOpen((open) => !open)}
                 activeOpacity={0.75}
               >
                 <MaterialCommunityIcons name="map-marker-outline" size={16} color={quickLocation ? colors.primary : colors.mutedForeground} />
@@ -345,25 +417,44 @@ export default function FeedScreen() {
               activeOpacity={0.82}
             >
               <MaterialCommunityIcons name="send" size={13} color="#FFFFFF" />
-              <Text style={styles.quickPostCtaText}>{quickSubmitting ? 'Enviando' : 'Pedir ajuda'}</Text>
+              <Text style={styles.quickPostCtaText}>{quickSubmitting ? 'Enviando' : 'Postar'}</Text>
             </TouchableOpacity>
           </View>
+
+          {locationPickerOpen && (
+            <View style={[styles.locationPicker, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <View style={styles.locationInputRow}>
+                <MaterialCommunityIcons name="map-marker-outline" size={16} color={colors.mutedForeground} />
+                <TextInput
+                  style={[styles.locationInput, { color: colors.foreground }]}
+                  value={addressQuery}
+                  onChangeText={setAddressQuery}
+                  placeholder="Rua e numero"
+                  placeholderTextColor={colors.mutedForeground}
+                  returnKeyType="search"
+                />
+              </View>
+              {addressSearching && (
+                <Text style={[styles.locationHint, { color: colors.mutedForeground }]}>Buscando endereco...</Text>
+              )}
+              {addressResult && (
+                <TouchableOpacity style={styles.addressResult} onPress={applyAddressResult} activeOpacity={0.82}>
+                  <MaterialCommunityIcons name="check-circle-outline" size={15} color={colors.primary} />
+                  <Text style={[styles.addressResultText, { color: colors.foreground }]} numberOfLines={2}>
+                    {addressResult.label}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.gpsFallbackBtn} onPress={detectQuickLocation} activeOpacity={0.8}>
+                <MaterialCommunityIcons name="crosshairs-gps" size={14} color={colors.primary} />
+                <Text style={[styles.gpsFallbackText, { color: colors.primary }]}>Usar GPS atual</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </View>
 
       {/* ── Filter chips ── */}
-      <View style={[styles.opsStrip, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <View style={styles.opsStripLeft}>
-          <View style={[styles.liveDot, { backgroundColor: pendingOutboxCount ? '#D4A259' : '#2D6A4F' }]} />
-          <Text style={[styles.opsStripTitle, { color: colors.foreground }]}>
-            {pendingOutboxCount ? `${pendingOutboxCount} envio${pendingOutboxCount > 1 ? 's' : ''} pendente${pendingOutboxCount > 1 ? 's' : ''}` : 'Rede operacional ativa'}
-          </Text>
-        </View>
-        <TouchableOpacity onPress={() => syncPendingOperations()} activeOpacity={0.75}>
-          <Text style={[styles.opsStripAction, { color: colors.primary }]}>Sincronizar</Text>
-        </TouchableOpacity>
-      </View>
-
       <FlatList
         data={FILTERS}
         horizontal
@@ -474,8 +565,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingHorizontal: 16,
-    paddingBottom: 0,
-    bottom: 50,
+    paddingBottom: 8,
     gap: 10,
   },
   headerTop: {
@@ -496,10 +586,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginRight: 20,
+    
   },
   logoIcon: {
-    width: 30,
-    height: 30,
+    width: 35,
+    height: 35,
     borderRadius: 8,
   },
   logoText: {
@@ -564,14 +656,40 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 44,
     borderRadius: 22,
-    paddingHorizontal: 14,
-    justifyContent: 'center',
+    paddingLeft: 14,
+    paddingRight: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   quickInput: {
     flex: 1,
     padding: 0,
     fontSize: 13,
     fontFamily: 'Montserrat_400Regular',
+  },
+  quickImagePreviewWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#DDE6DE',
+  },
+  quickImagePreview: {
+    width: '100%',
+    height: '100%',
+  },
+  quickImageRemove: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(28, 37, 29, 0.78)',
   },
   quickPostBottom: {
     flexDirection: 'row',
@@ -604,12 +722,55 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Montserrat_700Bold',
   },
+  locationPicker: {
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 10,
+    gap: 8,
+  },
+  locationInputRow: {
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  locationInput: {
+    flex: 1,
+    padding: 0,
+    fontSize: 12,
+    fontFamily: 'Montserrat_500Medium',
+  },
+  locationHint: {
+    fontSize: 11,
+    fontFamily: 'Montserrat_500Medium',
+  },
+  addressResult: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  addressResultText: {
+    flex: 1,
+    fontSize: 11,
+    fontFamily: 'Montserrat_600SemiBold',
+    lineHeight: 16,
+  },
+  gpsFallbackBtn: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    minHeight: 28,
+  },
+  gpsFallbackText: {
+    fontSize: 11,
+    fontFamily: 'Montserrat_700Bold',
+  },
   filterList: {
     paddingHorizontal: 16,
     gap: 7,
     paddingBottom: 8,
     paddingTop: 4,
-    bottom: 0,
   },
   filterChip: {
     alignItems: 'center',
