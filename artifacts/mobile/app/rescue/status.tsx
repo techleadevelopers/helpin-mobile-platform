@@ -19,12 +19,12 @@ import { shareZooHelpItem } from '@/services/share';
 import { createZooHelpApi } from '@/services/zoohelpApi';
 import type { RescueSessionContract } from '@/services/zoohelpEngine';
 
-type RescueUiStatus = 'starting' | 'active' | 'pending_sync' | 'failed' | 'ended';
+type RescueUiStatus = 'starting' | 'active' | 'pending_sync' | 'address_only' | 'failed' | 'ended';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default function RescueStatusScreen() {
-  const { postId, rescueId } = useLocalSearchParams<{ postId?: string; rescueId?: string }>();
+  const { postId, rescueId, address } = useLocalSearchParams<{ postId?: string; rescueId?: string; address?: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -34,6 +34,7 @@ export default function RescueStatusScreen() {
   const [openingChat, setOpeningChat] = useState(false);
 
   const resolvedPostId = typeof postId === 'string' ? postId : '';
+  const resolvedAddress = typeof address === 'string' ? decodeURIComponent(address) : '';
   const isServerPost = UUID_RE.test(resolvedPostId);
 
   useEffect(() => {
@@ -47,6 +48,10 @@ export default function RescueStatusScreen() {
       }
       if (!isServerPost) {
         setStatus('pending_sync');
+        return;
+      }
+      if (Platform.OS === 'web') {
+        setStatus('address_only');
         return;
       }
 
@@ -83,6 +88,7 @@ export default function RescueStatusScreen() {
 
   const title = useMemo(() => {
     if (status === 'active') return 'Alerta enviado';
+    if (status === 'address_only') return 'Alerta publicado';
     if (status === 'pending_sync') return 'Envio pendente';
     if (status === 'failed') return 'Falha no resgate';
     if (status === 'ended') return 'Resgate encerrado';
@@ -131,6 +137,7 @@ export default function RescueStatusScreen() {
   const bottomPad = Platform.OS === 'web' ? 24 : insets.bottom + 20;
   const active = status === 'active';
   const pending = status === 'pending_sync';
+  const addressOnly = status === 'address_only';
   const failed = status === 'failed';
 
   return (
@@ -159,6 +166,8 @@ export default function RescueStatusScreen() {
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
           {active
             ? 'GPS ativo, localizacao em atualizacao e chat pronto para coordenacao.'
+            : addressOnly
+              ? 'Post urgente criado com endereço manual. No PC, o rastreamento GPS em tempo real fica desativado.'
             : pending
               ? 'Sem confirmacao do servidor ainda. O pedido fica na fila local e sera reenviado.'
               : failed
@@ -170,12 +179,12 @@ export default function RescueStatusScreen() {
       <View style={styles.metricsRow}>
         <View style={[styles.metric, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.metricValue, { color: active ? '#2D6A4F' : pending ? '#D4A259' : colors.foreground }]}>
-            {active ? 'OK' : pending ? pendingOutboxCount : '--'}
+            {active || addressOnly ? 'OK' : pending ? pendingOutboxCount : '--'}
           </Text>
           <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>envio</Text>
         </View>
         <View style={[styles.metric, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.metricValue, { color: colors.foreground }]}>GPS</Text>
+          <Text style={[styles.metricValue, { color: colors.foreground }]}>{addressOnly ? 'END.' : 'GPS'}</Text>
           <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>rastreamento</Text>
         </View>
         <View style={[styles.metric, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -184,16 +193,23 @@ export default function RescueStatusScreen() {
         </View>
       </View>
 
+      {addressOnly && resolvedAddress ? (
+        <View style={[styles.addressPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <MaterialCommunityIcons name="map-marker-outline" size={18} color={colors.primary} />
+          <Text style={[styles.addressText, { color: colors.foreground }]}>{resolvedAddress}</Text>
+        </View>
+      ) : null}
+
       <View style={styles.actions}>
         <TouchableOpacity
           style={[styles.primaryAction, { backgroundColor: active ? colors.primary : '#D4A259' }]}
-          onPress={pending ? handleSync : openChat}
+          onPress={addressOnly ? () => router.replace('/(tabs)' as any) : pending ? handleSync : openChat}
           disabled={status === 'starting' || openingChat}
           activeOpacity={0.84}
         >
-          <MaterialCommunityIcons name={pending ? 'sync' : 'chat-processing'} size={19} color="#FFFFFF" />
+          <MaterialCommunityIcons name={addressOnly ? 'format-list-bulleted' : pending ? 'sync' : 'chat-processing'} size={19} color="#FFFFFF" />
           <Text style={styles.primaryActionText}>
-            {pending ? 'Sincronizar agora' : openingChat ? 'Abrindo' : 'Abrir chat'}
+            {addressOnly ? 'Voltar ao feed' : pending ? 'Sincronizar agora' : openingChat ? 'Abrindo' : 'Abrir chat'}
           </Text>
         </TouchableOpacity>
 
@@ -256,6 +272,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginTop: 14,
+  },
+  addressPanel: {
+    marginTop: 14,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  addressText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: 'Inter_600SemiBold',
   },
   metric: {
     flex: 1,
