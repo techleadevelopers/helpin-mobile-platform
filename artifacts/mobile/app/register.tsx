@@ -59,6 +59,7 @@ export default function RegisterScreen() {
   // Personal fields
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [gender, setGender] = useState<'male' | 'female' | null>(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -168,6 +169,7 @@ export default function RegisterScreen() {
             return;
           }
         }
+        if (!gender) { Alert.alert('Campo obrigatorio', 'Informe como devemos tratar sua autoria.'); return; }
         goNext(2);
       } else if (step === 2) {
         if (!ongEmail.trim() || !ongEmail.includes('@')) { Alert.alert('E-mail inválido', 'Informe um e-mail válido.'); return; }
@@ -196,7 +198,7 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       if (accountType === 'person') {
-        await register(name.trim(), email.trim(), password, 'person');
+        await register(name.trim(), email.trim(), password, 'person', { gender });
       } else {
         let logoUrl: string | null = null;
         if (ongLogoUri) {
@@ -752,6 +754,29 @@ export default function RegisterScreen() {
                       />
                     </View>
                   </View>
+
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>Como devemos mostrar sua autoria?</Text>
+                    <View style={styles.genderRow}>
+                      {[
+                        { value: 'male' as const, label: 'Autor', icon: 'account-outline' as MCIcon },
+                        { value: 'female' as const, label: 'Autora', icon: 'account-heart-outline' as MCIcon },
+                      ].map((item) => {
+                        const active = gender === item.value;
+                        return (
+                          <TouchableOpacity
+                            key={item.value}
+                            style={[styles.genderOption, active && styles.genderOptionActive]}
+                            onPress={() => setGender(item.value)}
+                            activeOpacity={0.82}
+                          >
+                            <MaterialCommunityIcons name={item.icon} size={17} color={active ? '#2D6A4F' : '#8A928B'} />
+                            <Text style={[styles.genderText, active && styles.genderTextActive]}>{item.label}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
                 </View>
 
                 <TouchableOpacity style={styles.primaryBtn} onPress={validateAndNext} activeOpacity={0.88}>
@@ -1231,6 +1256,35 @@ const styles = StyleSheet.create({
   inputLeadingIcon: {
     marginLeft: 12,
     marginRight: 2,
+  },
+  genderRow: {
+    flexDirection: 'row',
+    gap: 9,
+    marginBottom: 10,
+  },
+  genderOption: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  genderOptionActive: {
+    borderColor: '#2D6A4F',
+    backgroundColor: 'rgba(45, 106, 79, 0.10)',
+  },
+  genderText: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+    color: '#8A928B',
+  },
+  genderTextActive: {
+    color: '#2D6A4F',
   },
   ufInputRow: {
     paddingLeft: 0,
