@@ -16,6 +16,15 @@ export async function getCurrentCoords() {
   return location.coords;
 }
 
+export async function getCurrentCoordsIfGranted() {
+  const permission = await Location.getForegroundPermissionsAsync();
+  if (!permission.granted) return null;
+  const location = await Location.getCurrentPositionAsync({
+    accuracy: Location.Accuracy.Balanced,
+  });
+  return location.coords;
+}
+
 export async function watchCurrentPosition(
   handler: (coords: Location.LocationObjectCoords) => void,
   options: {
