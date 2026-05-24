@@ -44,6 +44,7 @@ export interface AuthorContract {
 export interface UserContract extends AuthorContract {
   email: string;
   bio: string;
+  gender?: "male" | "female" | null;
   postsCount: number;
   helpedCount: number;
   adoptionsCount: number;
@@ -423,6 +424,7 @@ export class ZooHelpEngine {
     email: string;
     password: string;
     accountType?: AccountType;
+    gender?: "male" | "female" | null;
     avatar?: string | null;
     ongType?: string;
     cnpj?: string;
@@ -699,6 +701,13 @@ export class ZooHelpEngine {
     return this.request<{ status: string }>("/v1/auth/password-reset", {
       method: "POST",
       body: JSON.stringify({ email }),
+    });
+  }
+
+  confirmPasswordReset(token: string, password: string) {
+    return this.request<{ status: string }>("/v1/auth/password-reset/confirm", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
     });
   }
 
