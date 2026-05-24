@@ -493,8 +493,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       feedFailureCountRef.current = 0;
       feedRetryAfterRef.current = 0;
       const mapped = feed.map(mapPost);
-      setPosts(mapped);
-      await saveCachedFeed(mapped);
+      const backendIds = new Set(mapped.map((post) => post.id));
+      let nextFeed = mapped;
+      setPosts((prev) => {
+        const now = Date.now();
+        const stickyLocalPosts = prev.filter((post) => {
+          if (backendIds.has(post.id)) return false;
+          if (post.createdAt === 'pendente' || post.createdAt === 'agora') return true;
+          if (post.author.id !== user?.id) return false;
+          const createdAtMs = Date.parse(post.createdAt);
+          return Number.isFinite(createdAtMs) && now - createdAtMs < 5 * 60 * 1000;
+        });
+        nextFeed = [...stickyLocalPosts, ...mapped];
+        return nextFeed;
+      });
+      await saveCachedFeed(nextFeed);
     } catch (error) {
       feedFailureCountRef.current = Math.min(feedFailureCountRef.current + 1, 5);
       feedRetryAfterRef.current =
