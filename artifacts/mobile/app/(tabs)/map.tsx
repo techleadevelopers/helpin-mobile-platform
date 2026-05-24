@@ -196,7 +196,7 @@ export default function MapScreen() {
   const [mapCoords, setMapCoords] = useState(DEFAULT_MAP_COORDS);
   const [expandedMap, setExpandedMap] = useState(false);
 
-  const topPad = Platform.OS === 'web' ? 67 : insets.top;
+  const topPad = (Platform.OS === 'web' ? 0 : insets.top) + 16;
 
   useEffect(() => {
     let mounted = true;
@@ -266,7 +266,7 @@ export default function MapScreen() {
   return (
     <View style={[styles.container, { backgroundColor: '#F8FAF8' }]}>
       {/* ── Header ── */}
-      <View style={[styles.header, { paddingTop: topPad + 10 }]}>
+      <View style={[styles.header, { paddingTop: topPad }]}>
         <View style={styles.headerLeft}>
           <Text style={[styles.title, { color: colors.foreground }]}>Próximo a você</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
