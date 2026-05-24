@@ -366,6 +366,33 @@ export default function ComposeScreen() {
     return manualLabel || location.trim();
   }
 
+  function getManualLocationParts() {
+    return {
+      street: location.trim(),
+      number: manualNumber.trim(),
+      neighborhood: manualNeighborhood.trim(),
+      city: manualCity.trim(),
+      state: manualState.trim().toUpperCase(),
+    };
+  }
+
+  function hasAnyManualLocationPart() {
+    const parts = getManualLocationParts();
+    return Boolean(parts.number || parts.neighborhood || parts.city || parts.state);
+  }
+
+  function hasCompleteManualLocation() {
+    const parts = getManualLocationParts();
+    return Boolean(parts.street && parts.number && parts.neighborhood && parts.city && parts.state.length === 2);
+  }
+
+  function geocodeWithQuickTimeout(address: string) {
+    return Promise.race([
+      geocodeAddress(address).catch(() => null),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+    ]);
+  }
+
   async function handlePublish() {
     if (!canPost) {
       Alert.alert('Publicação vazia', 'Escreva algo ou adicione uma foto.');
@@ -373,19 +400,26 @@ export default function ComposeScreen() {
     }
     const needsRescue = selectedType === 'emergency' || urgent || params.rescue === '1';
     const manualAddress = buildAddressLabel();
+    const manualComplete = hasCompleteManualLocation();
+    if (hasAnyManualLocationPart() && !manualComplete) {
+      Alert.alert('Endereco incompleto', 'Preencha rua, numero, bairro, cidade e UF para publicar com coordenada correta.');
+      setAddressLookupFailed(true);
+      setAddressManualFallbackVisible(true);
+      return;
+    }
     let nextCoords = coords;
     let nextPrecision = locationPrecision;
     let nextLocation = manualAddress || location;
 
-    if (manualAddress && nextPrecision !== 'gps') {
-      const geocoded = await geocodeAddress(manualAddress).catch(() => null);
+    if (manualComplete || (manualAddress && nextPrecision !== 'gps')) {
+      const geocoded = await geocodeWithQuickTimeout(manualAddress);
       if (geocoded) {
         nextCoords = { latitude: geocoded.latitude, longitude: geocoded.longitude };
         nextPrecision = 'address';
-        nextLocation = geocoded.label;
+        nextLocation = manualComplete ? manualAddress : geocoded.label;
         setCoords(nextCoords);
         setLocationPrecision(nextPrecision);
-        setLocation(geocoded.label);
+        setLocation(nextLocation);
         const staticMap = await getStaticMapUrl({
           lat: geocoded.latitude,
           lng: geocoded.longitude,
@@ -395,8 +429,13 @@ export default function ComposeScreen() {
         });
         if (staticMap) setMapImageUrl(staticMap);
       } else {
-        nextLocation = manualAddress;
         setAddressLookupFailed(true);
+        setAddressManualFallbackVisible(true);
+        Alert.alert(
+          'Endereco nao localizado',
+          'Confira rua, numero, bairro, cidade e UF. Preciso localizar esse endereco para publicar com seguranca.',
+        );
+        return;
       }
     }
 
@@ -439,6 +478,7 @@ export default function ComposeScreen() {
       images,
       latitude: shouldAttachCoords ? nextCoords?.latitude : undefined,
       longitude: shouldAttachCoords ? nextCoords?.longitude : undefined,
+      locationAddress: manualComplete ? getManualLocationParts() : undefined,
       textOnly: images.length === 0,
       author: {
         id: currentUser.id,
@@ -719,7 +759,7 @@ export default function ComposeScreen() {
           if (suggestions.length > 0) setShowSuggestions(true);
         }}
       />
-      {addressLookupFailed && location.trim().length >= 3 && (
+      {(addressLookupFailed || addressManualFallbackVisible) && location.trim().length >= 3 && (
         <TextInput
           style={styles.manualNumberInput}
           value={manualNumber}
@@ -733,14 +773,14 @@ export default function ComposeScreen() {
     {(addressLookupFailed || addressManualFallbackVisible) && location.trim().length >= 3 && (
       <View style={styles.manualLocationRow}>
         <TextInput
-          style={styles.manualLocationInput}
+          style={[styles.manualLocationInput, styles.manualNeighborhoodInput]}
           value={manualNeighborhood}
           onChangeText={setManualNeighborhood}
           placeholder="Bairro"
           placeholderTextColor="#8A928B"
         />
         <TextInput
-          style={styles.manualLocationInput}
+          style={[styles.manualLocationInput, styles.manualCityInput]}
           value={manualCity}
           onChangeText={setManualCity}
           placeholder="Cidade"
@@ -1024,13 +1064,14 @@ const styles = StyleSheet.create({
 searchInputContainer: {
   flexDirection: 'row',
   alignItems: 'center',
-  gap: 10,
+  gap: 8,
   backgroundColor: '#F4F6F3',
   borderWidth: 1,
   borderColor: '#E4EAE5',
   borderRadius: 17,
-  paddingHorizontal: 12,
-  minHeight: 44,
+  paddingLeft: 12,
+  paddingRight: 8,
+  minHeight: 42,
 },
 searchInputText: {
   flex: 1,
@@ -1042,12 +1083,14 @@ searchInputText: {
 manualLocationRow: {
   flexDirection: 'row',
   alignItems: 'center',
-  gap: 6,
+  gap: 5,
   marginTop: 8,
+  width: '100%',
+  overflow: 'hidden',
 },
 manualNumberInput: {
-  width: 44,
-  height: 28,
+  width: 42,
+  height: 26,
   borderWidth: 1,
   borderColor: '#E4EAE5',
   borderRadius: 10,
@@ -1061,6 +1104,7 @@ manualNumberInput: {
 },
 manualLocationInput: {
   flex: 1,
+  minWidth: 0,
   height: 30,
   borderWidth: 1,
   borderColor: '#E4EAE5',
@@ -1074,8 +1118,14 @@ manualLocationInput: {
 },
 manualStateInput: {
   flex: 0,
-  width: 50,
+  width: 42,
   textAlign: 'center',
+},
+manualNeighborhoodInput: {
+  flex: 0.46,
+},
+manualCityInput: {
+  flex: 0.9,
 },
   animalEmoji: { fontSize: 20 },
   animalLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
