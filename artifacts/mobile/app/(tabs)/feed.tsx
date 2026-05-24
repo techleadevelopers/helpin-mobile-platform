@@ -63,6 +63,7 @@ export default function FeedScreen() {
   const [isLoading] = useState(false);
   const [quickText, setQuickText] = useState('');
   const [quickImage, setQuickImage] = useState<string | null>(null);
+  const [quickImages, setQuickImages] = useState<string[]>([]);
   const [quickUrgent, setQuickUrgent] = useState(true);
   const [quickLocation, setQuickLocation] = useState('');
   const [quickCoords, setQuickCoords] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -73,6 +74,8 @@ export default function FeedScreen() {
   const [addressResult, setAddressResult] = useState<{ label: string; latitude: number; longitude: number } | null>(null);
   const [addressSuggestions, setAddressSuggestions] = useState<Array<{ id: string; label: string }>>([]);
   const [addressLookupFailed, setAddressLookupFailed] = useState(false);
+  const [addressManualFallbackVisible, setAddressManualFallbackVisible] = useState(false);
+  const [manualNumber, setManualNumber] = useState('');
   const [manualNeighborhood, setManualNeighborhood] = useState('');
   const [manualCity, setManualCity] = useState('');
   const [manualState, setManualState] = useState('');
@@ -142,23 +145,31 @@ export default function FeedScreen() {
       setAddressSearching(false);
       setAddressSuggestions([]);
       setAddressLookupFailed(false);
+      setAddressManualFallbackVisible(false);
       return;
     }
 
     setAddressSearching(true);
     setAddressLookupFailed(false);
+    setAddressManualFallbackVisible(false);
+    const fallbackTimer = setTimeout(() => setAddressManualFallbackVisible(true), 900);
     const timer = setTimeout(() => {
       searchAddressSuggestions(query)
         .then((suggestions) => {
           setAddressSuggestions(suggestions);
-          if (suggestions.length > 0) return null;
+          if (suggestions.length > 0) {
+            setAddressManualFallbackVisible(false);
+            return null;
+          }
           return geocodeAddress(query);
         })
         .then((result) => {
           if (!result) {
             setAddressLookupFailed(true);
+            setAddressManualFallbackVisible(true);
             return;
           }
+          setAddressManualFallbackVisible(false);
           setAddressResult({
             label: result.label,
             latitude: result.latitude,
@@ -169,21 +180,28 @@ export default function FeedScreen() {
           setAddressSuggestions([]);
           setAddressResult(null);
           setAddressLookupFailed(true);
+          setAddressManualFallbackVisible(true);
         })
         .finally(() => setAddressSearching(false));
     }, 300);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(fallbackTimer);
+    };
   }, [addressQuery, locationPickerOpen]);
 
   async function pickQuickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsMultipleSelection: false,
+      allowsMultipleSelection: true,
+      selectionLimit: 4,
       quality: 0.85,
     });
     if (!result.canceled) {
-      setQuickImage(result.assets[0]?.uri ?? null);
+      const selectedImages = result.assets.map((asset) => asset.uri).filter(Boolean).slice(0, 4);
+      setQuickImages(selectedImages);
+      setQuickImage(selectedImages[0] ?? null);
     }
   }
 
@@ -224,8 +242,16 @@ export default function FeedScreen() {
   }
 
   function getManualLocationLabel() {
+    const street = [addressQuery.trim(), manualNumber.trim()].filter(Boolean).join(', ');
     const cityState = [manualCity.trim(), manualState.trim()].filter(Boolean).join(' - ');
-    return [addressQuery.trim(), manualNeighborhood.trim(), cityState].filter(Boolean).join(', ');
+    return [street, manualNeighborhood.trim(), cityState].filter(Boolean).join(', ');
+  }
+
+  function geocodeWithQuickTimeout(address: string) {
+    return Promise.race([
+      geocodeAddress(address).catch(() => null),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 1200)),
+    ]);
   }
 
   async function applyAddressSuggestion(suggestion: { id: string; label: string }) {
@@ -250,7 +276,7 @@ export default function FeedScreen() {
 
   async function handleQuickPost() {
     const description = quickText.trim();
-    if (!description && !quickImage) {
+    if (!description && quickImages.length === 0) {
       quickInputRef.current?.focus();
       return;
     }
@@ -259,8 +285,16 @@ export default function FeedScreen() {
     let location = quickLocation;
     const manualLocation = getManualLocationLabel();
     const manualAddress = manualLocation || addressQuery.trim();
-    if (!coords && manualAddress.length >= 3) {
-      const geocoded = await geocodeAddress(manualAddress).catch(() => null);
+    const hasManualFallbackAddress =
+      addressManualFallbackVisible ||
+      addressLookupFailed ||
+      Boolean(manualNumber.trim() || manualNeighborhood.trim() || manualCity.trim() || manualState.trim());
+
+    if (!coords && hasManualFallbackAddress && manualAddress.length >= 3) {
+      location = manualAddress;
+      setQuickLocation(location);
+    } else if (!coords && manualAddress.length >= 3) {
+      const geocoded = await geocodeWithQuickTimeout(manualAddress);
       if (geocoded) {
         coords = { latitude: geocoded.latitude, longitude: geocoded.longitude };
         location = geocoded.label;
@@ -305,9 +339,9 @@ export default function FeedScreen() {
       description: description || 'Pedido rapido de ajuda para animal proximo.',
       location,
       neighborhood: location,
-      image: quickImage,
-      images: quickImage ? [quickImage] : [],
-      textOnly: !quickImage,
+      image: quickImages[0] ?? null,
+      images: quickImages,
+      textOnly: quickImages.length === 0,
       author: user
         ? { id: user.id, name: user.name, avatar: user.avatar, verified: user.verified, type: user.type }
         : MOCK_AUTHORS[4],
@@ -326,12 +360,15 @@ export default function FeedScreen() {
       const savedPost = await addPost(post);
       setQuickText('');
       setQuickImage(null);
+      setQuickImages([]);
       setQuickLocation('');
       setQuickCoords(null);
       setAddressQuery('');
       setAddressResult(null);
       setAddressSuggestions([]);
       setAddressLookupFailed(false);
+      setAddressManualFallbackVisible(false);
+      setManualNumber('');
       setManualNeighborhood('');
       setManualCity('');
       setManualState('');
@@ -431,13 +468,25 @@ export default function FeedScreen() {
               />
               {quickImage && (
                 <TouchableOpacity
-                  style={styles.quickImagePreviewWrap}
-                  onPress={() => setQuickImage(null)}
+                  style={styles.quickImagePreviewStrip}
+                  onPress={() => {
+                    setQuickImage(null);
+                    setQuickImages([]);
+                  }}
                   activeOpacity={0.82}
                   accessibilityRole="button"
-                  accessibilityLabel="Remover foto anexada"
+                  accessibilityLabel="Remover fotos anexadas"
                 >
-                  <Image source={{ uri: quickImage }} style={styles.quickImagePreview} resizeMode="cover" />
+                  {quickImages.slice(0, 3).map((uri, imageIndex) => (
+                    <View key={`${uri}-${imageIndex}`} style={[styles.quickImagePreviewWrap, imageIndex > 0 && styles.quickImagePreviewOverlap]}>
+                      <Image source={{ uri }} style={styles.quickImagePreview} resizeMode="cover" />
+                      {imageIndex === 2 && quickImages.length > 3 && (
+                        <View style={styles.quickImageMoreOverlay}>
+                          <Text style={styles.quickImageCountText}>+{quickImages.length - 3}</Text>
+                        </View>
+                      )}
+                    </View>
+                  ))}
                   <View style={styles.quickImageRemove}>
                     <MaterialCommunityIcons name="close" size={10} color="#FFFFFF" />
                   </View>
@@ -449,11 +498,11 @@ export default function FeedScreen() {
           <View style={styles.quickPostBottom}>
             <View style={styles.quickPostTools}>
               <TouchableOpacity
-                style={[styles.quickTool, { backgroundColor: quickImage ? colors.primary + '18' : colors.muted }]}
+                style={[styles.quickTool, { backgroundColor: quickImages.length ? colors.primary + '18' : colors.muted }]}
                 onPress={pickQuickImage}
                 activeOpacity={0.75}
               >
-                <MaterialCommunityIcons name="image-outline" size={16} color={quickImage ? colors.primary : colors.mutedForeground} />
+                <MaterialCommunityIcons name="image-outline" size={16} color={quickImages.length ? colors.primary : colors.mutedForeground} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.quickTool, { backgroundColor: quickLocation ? colors.primary + '18' : colors.muted }]}
@@ -502,6 +551,16 @@ export default function FeedScreen() {
                     returnKeyType="search"
                   />
                 </View>
+                {(addressLookupFailed || addressManualFallbackVisible) && addressQuery.trim().length >= 3 && (
+                  <TextInput
+                    style={[styles.manualNumberInput, { color: colors.foreground, borderColor: colors.border }]}
+                    value={manualNumber}
+                    onChangeText={setManualNumber}
+                    placeholder="Nº"
+                    placeholderTextColor={colors.mutedForeground}
+                    keyboardType="numbers-and-punctuation"
+                  />
+                )}
                 <TouchableOpacity style={styles.gpsFallbackBtn} onPress={detectQuickLocation} activeOpacity={0.8}>
                   <MaterialCommunityIcons name="crosshairs-gps" size={14} color={colors.primary} />
                   <Text style={[styles.gpsFallbackText, { color: colors.primary }]}>Usar GPS atual</Text>
@@ -510,7 +569,7 @@ export default function FeedScreen() {
               {addressSearching && (
                 <Text style={[styles.locationHint, { color: colors.mutedForeground }]}>Buscando endereco...</Text>
               )}
-              {addressLookupFailed && addressQuery.trim().length >= 3 && (
+              {(addressLookupFailed || addressManualFallbackVisible) && addressQuery.trim().length >= 3 && (
                 <View style={styles.manualLocationRow}>
                   <TextInput
                     style={[styles.manualLocationInput, { color: colors.foreground, borderColor: colors.border }]}
@@ -777,6 +836,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Montserrat_400Regular',
   },
+  quickImagePreviewStrip: {
+    minWidth: 34,
+    height: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+    paddingRight: 2,
+  },
   quickImagePreviewWrap: {
     width: 34,
     height: 34,
@@ -784,10 +851,26 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
     backgroundColor: '#DDE6DE',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  quickImagePreviewOverlap: {
+    marginLeft: -8,
   },
   quickImagePreview: {
     width: '100%',
     height: '100%',
+  },
+  quickImageMoreOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  quickImageCountText: {
+    fontSize: 9,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#FFFFFF',
   },
   quickImageRemove: {
     position: 'absolute',
@@ -864,21 +947,36 @@ const styles = StyleSheet.create({
   manualLocationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  manualNumberInput: {
+    width: 42,
+    height: 26,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 0,
+    fontSize: 11,
+    fontFamily: 'Montserrat_700Bold',
+    textAlign: 'center',
+    flexShrink: 0,
   },
   manualLocationInput: {
     flex: 1,
+    minWidth: 0,
     height: 28,
     borderWidth: 1,
     borderRadius: 11,
-    paddingHorizontal: 9,
+    paddingHorizontal: 8,
     paddingVertical: 0,
     fontSize: 11,
     fontFamily: 'Montserrat_600SemiBold',
   },
   manualStateInput: {
     flex: 0,
-    width: 48,
+    width: 40,
     textAlign: 'center',
   },
   addressResult: {
