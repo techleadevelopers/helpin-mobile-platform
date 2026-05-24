@@ -10,6 +10,11 @@ import { getStoredAccessToken } from '@/services/secureSession';
 
 const getToken = getStoredAccessToken;
 
+function formatDistance(distanceKm: number) {
+  if (distanceKm < 1) return `${Math.max(1, Math.round(distanceKm * 1000))} m de voce`;
+  return `${distanceKm.toFixed(1)} km de voce`;
+}
+
 export default function NotificationsScreen() {
   const colors = useColors();
   const router = useRouter();
@@ -63,7 +68,7 @@ export default function NotificationsScreen() {
             <View style={styles.cardBody}>
               <Text style={[styles.cardText, { color: colors.foreground }]}>{item.title}</Text>
               <Text style={[styles.cardSubtext, { color: colors.mutedForeground }]}>{item.body}</Text>
-              {item.distanceKm != null && <Text style={styles.distance}>{item.distanceKm} km de você</Text>}
+              {item.distanceKm != null && <Text style={styles.distance}>{formatDistance(item.distanceKm)}</Text>}
             </View>
           </TouchableOpacity>
         )}
