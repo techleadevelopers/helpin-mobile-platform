@@ -34,9 +34,14 @@ const queryClient = new QueryClient();
 function RootLayoutNav() {
   const segments = useSegments();
   const { hasSeenOnboarding, isAuthenticated, isLoading } = useApp();
-  const firstSegment = segments[0];
+  const firstSegment = segments[0] as string | undefined;
   const isPublicRoute =
-    !firstSegment || firstSegment === "welcome" || firstSegment === "login" || firstSegment === "register";
+    !firstSegment ||
+    firstSegment === "welcome" ||
+    firstSegment === "login" ||
+    firstSegment === "register" ||
+    firstSegment === "forgot-password" ||
+    firstSegment === "reset-password";
 
   if (isLoading) return <ZooHelpLoading />;
   if (!hasSeenOnboarding && firstSegment !== "welcome") return <Redirect href="/welcome" />;
@@ -48,6 +53,8 @@ function RootLayoutNav() {
       <Stack.Screen name="welcome" />
       <Stack.Screen name="login" />
       <Stack.Screen name="register" />
+      <Stack.Screen name="forgot-password" />
+      <Stack.Screen name="reset-password" />
       <Stack.Screen name="ong-dashboard" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
@@ -80,7 +87,6 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen name="notifications" />
-      <Stack.Screen name="search" />
       <Stack.Screen name="favorites" />
       <Stack.Screen name="verification" />
       <Stack.Screen name="support" />
