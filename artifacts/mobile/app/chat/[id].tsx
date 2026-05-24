@@ -19,6 +19,7 @@ import { Avatar } from '@/components/Avatar';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { connectChatRoom, type ChatRealtimeStatus } from '@/services/chatRealtime';
+import { formatChatMessageTime } from '@/services/timeFormat';
 import { createZooHelpApi } from '@/services/zoohelpApi';
 import type { ChatConversationContract } from '@/services/zoohelpEngine';
 
@@ -50,7 +51,7 @@ export default function ChatRoomScreen() {
   const participant = room?.participant ?? (authorName ? { name: authorName, verified: false } : null);
   const isAdoptionChat = chatType === 'adoption' && !!postName;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
-  const topPad = Platform.OS === 'web' ? 67 : insets.top;
+  const topPad = Platform.OS === 'web' ? 8 : Math.max(insets.top, 8);
 
   const appendMessage = useCallback((message: Message) => {
     setMessages((prev) => {
@@ -145,7 +146,7 @@ export default function ChatRoomScreen() {
     const isMe = item.sender === 'me';
     return (
       <View style={[styles.msgRow, isMe ? styles.msgRowMe : styles.msgRowOther]}>
-        {!isMe && participant && <Avatar name={participant.name} size={28} />}
+        {!isMe && participant && <Avatar name={participant.name} size={28} imageUrl={'avatar' in participant ? participant.avatar : null} />}
         <View
           style={[
             styles.bubble,
@@ -158,7 +159,7 @@ export default function ChatRoomScreen() {
             {item.text}
           </Text>
           <Text style={[styles.bubbleTime, { color: isMe ? 'rgba(255,255,255,0.7)' : colors.mutedForeground }]}>
-            {item.status === 'sending' ? 'enviando' : item.status === 'failed' ? 'falhou' : item.time}
+            {item.status === 'sending' ? 'enviando' : item.status === 'failed' ? 'falhou' : formatChatMessageTime(item.time)}
           </Text>
         </View>
       </View>
@@ -182,7 +183,7 @@ export default function ChatRoomScreen() {
       <View
         style={[
           styles.header,
-          { backgroundColor: colors.card, borderBottomColor: colors.border, paddingTop: topPad + 12 },
+          { backgroundColor: colors.card, borderBottomColor: colors.border, paddingTop: topPad },
         ]}
       >
         <TouchableOpacity
@@ -192,7 +193,14 @@ export default function ChatRoomScreen() {
         >
           <MaterialCommunityIcons name="arrow-left" size={24} color={colors.foreground} />
         </TouchableOpacity>
-        {participant && <Avatar name={participant.name} size={36} verified={participant.verified} />}
+        {participant && (
+          <Avatar
+            name={participant.name}
+            size={36}
+            verified={participant.verified}
+            imageUrl={'avatar' in participant ? participant.avatar : null}
+          />
+        )}
         <View style={styles.headerInfo}>
           <Text style={[styles.headerName, { color: colors.foreground }]} numberOfLines={1}>
             {participant?.name ?? 'Chat'}
