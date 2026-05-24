@@ -27,17 +27,17 @@ export default function RevenueChart() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <Card className="glass-card shadow-floating hover:shadow-floating-lg transition-all duration-300 border-0">
-        <CardHeader>
+      <Card className="border border-gray-100 bg-white shadow-sm transition-all duration-300 hover:shadow-md">
+        <CardHeader className="px-4 pb-2 pt-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold text-gray-900">Doações, boosts e grants</CardTitle>
-            <div className="flex space-x-2">
+            <CardTitle className="text-sm font-semibold text-gray-950">Doações, boosts e grants</CardTitle>
+            <div className="flex space-x-1.5">
               {RANGE_OPTIONS.map((option) => (
                 <Button
                   key={option.value}
                   variant="outline"
                   size="sm"
-                  className={`text-xs ${selectedRange === option.value
+                  className={`h-8 px-3 text-xs ${selectedRange === option.value
                     ? "bg-light-blue/20 text-medium-blue border-light-blue/30 hover:bg-light-blue/30"
                     : "text-gray-600 hover:text-medium-blue"
                   }`}
@@ -49,21 +49,21 @@ export default function RevenueChart() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-4">
           {isLoading ? (
-            <div className="h-64 flex items-center justify-center">
+            <div className="flex h-52 items-center justify-center">
               <p className="text-gray-500"></p>
             </div>
           ) : isError ? (
-            <div className="h-64 flex items-center justify-center text-red-600">
+            <div className="flex h-52 items-center justify-center text-red-600">
               <p>Erro ao carregar dados do gráfico: {error?.message}</p>
             </div>
           ) : revenueTrend.length === 0 ? (
-            <div className="h-64 flex items-center justify-center text-gray-500">
+            <div className="flex h-52 items-center justify-center text-gray-500">
               <p>Nenhum dado financeiro disponível para o período selecionado.</p>
             </div>
           ) : (
-            <div className="h-64">
+            <div className="h-52">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={revenueTrend}>
                   <defs>
@@ -73,10 +73,10 @@ export default function RevenueChart() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="month" stroke="#666" fontSize={12} />
+                  <XAxis dataKey="month" stroke="#64748b" fontSize={11} />
                   <YAxis
-                    stroke="#666"
-                    fontSize={12}
+                    stroke="#64748b"
+                    fontSize={11}
                     tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
                   />
                   <Tooltip
