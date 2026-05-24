@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { VerificationStatus } from "@/lib/types";
-import { Filter, LayoutGrid, List, Search } from "lucide-react";
+import { LayoutGrid, List, Search } from "lucide-react";
 
 type ProvidersToolbarProps = {
   searchTerm: string;
@@ -23,49 +23,48 @@ export function ProvidersToolbar({
   onViewModeChange,
 }: ProvidersToolbarProps) {
   return (
-    <Card className="mb-6 shadow-floating border-0">
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
+    <Card className="mb-4 border border-gray-100 bg-white shadow-sm">
+      <CardContent className="p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="relative flex-1 xl:max-w-md">
             <Input
               type="text"
-              placeholder="Buscar ONGs e clínicas..."
+              placeholder="Buscar por nome, email ou cidade"
               value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-10 border-gray-200 rounded-xl focus:ring-2 focus:ring-light-blue focus:border-transparent"
+              onChange={(event) => onSearchChange(event.target.value)}
+              className="h-9 rounded-xl border-gray-200 pl-9 text-sm focus:border-transparent focus:ring-2 focus:ring-light-blue"
             />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <Select value={statusFilter} onValueChange={(value: VerificationStatus | "all") => onStatusChange(value)}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filtrar por status" />
+              <SelectTrigger className="h-9 w-44 rounded-xl text-sm">
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os Status</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value={VerificationStatus.APPROVED}>Aprovado</SelectItem>
-                <SelectItem value={VerificationStatus.PENDING_MANUAL_REVIEW}>RevisÃ£o Manual Pendente</SelectItem>
-                <SelectItem value={VerificationStatus.PENDING_DOCUMENTS_UPLOAD}>Documentos Pendentes</SelectItem>
+                <SelectItem value={VerificationStatus.PENDING_MANUAL_REVIEW}>Revisao manual</SelectItem>
+                <SelectItem value={VerificationStatus.PENDING_DOCUMENTS_UPLOAD}>Documentos pendentes</SelectItem>
                 <SelectItem value={VerificationStatus.REJECTED}>Rejeitado</SelectItem>
                 <SelectItem value={VerificationStatus.BLOCKED}>Bloqueado</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" className="border-gray-200 text-gray-600 hover:bg-gray-50">
-              <Filter className="mr-2" size={16} />
-              Mais Filtros
-            </Button>
-            <div className="flex items-center gap-1">
+
+            <div className="flex items-center rounded-xl border border-gray-200 bg-slate-50 p-0.5">
               <Button
-                variant={viewMode === "card" ? "secondary" : "ghost"}
+                variant={viewMode === "card" ? "outline" : "ghost"}
                 size="icon"
+                className="h-8 w-8 border-0"
                 onClick={() => onViewModeChange("card")}
               >
                 <LayoutGrid size={16} />
               </Button>
               <Button
-                variant={viewMode === "table" ? "secondary" : "ghost"}
+                variant={viewMode === "table" ? "outline" : "ghost"}
                 size="icon"
+                className="h-8 w-8 border-0"
                 onClick={() => onViewModeChange("table")}
               >
                 <List size={16} />
