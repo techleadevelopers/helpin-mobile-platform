@@ -22,6 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { OperationalStatus } from '@/components/OperationalStatus';
 import { MOCK_POSTS } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
@@ -225,7 +226,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.caseInfo}>
               <Text style={styles.caseName} numberOfLines={1}>{post.name}</Text>
-              <Text style={styles.caseMeta} numberOfLines={1}>{post.neighborhood} - {post.createdAt}</Text>
+              <OperationalStatus post={post} variant="line" />
             </View>
             <View style={styles.caseStats}>
               <MaterialCommunityIcons name="heart-outline" size={13} color="#8A928B" />
