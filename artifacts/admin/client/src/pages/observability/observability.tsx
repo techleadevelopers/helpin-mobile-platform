@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   LineChart,
@@ -21,8 +21,16 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { API_BASE_URL, fetchAdminHealth } from "@/lib/api";
+import { fetchAdminHealth, fetchPrometheusMetrics } from "@/lib/api";
 import type {
   ObservabilityHealthPayload,
   ObservabilityLatencyPoint,
@@ -94,6 +102,12 @@ const isSentryData = (
 };
 
 export default function ObservabilityPage() {
+  const [isMetricsOpen, setIsMetricsOpen] = useState(false);
+  const [metricsText, setMetricsText] = useState("");
+  const [metricsError, setMetricsError] = useState("");
+  const [isMetricsLoading, setIsMetricsLoading] = useState(false);
+  const [isJsonOpen, setIsJsonOpen] = useState(false);
+
   const { data, isLoading, isError, error } = useQuery<
     ObservabilityHealthPayload,
     Error
@@ -118,9 +132,26 @@ export default function ObservabilityPage() {
   const hasSentryData = Boolean(sentryData);
   const activeSessionCount =
     data?.activeSessions ?? data?.activeRescueSessions ?? 0;
-  const metricsHref = `${API_BASE_URL}/metrics`;
-  const observabilityHref = `${API_BASE_URL}/v1/observability`;
-  const grafanaHref = "http://localhost:3001/d/zoohelp-core-overview";
+  const grafanaBaseUrl = (import.meta.env.VITE_GRAFANA_URL || "").trim().replace(/\/$/, "");
+  const grafanaDashboardUid = data?.links?.grafanaDashboardUid ?? "zoohelp-core-overview";
+  const grafanaHref = grafanaBaseUrl
+    ? `${grafanaBaseUrl}/d/${grafanaDashboardUid}`
+    : undefined;
+
+  const handleOpenMetrics = async () => {
+    setIsMetricsOpen(true);
+    setIsMetricsLoading(true);
+    setMetricsError("");
+    try {
+      setMetricsText(await fetchPrometheusMetrics());
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Nao foi possivel carregar /metrics.";
+      setMetricsError(message);
+      setMetricsText("");
+    } finally {
+      setIsMetricsLoading(false);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-admin-bg">
@@ -206,15 +237,21 @@ export default function ObservabilityPage() {
               icon={<Gauge className="h-5 w-5 text-emerald-500" />}
               title="Prometheus"
               value={formatStatus(data?.stack?.prometheus)}
-              href={metricsHref}
-              linkLabel="Abrir /metrics"
+              detail="/metrics exige Bearer admin; abrir em nova aba nao envia o token."
+              onAction={handleOpenMetrics}
+              linkLabel="Ver /metrics"
             />
             <EvidenceCard
               icon={<Activity className="h-5 w-5 text-orange-500" />}
               title="Grafana"
-              value={data?.links?.grafanaDashboardUid ?? "zoohelp-core-overview"}
+              value={grafanaDashboardUid}
               href={grafanaHref}
-              linkLabel="Abrir dashboard"
+              detail={
+                grafanaHref
+                  ? "Dashboard externo configurado."
+                  : "Defina VITE_GRAFANA_URL ou rode o stack local antes de abrir."
+              }
+              linkLabel={grafanaHref ? "Abrir dashboard" : undefined}
             />
             <EvidenceCard
               icon={<Network className="h-5 w-5 text-violet-500" />}
@@ -226,8 +263,9 @@ export default function ObservabilityPage() {
               icon={<Database className="h-5 w-5 text-sky-500" />}
               title="Evidencia API"
               value={data?.links?.prometheusJob ?? "zoohelp-backend"}
-              href={observabilityHref}
-              linkLabel="Abrir JSON"
+              detail="/v1/observability tambem e protegido por Bearer admin."
+              onAction={() => setIsJsonOpen(true)}
+              linkLabel="Ver JSON"
             />
           </section>
 
@@ -366,6 +404,42 @@ export default function ObservabilityPage() {
             </div>
           </section>
         </main>
+
+        <Dialog open={isMetricsOpen} onOpenChange={setIsMetricsOpen}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Prometheus /metrics</DialogTitle>
+              <DialogDescription>
+                Resposta carregada pelo admin com o Bearer token da sessao atual.
+              </DialogDescription>
+            </DialogHeader>
+            {isMetricsLoading ? (
+              <Skeleton className="h-80 rounded-xl" />
+            ) : metricsError ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
+                {metricsError}
+              </div>
+            ) : (
+              <pre className="max-h-[60vh] overflow-auto rounded-xl border border-gray-100 bg-slate-950 p-4 text-xs leading-relaxed text-slate-100">
+                {metricsText}
+              </pre>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isJsonOpen} onOpenChange={setIsJsonOpen}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Snapshot /v1/observability</DialogTitle>
+              <DialogDescription>
+                JSON autenticado que alimenta esta tela em tempo real.
+              </DialogDescription>
+            </DialogHeader>
+            <pre className="max-h-[60vh] overflow-auto rounded-xl border border-gray-100 bg-slate-950 p-4 text-xs leading-relaxed text-slate-100">
+              {JSON.stringify(data ?? {}, null, 2)}
+            </pre>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
@@ -418,6 +492,7 @@ type EvidenceCardProps = {
   detail?: string;
   href?: string;
   linkLabel?: string;
+  onAction?: () => void;
 };
 
 function EvidenceCard({
@@ -427,6 +502,7 @@ function EvidenceCard({
   detail,
   href,
   linkLabel,
+  onAction,
 }: EvidenceCardProps) {
   return (
     <div className="col-span-12 md:col-span-6 xl:col-span-3">
@@ -439,7 +515,16 @@ function EvidenceCard({
         </div>
         <p className="text-sm font-semibold">{value}</p>
         {detail && <p className="break-all text-xs text-gray-500">{detail}</p>}
-        {href && linkLabel && (
+        {onAction && linkLabel && (
+          <Button
+            variant="ghost"
+            className="h-auto justify-start gap-2 px-0 py-0 text-xs font-semibold text-sky-700 hover:bg-transparent hover:text-sky-800"
+            onClick={onAction}
+          >
+            {linkLabel} <ExternalLink className="h-3.5 w-3.5" />
+          </Button>
+        )}
+        {href && linkLabel && !onAction && (
           <a
             className="inline-flex items-center gap-2 text-xs font-semibold text-sky-700"
             href={href}
