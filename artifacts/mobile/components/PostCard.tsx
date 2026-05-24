@@ -111,6 +111,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   const isLiked = likedPosts.includes(post.id);
   const isFollowingAuthor = followedUsers.includes(post.author.id);
   const isPostOwner = user?.id === post.author.id;
+  const viewCount = 6 + (index % 4);
   const [localLikes, setLocalLikes] = useState(post.likes);
   const [localComments, setLocalComments] = useState(post.comments);
   const [saved, setSaved] = useState(false);
@@ -645,11 +646,10 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
               <MaterialCommunityIcons name="share-variant-outline" size={18} color={colors.mutedForeground} />
             </TouchableOpacity>
 
-            {isPostOwner && (
-              <>
-                <View style={{ flex: 1 }} />
+            <View style={{ flex: 1 }} />
+            {isPostOwner ? (
                 <TouchableOpacity
-                  style={styles.deletePostBtn}
+                  style={styles.actionBtn}
                   onPress={(event) => {
                     event.stopPropagation();
                     handleDeletePost();
@@ -658,9 +658,13 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                   accessibilityRole="button"
                   accessibilityLabel="Excluir post"
                 >
-                  <MaterialCommunityIcons name="trash-can-outline" size={17} color="#A85645" />
+                  <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.mutedForeground} />
                 </TouchableOpacity>
-              </>
+            ) : (
+              <View style={styles.actionBtn}>
+                <MaterialCommunityIcons name="eye-outline" size={18} color={colors.mutedForeground} />
+                <Text style={[styles.actionCount, { color: colors.mutedForeground }]}>{viewCount}</Text>
+              </View>
             )}
           </View>
           {renderCommentArea()}
