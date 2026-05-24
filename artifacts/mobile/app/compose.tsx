@@ -30,7 +30,7 @@ import { Avatar } from '@/components/Avatar';
 import { Post, PostType, POST_TYPE_CONFIG } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
-import { geocodeAddress, getStaticMapUrl } from '@/services/zoohelpApi';
+import { geocodeAddress, getPlaceAddressDetails, getStaticMapUrl, searchAddressSuggestions } from '@/services/zoohelpApi';
 import { ZooHelpApiError } from '@/services/zoohelpEngine';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -126,6 +126,10 @@ export default function ComposeScreen() {
   const [addressResult, setAddressResult] = useState<{ label: string; latitude: number; longitude: number } | null>(null);
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationPrecision, setLocationPrecision] = useState<'none' | 'city' | 'address' | 'gps'>('none');
+  const [addressLookupFailed, setAddressLookupFailed] = useState(false);
+  const [manualNeighborhood, setManualNeighborhood] = useState('');
+  const [manualCity, setManualCity] = useState('');
+  const [manualState, setManualState] = useState('');
   const [mapImageUrl, setMapImageUrl] = useState<string | null>(null);
   const [contact, setContact] = useState('');
   const [images, setImages] = useState<string[]>([]);
@@ -133,7 +137,7 @@ export default function ComposeScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
   // ========== AUTOCOMPLETE DE ENDEREÇO MANUAL ==========
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<Array<{ id: string; label: string }>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [typingTimeout, setTypingTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   // Função para buscar sugestões de endereço
@@ -144,20 +148,15 @@ export default function ComposeScreen() {
       return;
     }
 
-    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-    if (!apiKey) return;
-
     try {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${apiKey}&components=country:br&types=address&language=pt-BR`
-      );
-      const data = await response.json();
-      if (data.predictions) {
-        setSuggestions(data.predictions);
-        setShowSuggestions(true);
-      }
-    } catch (error) {
-      console.error('Erro ao buscar sugestões:', error);
+      const items = await searchAddressSuggestions(input);
+      setSuggestions(items);
+      setShowSuggestions(items.length > 0);
+      if (items.length === 0) setAddressLookupFailed(true);
+    } catch {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setAddressLookupFailed(true);
     }
   }
 
@@ -167,30 +166,26 @@ export default function ComposeScreen() {
     setLocation(description);
     setAddressSearching(true);
 
-    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-    if (!apiKey) return;
-
     try {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${apiKey}&fields=geometry,formatted_address`
-      );
-      const data = await response.json();
-      if (data.result?.geometry?.location) {
-        const lat = data.result.geometry.location.lat;
-        const lng = data.result.geometry.location.lng;
-        const formattedAddress = data.result.formatted_address || description;
+      const result = await getPlaceAddressDetails(placeId) ?? await geocodeAddress(description);
+      if (result) {
+        const lat = result.latitude;
+        const lng = result.longitude;
+        const formattedAddress = result.label || description;
         
         setCoords({ latitude: lat, longitude: lng });
         setLocationPrecision('address');
         setAddressResult({ label: formattedAddress, latitude: lat, longitude: lng });
+        setLocation(formattedAddress);
+        setAddressLookupFailed(false);
         
         const staticMap = await getStaticMapUrl({
           lat, lng, zoom: 16, width: 640, height: 320
         });
         if (staticMap) setMapImageUrl(staticMap);
       }
-    } catch (error) {
-      console.error('Erro ao buscar detalhes do lugar:', error);
+    } catch {
+      // Keep manual address entry available when geocoding is unavailable.
     } finally {
       setAddressSearching(false);
     }
@@ -202,6 +197,7 @@ export default function ComposeScreen() {
     setCoords(null);
     setAddressResult(null);
     setMapImageUrl(null);
+    setAddressLookupFailed(false);
     if (locationPrecision !== 'gps') setLocationPrecision('none');
     
     if (typingTimeout) clearTimeout(typingTimeout);
@@ -215,26 +211,39 @@ export default function ComposeScreen() {
   const inputBorder = useSharedValue(0);
   const urgentPulse = useSharedValue(1);
 
-  const topPad = Platform.OS === 'web' ? 44 : insets.top;
+  const topPad = (Platform.OS === 'web' ? 0 : insets.top) + 16;
   const bottomPad = Platform.OS === 'web' ? 24 : insets.bottom;
 
   const currentType = POST_TYPES.find((t) => t.type === selectedType)!;
   const canPost = text.trim().length > 0 || images.length > 0;
   const displayName = user?.name ?? '';
+  const authorRoleLabel = user?.type === 'ong'
+    ? 'ONG'
+    : user?.type === 'vet'
+    ? 'Veterinário'
+    : user?.gender === 'female'
+    ? 'Autora'
+    : 'Autor';
 
   useEffect(() => {
     const query = location.trim();
     setAddressResult(null);
-    if (query.length < 6 || locationPrecision === 'gps') {
+    if (query.length < 6 || locationPrecision === 'gps' || (Platform.OS === 'web' && showSuggestions)) {
       setAddressSearching(false);
+      if (query.length < 3 || locationPrecision === 'gps') setAddressLookupFailed(false);
       return;
     }
 
     setAddressSearching(true);
+    setAddressLookupFailed(false);
     const timer = setTimeout(() => {
       geocodeAddress(query)
         .then(async (result) => {
-          if (!result) return;
+          if (!result) {
+            setAddressResult(null);
+            setAddressLookupFailed(true);
+            return;
+          }
           const nextCoords = { latitude: result.latitude, longitude: result.longitude };
           setAddressResult({ label: result.label, ...nextCoords });
           setCoords(nextCoords);
@@ -248,11 +257,18 @@ export default function ComposeScreen() {
           });
           if (staticMap) setMapImageUrl(staticMap);
         })
+        .catch(() => {
+          setAddressResult(null);
+          setAddressLookupFailed(true);
+        })
         .finally(() => setAddressSearching(false));
     }, 500);
 
-    return () => clearTimeout(timer);
-  }, [location, locationPrecision]);
+    return () => {
+      clearTimeout(timer);
+      setAddressSearching(false);
+    };
+  }, [location, locationPrecision, showSuggestions]);
 
   if (isLoading) return null;
   if (!isAuthenticated || !user) return <Redirect href="/login" />;
@@ -305,6 +321,7 @@ export default function ComposeScreen() {
       const { latitude, longitude } = position.coords;
       setCoords({ latitude, longitude });
       setLocationPrecision('gps');
+      setAddressLookupFailed(false);
       setLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
 
       const staticMap = await getStaticMapUrl({
@@ -325,7 +342,10 @@ export default function ComposeScreen() {
   }
 
   function buildAddressLabel() {
-    return addressResult?.label ?? location.trim();
+    if (addressResult?.label) return addressResult.label;
+    const cityState = [manualCity.trim(), manualState.trim()].filter(Boolean).join(' - ');
+    const manualLabel = [location.trim(), manualNeighborhood.trim(), cityState].filter(Boolean).join(', ');
+    return manualLabel || location.trim();
   }
 
   async function handlePublish() {
@@ -340,7 +360,7 @@ export default function ComposeScreen() {
     let nextLocation = manualAddress || location;
 
     if (manualAddress && nextPrecision !== 'gps') {
-      const geocoded = await geocodeAddress(manualAddress);
+      const geocoded = await geocodeAddress(manualAddress).catch(() => null);
       if (geocoded) {
         nextCoords = { latitude: geocoded.latitude, longitude: geocoded.longitude };
         nextPrecision = 'address';
@@ -356,6 +376,9 @@ export default function ComposeScreen() {
           height: 320,
         });
         if (staticMap) setMapImageUrl(staticMap);
+      } else {
+        nextLocation = manualAddress;
+        setAddressLookupFailed(true);
       }
     }
 
@@ -460,7 +483,7 @@ export default function ComposeScreen() {
   return (
     <View style={[styles.container, { backgroundColor: '#F8FAF8' }]}>
       {/* HEADER */}
-      <View style={[styles.header, { paddingTop: topPad + 8, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { paddingTop: topPad, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.cancelBtn} activeOpacity={0.7}>
           <Text style={[styles.cancelText, { color: colors.mutedForeground }]}>Cancelar</Text>
         </TouchableOpacity>
@@ -514,7 +537,7 @@ export default function ComposeScreen() {
               <View style={styles.authorMeta}>
                 <View style={[styles.roleBadge, { backgroundColor: currentType.light }]}>
                   <Text style={[styles.roleText, { color: currentType.color }]}>
-                    {user?.type === 'ong' ? 'ONG' : user?.type === 'vet' ? 'Veterinário' : 'Protetor(a)'}
+                    {authorRoleLabel}
                   </Text>
                 </View>
                 <View style={[styles.audienceBadge, { backgroundColor: colors.muted }]}>
@@ -679,6 +702,33 @@ export default function ComposeScreen() {
         }}
       />
     </View>
+    {addressLookupFailed && location.trim().length >= 3 && (
+      <View style={styles.manualLocationRow}>
+        <TextInput
+          style={styles.manualLocationInput}
+          value={manualNeighborhood}
+          onChangeText={setManualNeighborhood}
+          placeholder="Bairro"
+          placeholderTextColor="#8A928B"
+        />
+        <TextInput
+          style={styles.manualLocationInput}
+          value={manualCity}
+          onChangeText={setManualCity}
+          placeholder="Cidade"
+          placeholderTextColor="#8A928B"
+        />
+        <TextInput
+          style={[styles.manualLocationInput, styles.manualStateInput]}
+          value={manualState}
+          onChangeText={(value) => setManualState(value.toUpperCase())}
+          placeholder="UF"
+          placeholderTextColor="#8A928B"
+          maxLength={2}
+          autoCapitalize="characters"
+        />
+      </View>
+    )}
     
     {/* Lista de sugestões flutuante */}
     {showSuggestions && suggestions.length > 0 && (
@@ -686,13 +736,13 @@ export default function ComposeScreen() {
         <ScrollView style={{ maxHeight: 200 }}>
           {suggestions.map((item) => (
             <TouchableOpacity
-              key={item.place_id}
+              key={item.id}
               style={styles.suggestionItem}
-              onPress={() => selectSuggestion(item.place_id, item.description)}
+              onPress={() => selectSuggestion(item.id, item.label)}
             >
               <MaterialCommunityIcons name="map-marker" size={16} color="#7C867C" />
               <Text style={[styles.suggestionText, { color: '#1D2A20' }]} numberOfLines={2}>
-                {item.description}
+                {item.label}
               </Text>
             </TouchableOpacity>
           ))}
@@ -926,7 +976,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     fontFamily: 'Inter_400Regular',
     lineHeight: 25,
-    minHeight: 100,
+    minHeight: 70,
     paddingTop: 0,
   },
   composerFooter: { alignItems: 'flex-end' },
@@ -960,6 +1010,30 @@ searchInputText: {
   fontFamily: 'Inter_400Regular',
   color: '#1D2A20',
   padding: 0,
+},
+manualLocationRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 6,
+  marginTop: 8,
+},
+manualLocationInput: {
+  flex: 1,
+  height: 30,
+  borderWidth: 1,
+  borderColor: '#E4EAE5',
+  borderRadius: 11,
+  backgroundColor: '#F4F6F3',
+  paddingHorizontal: 9,
+  paddingVertical: 0,
+  fontSize: 11,
+  fontFamily: 'Inter_600SemiBold',
+  color: '#1D2A20',
+},
+manualStateInput: {
+  flex: 0,
+  width: 50,
+  textAlign: 'center',
 },
   animalEmoji: { fontSize: 20 },
   animalLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
