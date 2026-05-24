@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { EmptyState } from '@/components/EmptyState';
 import { useColors } from '@/hooks/useColors';
+import { formatRelativeTime } from '@/services/timeFormat';
 import { createZooHelpApi } from '@/services/zoohelpApi';
 import type { ChatConversationContract } from '@/services/zoohelpEngine';
 
@@ -37,7 +38,12 @@ export default function ChatScreen() {
         activeOpacity={0.92}
       >
         <View style={{ position: 'relative' }}>
-          <Avatar name={item.participant.name} size={52} verified={item.participant.verified} />
+          <Avatar
+            name={item.participant.name}
+            size={52}
+            verified={item.participant.verified}
+            imageUrl={item.participant.avatar}
+          />
           {item.unread > 0 && (
             <View style={[styles.unreadBadge, { backgroundColor: colors.primary, shadowColor: colors.primary }]}>
               <Text style={styles.unreadText}>{item.unread}</Text>
@@ -57,7 +63,7 @@ export default function ChatScreen() {
               {item.participant.name}
             </Text>
             <Text style={[styles.convTime, { color: colors.mutedForeground }]}>
-              {item.lastMessageTime}
+              {formatRelativeTime(item.lastMessageTime)}
             </Text>
           </View>
           <Text style={[styles.postTitle, { color: colors.primary }]} numberOfLines={1}>
