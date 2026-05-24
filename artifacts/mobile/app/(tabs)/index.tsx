@@ -34,6 +34,7 @@ import { MOCK_AUTHORS, Post, PostType } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { geocodeAddress, getPlaceAddressDetails, searchAddressSuggestions } from '@/services/zoohelpApi';
+import { ZooHelpApiError } from '@/services/zoohelpEngine';
 
 type FeedFilter = PostType | 'all' | 'ong';
 
@@ -69,6 +70,7 @@ export default function FeedScreen() {
   const [quickLocation, setQuickLocation] = useState('');
   const [quickCoords, setQuickCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [quickSubmitting, setQuickSubmitting] = useState(false);
+  const [quickError, setQuickError] = useState('');
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [addressQuery, setAddressQuery] = useState('');
   const [addressSearching, setAddressSearching] = useState(false);
@@ -203,9 +205,12 @@ export default function FeedScreen() {
       quality: 0.85,
     });
     if (!result.canceled) {
-      const selectedImages = result.assets.map((asset) => asset.uri).filter(Boolean).slice(0, 4);
-      setQuickImages(selectedImages);
-      setQuickImage(selectedImages[0] ?? null);
+      const selectedImages = result.assets.map((asset) => asset.uri).filter(Boolean);
+      setQuickImages((prev) => {
+        const next = Array.from(new Set([...prev, ...selectedImages])).slice(0, 4);
+        setQuickImage(next[0] ?? null);
+        return next;
+      });
     }
   }
 
@@ -245,10 +250,26 @@ export default function FeedScreen() {
     setLocationPickerOpen(false);
   }
 
+  function getManualLocationParts() {
+    return {
+      street: addressQuery.trim(),
+      number: manualNumber.trim(),
+      neighborhood: manualNeighborhood.trim(),
+      city: manualCity.trim(),
+      state: manualState.trim().toUpperCase(),
+    };
+  }
+
+  function hasCompleteManualLocation() {
+    const parts = getManualLocationParts();
+    return Boolean(parts.street && parts.number && parts.neighborhood && parts.city && parts.state.length === 2);
+  }
+
   function getManualLocationLabel() {
-    const street = [addressQuery.trim(), manualNumber.trim()].filter(Boolean).join(', ');
-    const cityState = [manualCity.trim(), manualState.trim()].filter(Boolean).join(' - ');
-    return [street, manualNeighborhood.trim(), cityState].filter(Boolean).join(', ');
+    const parts = getManualLocationParts();
+    const street = [parts.street, parts.number].filter(Boolean).join(', ');
+    const cityState = [parts.city, parts.state].filter(Boolean).join(' - ');
+    return [street, parts.neighborhood, cityState].filter(Boolean).join(', ');
   }
 
   function geocodeWithQuickTimeout(address: string) {
@@ -256,6 +277,44 @@ export default function FeedScreen() {
       geocodeAddress(address).catch(() => null),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
     ]);
+  }
+
+  async function resolveManualAddress(address: string) {
+    const geocoded = await geocodeWithQuickTimeout(address);
+    if (!geocoded) return null;
+    return { ...geocoded, label: address };
+  }
+
+  async function resolveRequiredQuickCoords(currentCoords: typeof quickCoords, currentLocation: string) {
+    if (currentCoords) {
+      return { coords: currentCoords, location: currentLocation };
+    }
+
+    const manualLabel = getManualLocationLabel();
+    const lookupAddress = manualLabel || currentLocation || addressQuery.trim();
+    if (lookupAddress.trim().length < 3) {
+      setAddressLookupFailed(true);
+      setAddressManualFallbackVisible(true);
+      Alert.alert('Localizacao obrigatoria', 'Digite rua, numero, bairro, cidade e UF para publicar.');
+      return null;
+    }
+
+    const geocoded = await resolveManualAddress(lookupAddress);
+    if (!geocoded) {
+      setAddressLookupFailed(true);
+      setAddressManualFallbackVisible(true);
+      Alert.alert(
+        'Endereco nao localizado',
+        'Confira rua, numero, bairro, cidade e UF. Preciso localizar esse endereco para publicar com seguranca.',
+      );
+      return null;
+    }
+
+    const resolvedCoords = { latitude: geocoded.latitude, longitude: geocoded.longitude };
+    const resolvedLocation = geocoded.label || lookupAddress;
+    setQuickCoords(resolvedCoords);
+    setQuickLocation(resolvedLocation);
+    return { coords: resolvedCoords, location: resolvedLocation };
   }
 
   async function applyAddressSuggestion(suggestion: { id: string; label: string }) {
@@ -279,66 +338,105 @@ export default function FeedScreen() {
   }
 
   async function handleQuickPost() {
+    if (quickSubmitting) return;
+    setQuickError('');
     const description = quickText.trim();
     if (!description && quickImages.length === 0) {
+      setQuickError('Escreva o que aconteceu ou adicione uma foto.');
       quickInputRef.current?.focus();
       return;
     }
 
-    let coords = quickCoords;
-    let location = quickLocation;
-    const manualLocation = getManualLocationLabel();
-    const manualAddress = manualLocation || addressQuery.trim();
-    const hasManualFallbackAddress =
-      addressManualFallbackVisible ||
-      addressLookupFailed ||
-      Boolean(manualNumber.trim() || manualNeighborhood.trim() || manualCity.trim() || manualState.trim());
+    setQuickSubmitting(true);
 
-    if (!coords && manualAddress.length >= 3) {
-      const geocoded = await geocodeWithQuickTimeout(manualAddress);
-      if (geocoded) {
+    try {
+      let coords = quickCoords;
+      let location = quickLocation;
+      const manualLocation = getManualLocationLabel();
+      const manualComplete = hasCompleteManualLocation();
+      const manualAddress = manualLocation || addressQuery.trim();
+      const hasManualFallbackAddress =
+        addressManualFallbackVisible ||
+        addressLookupFailed ||
+        Boolean(manualNumber.trim() || manualNeighborhood.trim() || manualCity.trim() || manualState.trim());
+
+      if (manualComplete) {
+        const geocoded = await resolveManualAddress(manualLocation);
+        if (!geocoded) {
+          const message = 'Nao consegui encontrar coordenadas para esse endereco completo. Confira rua, numero, bairro, cidade e UF.';
+          setAddressLookupFailed(true);
+          setAddressManualFallbackVisible(true);
+          setQuickError(message);
+          Alert.alert('Endereco nao localizado', message);
+          return;
+        }
         coords = { latitude: geocoded.latitude, longitude: geocoded.longitude };
-        location = geocoded.label;
+        location = manualLocation;
         setQuickCoords(coords);
         setQuickLocation(location);
-      } else {
+      } else if (hasManualFallbackAddress) {
+        const message = 'Preencha rua, numero, bairro, cidade e UF para publicar com coordenada correta.';
         setAddressLookupFailed(true);
         setAddressManualFallbackVisible(true);
-        Alert.alert(
-          'Endereco nao localizado',
-          hasManualFallbackAddress
+        setQuickError(message);
+        Alert.alert('Endereco incompleto', message);
+        return;
+      } else if (!coords && manualAddress.length >= 3) {
+        const geocoded = await resolveManualAddress(manualAddress);
+        if (geocoded) {
+          coords = { latitude: geocoded.latitude, longitude: geocoded.longitude };
+          location = manualAddress;
+          setQuickCoords(coords);
+          setQuickLocation(location);
+        } else {
+          const message = hasManualFallbackAddress
             ? 'Confira rua, numero, bairro, cidade e UF. Preciso localizar esse endereco para publicar com seguranca.'
-            : 'Digite rua, numero, bairro, cidade e UF para localizar o caso.',
-        );
+            : 'Digite rua, numero, bairro, cidade e UF para localizar o caso.';
+          setAddressLookupFailed(true);
+          setAddressManualFallbackVisible(true);
+          setQuickError(message);
+          Alert.alert('Endereco nao localizado', message);
+          return;
+        }
+      }
+
+      if (!coords && Platform.OS === 'web' && !location) {
+        const message = 'Digite rua, bairro, cidade e estado para publicar.';
+        setQuickError(message);
+        Alert.alert('Localizacao obrigatoria', message);
         return;
       }
-    }
-    if (!coords && Platform.OS === 'web' && !location) {
-      Alert.alert('Localizacao obrigatoria', 'Digite rua, bairro, cidade e estado para publicar.');
-      return;
-    }
 
-    if (!coords && !location) {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== 'granted') {
-        Alert.alert('Localizacao obrigatoria', 'Para pedir ajuda real, permita o GPS. Assim o sistema alerta pessoas e ONGs proximas.');
+      if (!coords && !location) {
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (permission.status !== 'granted') {
+          const message = 'Para pedir ajuda real, permita o GPS. Assim o sistema alerta pessoas e ONGs proximas.';
+          setQuickError(message);
+          Alert.alert('Localizacao obrigatoria', message);
+          return;
+        }
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+        coords = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+        setQuickCoords(coords);
+        location = 'Localizacao atual';
+        setQuickLocation(location);
+      }
+
+      const geoResolved = await resolveRequiredQuickCoords(coords, location);
+      if (!geoResolved) {
+        setQuickError('Nao consegui validar a localizacao. Confira o endereco ou use o GPS atual.');
         return;
       }
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-      coords = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      };
-      setQuickCoords(coords);
-      location = 'Localizacao atual';
-      setQuickLocation(location);
-    }
+      coords = geoResolved.coords;
+      location = geoResolved.location;
 
-    setQuickSubmitting(true);
-    location = location || 'Localizacao atual';
-    const post: Post = {
+      location = location || 'Localizacao atual';
+      const post: Post = {
       id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
       type: 'emergency',
       animalType: 'other',
@@ -363,15 +461,16 @@ export default function FeedScreen() {
       tags: quickUrgent ? ['ajuda', 'urgente'] : ['ajuda'],
       latitude: coords?.latitude,
       longitude: coords?.longitude,
-    };
+      locationAddress: manualComplete ? getManualLocationParts() : undefined,
+      };
 
-    try {
       const savedPost = await addPost(post);
       setQuickText('');
       setQuickImage(null);
       setQuickImages([]);
       setQuickLocation('');
       setQuickCoords(null);
+      setQuickError('');
       setAddressQuery('');
       setAddressResult(null);
       setAddressSuggestions([]);
@@ -385,8 +484,15 @@ export default function FeedScreen() {
       setQuickUrgent(true);
       setActiveFilter('all');
       router.push(`/rescue/status?postId=${encodeURIComponent(savedPost.id)}` as any);
-    } catch {
-      Alert.alert('Erro ao publicar', 'Nao foi possivel publicar agora. Tente novamente.');
+    } catch (error) {
+      console.error('Quick post failed', error);
+      const backendMessage =
+        error instanceof ZooHelpApiError
+          ? error.message.replace(/^validation error:\s*/i, '')
+          : null;
+      const message = backendMessage || (error instanceof Error ? error.message : 'Nao foi possivel publicar agora. Tente novamente.');
+      setQuickError(message);
+      Alert.alert('Erro ao publicar', message);
     } finally {
       setQuickSubmitting(false);
     }
@@ -477,7 +583,10 @@ export default function FeedScreen() {
               />
               {quickImage && (
                 <TouchableOpacity
-                  style={styles.quickImagePreviewStrip}
+                  style={[
+                    styles.quickImagePreviewStrip,
+                    { width: Math.min(Math.max(quickImages.length, 1) * 38, 114) },
+                  ]}
                   onPress={() => {
                     setQuickImage(null);
                     setQuickImages([]);
@@ -487,7 +596,7 @@ export default function FeedScreen() {
                   accessibilityLabel="Remover fotos anexadas"
                 >
                   {quickImages.slice(0, 3).map((uri, imageIndex) => (
-                    <View key={`${uri}-${imageIndex}`} style={[styles.quickImagePreviewWrap, imageIndex > 0 && styles.quickImagePreviewOverlap]}>
+                    <View key={`${uri}-${imageIndex}`} style={styles.quickImagePreviewWrap}>
                       <Image source={{ uri }} style={styles.quickImagePreview} resizeMode="cover" />
                       {imageIndex === 2 && quickImages.length > 3 && (
                         <View style={styles.quickImageMoreOverlay}>
@@ -546,6 +655,13 @@ export default function FeedScreen() {
             </TouchableOpacity>
           </View>
 
+          {quickError ? (
+            <View style={styles.quickErrorBox}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={14} color="#D93025" />
+              <Text style={styles.quickErrorText}>{quickError}</Text>
+            </View>
+          ) : null}
+
           {locationPickerOpen && (
             <View style={[styles.locationPicker, { backgroundColor: colors.muted, borderColor: colors.border }]}>
               <View style={styles.locationTopRow}>
@@ -575,20 +691,20 @@ export default function FeedScreen() {
                   <Text style={[styles.gpsFallbackText, { color: colors.primary }]}>Usar GPS atual</Text>
                 </TouchableOpacity>
               </View>
-              {addressSearching && (
+              {addressSearching && !(addressLookupFailed || addressManualFallbackVisible) && (
                 <Text style={[styles.locationHint, { color: colors.mutedForeground }]}>Buscando endereco...</Text>
               )}
               {(addressLookupFailed || addressManualFallbackVisible) && addressQuery.trim().length >= 3 && (
                 <View style={styles.manualLocationRow}>
                   <TextInput
-                    style={[styles.manualLocationInput, { color: colors.foreground, borderColor: colors.border }]}
+                    style={[styles.manualLocationInput, styles.manualNeighborhoodInput, { color: colors.foreground, borderColor: colors.border }]}
                     value={manualNeighborhood}
                     onChangeText={setManualNeighborhood}
                     placeholder="Bairro"
                     placeholderTextColor={colors.mutedForeground}
                   />
                   <TextInput
-                    style={[styles.manualLocationInput, { color: colors.foreground, borderColor: colors.border }]}
+                    style={[styles.manualLocationInput, styles.manualCityInput, { color: colors.foreground, borderColor: colors.border }]}
                     value={manualCity}
                     onChangeText={setManualCity}
                     placeholder="Cidade"
@@ -823,16 +939,19 @@ const styles = StyleSheet.create({
   },
   quickInput: {
     flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
     padding: 0,
     fontSize: 13,
     fontFamily: 'Montserrat_400Regular',
   },
   quickImagePreviewStrip: {
-    minWidth: 34,
     height: 34,
     flexDirection: 'row',
     alignItems: 'center',
     position: 'relative',
+    flexShrink: 0,
+    gap: 4,
     paddingRight: 2,
   },
   quickImagePreviewWrap: {
@@ -846,7 +965,7 @@ const styles = StyleSheet.create({
     borderColor: '#FFFFFF',
   },
   quickImagePreviewOverlap: {
-    marginLeft: -8,
+    marginLeft: 0,
   },
   quickImagePreview: {
     width: '100%',
@@ -904,6 +1023,20 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontFamily: 'Montserrat_700Bold',
+  },
+  quickErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingTop: 2,
+  },
+  quickErrorText: {
+    flex: 1,
+    color: '#D93025',
+    fontSize: 11,
+    lineHeight: 15,
+    fontFamily: 'Inter_600SemiBold',
   },
   locationPicker: {
     borderWidth: 1,
@@ -967,8 +1100,17 @@ const styles = StyleSheet.create({
   },
   manualStateInput: {
     flex: 0,
-    width: 40,
+    width: 92,
+    minWidth: 92,
+    flexBasis: 92,
+    flexShrink: 0,
     textAlign: 'center',
+  },
+  manualNeighborhoodInput: {
+    flex: 0.36,
+  },
+  manualCityInput: {
+    flex: 0.36,
   },
   addressResult: {
     flexDirection: 'row',
