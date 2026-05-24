@@ -5,7 +5,7 @@ import * as Location from 'expo-location';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Dimensions,
@@ -26,17 +26,18 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CityAutocomplete } from '@/components/CityAutocomplete';
+import { Avatar } from '@/components/Avatar';
 import { Post, PostType, POST_TYPE_CONFIG } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
-import { getStaticMapUrl } from '@/services/zoohelpApi';
+import { geocodeAddress, getStaticMapUrl } from '@/services/zoohelpApi';
+import { ZooHelpApiError } from '@/services/zoohelpEngine';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-/* â”€â”€ Post type config with icons â”€â”€ */
+/* Post type config with icons */
 const POST_TYPES: Array<{
   type: PostType;
   icon: MCIcon;
@@ -49,7 +50,7 @@ const POST_TYPES: Array<{
   { type: 'adoption',  icon: 'home-heart',     label: 'Adoção',     color: '#2D6A4F', light: '#2D6A4F15', cta: 'Publicar para adoção' },
   { type: 'lost',      icon: 'magnify',        label: 'Perdido',    color: '#D4A259', light: '#D4A25915', cta: 'Reportar animal perdido' },
   { type: 'found',     icon: 'check-circle',   label: 'Encontrado', color: '#2C5F8A', light: '#2C5F8A15', cta: 'Reportar animal encontrado' },
-  { type: 'emergency', icon: 'alert-circle',   label: 'EmergÃªncia', color: '#C95A5A', light: '#C95A5A15', cta: 'Pedir ajuda urgente' },
+  { type: 'emergency', icon: 'alert-circle',   label: 'Emergência', color: '#C95A5A', light: '#C95A5A15', cta: 'Pedir ajuda urgente' },
   { type: 'campaign',  icon: 'heart-multiple', label: 'Campanha',   color: '#6B5B8A', light: '#6B5B8A15', cta: 'Lançar campanha' },
 ];
 
@@ -59,9 +60,9 @@ const ANIMAL_OPTIONS: Array<{ value: 'dog' | 'cat' | 'other'; icon: MCIcon; labe
   { value: 'other', icon: 'paw',  label: 'Outro' },
 ];
 
-const STEPS = ['Tipo', 'Conteúdo', 'MÃ­dia', 'Publicar'];
+const STEPS = ['Tipo', 'Conteúdo', 'Mídia', 'Publicar'];
 
-/* â”€â”€ Animated pill â”€â”€ */
+/* Animated pill */
 function TypePill({
   item,
   isActive,
@@ -95,7 +96,7 @@ function TypePill({
         onPress={press}
         activeOpacity={1}
       >
-        <MaterialCommunityIcons name={item.icon} size={16} color={isActive ? '#FFFFFF' : '#6E6E73'} />
+        <MaterialCommunityIcons name={item.icon} size={13} color={isActive ? '#FFFFFF' : '#6E6E73'} />
         <Text style={[styles.typePillLabel, { color: isActive ? '#FFFFFF' : '#6E6E73' }]}>
           {item.label}
         </Text>
@@ -121,14 +122,96 @@ export default function ComposeScreen() {
   const [animalType, setAnimalType] = useState<'dog' | 'cat' | 'other'>('dog');
   const [text, setText] = useState('');
   const [location, setLocation] = useState('');
+  const [addressSearching, setAddressSearching] = useState(false);
+  const [addressResult, setAddressResult] = useState<{ label: string; latitude: number; longitude: number } | null>(null);
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationPrecision, setLocationPrecision] = useState<'none' | 'city' | 'address' | 'gps'>('none');
   const [mapImageUrl, setMapImageUrl] = useState<string | null>(null);
   const [contact, setContact] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [urgent, setUrgent] = useState(requestedIntent === 'help' || initialType === 'emergency');
   const [submitting, setSubmitting] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
+  // ========== AUTOCOMPLETE DE ENDEREÇO MANUAL ==========
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [typingTimeout, setTypingTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+  // Função para buscar sugestões de endereço
+  async function fetchPlaceSuggestions(input: string) {
+    if (!input || input.length < 3) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
 
+    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (!apiKey) return;
+
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${apiKey}&components=country:br&types=address&language=pt-BR`
+      );
+      const data = await response.json();
+      if (data.predictions) {
+        setSuggestions(data.predictions);
+        setShowSuggestions(true);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar sugestões:', error);
+    }
+  }
+
+  // Função para quando o usuário seleciona uma sugestão
+  async function selectSuggestion(placeId: string, description: string) {
+    setShowSuggestions(false);
+    setLocation(description);
+    setAddressSearching(true);
+
+    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (!apiKey) return;
+
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${apiKey}&fields=geometry,formatted_address`
+      );
+      const data = await response.json();
+      if (data.result?.geometry?.location) {
+        const lat = data.result.geometry.location.lat;
+        const lng = data.result.geometry.location.lng;
+        const formattedAddress = data.result.formatted_address || description;
+        
+        setCoords({ latitude: lat, longitude: lng });
+        setLocationPrecision('address');
+        setAddressResult({ label: formattedAddress, latitude: lat, longitude: lng });
+        
+        const staticMap = await getStaticMapUrl({
+          lat, lng, zoom: 16, width: 640, height: 320
+        });
+        if (staticMap) setMapImageUrl(staticMap);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar detalhes do lugar:', error);
+    } finally {
+      setAddressSearching(false);
+    }
+  }
+
+  // Handler para mudança no texto com debounce
+  function handleLocationChange(text: string) {
+    setLocation(text);
+    setCoords(null);
+    setAddressResult(null);
+    setMapImageUrl(null);
+    if (locationPrecision !== 'gps') setLocationPrecision('none');
+    
+    if (typingTimeout) clearTimeout(typingTimeout);
+    
+    const timeout = setTimeout(() => {
+      fetchPlaceSuggestions(text);
+    }, 300);
+    setTypingTimeout(timeout);
+  }
+  // ========== FIM DO AUTOCOMPLETE ==========
   const inputBorder = useSharedValue(0);
   const urgentPulse = useSharedValue(1);
 
@@ -138,6 +221,38 @@ export default function ComposeScreen() {
   const currentType = POST_TYPES.find((t) => t.type === selectedType)!;
   const canPost = text.trim().length > 0 || images.length > 0;
   const displayName = user?.name ?? '';
+
+  useEffect(() => {
+    const query = location.trim();
+    setAddressResult(null);
+    if (query.length < 6 || locationPrecision === 'gps') {
+      setAddressSearching(false);
+      return;
+    }
+
+    setAddressSearching(true);
+    const timer = setTimeout(() => {
+      geocodeAddress(query)
+        .then(async (result) => {
+          if (!result) return;
+          const nextCoords = { latitude: result.latitude, longitude: result.longitude };
+          setAddressResult({ label: result.label, ...nextCoords });
+          setCoords(nextCoords);
+          setLocationPrecision('address');
+          const staticMap = await getStaticMapUrl({
+            lat: result.latitude,
+            lng: result.longitude,
+            zoom: 16,
+            width: 640,
+            height: 320,
+          });
+          if (staticMap) setMapImageUrl(staticMap);
+        })
+        .finally(() => setAddressSearching(false));
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [location, locationPrecision]);
 
   if (isLoading) return null;
   if (!isAuthenticated || !user) return <Redirect href="/login" />;
@@ -180,7 +295,7 @@ export default function ComposeScreen() {
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
-        Alert.alert('Permissao de localizacao', 'Autorize a localizacao para enviar ajuda proxima com precisao.');
+        Alert.alert('Permissão de localização', 'Autorize a localização para enviar ajuda próxima com precisão.');
         return;
       }
 
@@ -189,6 +304,7 @@ export default function ComposeScreen() {
       });
       const { latitude, longitude } = position.coords;
       setCoords({ latitude, longitude });
+      setLocationPrecision('gps');
       setLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
 
       const staticMap = await getStaticMapUrl({
@@ -200,7 +316,7 @@ export default function ComposeScreen() {
       });
       if (staticMap) setMapImageUrl(staticMap);
     } catch {
-      Alert.alert('Localizacao indisponivel', 'Nao foi possivel capturar sua localizacao agora.');
+      Alert.alert('Localização indisponível', 'Não foi possível capturar sua localização agora.');
     }
   }
 
@@ -208,21 +324,46 @@ export default function ComposeScreen() {
     setImages((prev) => prev.filter((u) => u !== uri));
   }
 
+  function buildAddressLabel() {
+    return addressResult?.label ?? location.trim();
+  }
+
   async function handlePublish() {
     if (!canPost) {
       Alert.alert('Publicação vazia', 'Escreva algo ou adicione uma foto.');
       return;
     }
+    const needsRescue = selectedType === 'emergency' || urgent || params.rescue === '1';
+    const manualAddress = buildAddressLabel();
     let nextCoords = coords;
-    let nextLocation = location;
-    if ((selectedType === 'emergency' || urgent || params.rescue === '1') && !nextCoords) {
-      if (Platform.OS === 'web') {
-        Alert.alert('Localizacao obrigatoria', 'Para acionar resgate real, use o app mobile com GPS ativo.');
-        return;
+    let nextPrecision = locationPrecision;
+    let nextLocation = manualAddress || location;
+
+    if (manualAddress && nextPrecision !== 'gps') {
+      const geocoded = await geocodeAddress(manualAddress);
+      if (geocoded) {
+        nextCoords = { latitude: geocoded.latitude, longitude: geocoded.longitude };
+        nextPrecision = 'address';
+        nextLocation = geocoded.label;
+        setCoords(nextCoords);
+        setLocationPrecision(nextPrecision);
+        setLocation(geocoded.label);
+        const staticMap = await getStaticMapUrl({
+          lat: geocoded.latitude,
+          lng: geocoded.longitude,
+          zoom: 16,
+          width: 640,
+          height: 320,
+        });
+        if (staticMap) setMapImageUrl(staticMap);
       }
+    }
+
+    const hasOperationalCoords = Boolean(nextCoords && nextPrecision !== 'city');
+    if (needsRescue && !hasOperationalCoords && Platform.OS !== 'web') {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
-        Alert.alert('Localizacao obrigatoria', 'Autorize o GPS para acionar resgate e notificar pessoas proximas.');
+        Alert.alert('Localização obrigatória', 'Autorize o GPS para acionar resgate e notificar pessoas próximas.');
         return;
       }
       const position = await Location.getCurrentPositionAsync({
@@ -232,10 +373,13 @@ export default function ComposeScreen() {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
       };
-      nextLocation = location.trim() || 'Localizacao atual';
+      nextPrecision = 'gps';
+      nextLocation = location.trim() || 'Localização atual';
       setCoords(nextCoords);
+      setLocationPrecision(nextPrecision);
       setLocation(nextLocation);
     }
+    const shouldAttachCoords = Boolean(nextCoords && (!needsRescue || nextPrecision !== 'city'));
     setSubmitting(true);
     if (Platform.OS !== 'web')
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -248,17 +392,17 @@ export default function ComposeScreen() {
       breed: '',
       age: '',
       description: text.trim(),
-      location: nextLocation.trim() || 'Localizacao nao informada',
-      neighborhood: nextLocation.trim() || 'Local nao informado',
+      location: nextLocation.trim() || 'Localização não informada',
+      neighborhood: nextLocation.trim() || 'Local não informado',
       image: images[0] ?? null,
       images,
-      latitude: nextCoords?.latitude,
-      longitude: nextCoords?.longitude,
+      latitude: shouldAttachCoords ? nextCoords?.latitude : undefined,
+      longitude: shouldAttachCoords ? nextCoords?.longitude : undefined,
       textOnly: images.length === 0,
       author: {
         id: currentUser.id,
         name: currentUser.name,
-        avatar: null,
+        avatar: currentUser.avatar,
         verified: currentUser.verified,
         type: currentUser.type,
       },
@@ -273,13 +417,25 @@ export default function ComposeScreen() {
 
     try {
       const savedPost = await addPost(newPost);
-      if (selectedType === 'emergency' || urgent || params.rescue === '1') {
-        router.replace(`/rescue/status?postId=${encodeURIComponent(savedPost.id)}` as any);
+      if (needsRescue && shouldAttachCoords) {
+        const addressParam = encodeURIComponent(newPost.location);
+        router.replace(`/rescue/status?postId=${encodeURIComponent(savedPost.id)}&address=${addressParam}` as any);
+      } else if (needsRescue) {
+        Alert.alert(
+          'Publicado como urgente',
+          'O post foi criado com o endereço informado. Para disparo operacional em raio preciso, use GPS do app ou um endereço geocodificado.'
+        );
+        router.back();
       } else {
         router.back();
       }
-    } catch {
-      Alert.alert('Erro ao publicar', 'NÃ­o foi possível publicar agora. Tente novamente.');
+    } catch (error) {
+      if (error instanceof ZooHelpApiError && error.status === 401) {
+        Alert.alert('Sessão expirada', 'Entre novamente para publicar um caso real.');
+        router.replace('/login');
+      } else {
+        Alert.alert('Erro ao publicar', 'Não foi possível publicar agora. Tente novamente.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -303,7 +459,7 @@ export default function ComposeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: '#F8FAF8' }]}>
-      {/* â”€â”€ HEADER â”€â”€ */}
+      {/* HEADER */}
       <View style={[styles.header, { paddingTop: topPad + 8, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.cancelBtn} activeOpacity={0.7}>
           <Text style={[styles.cancelText, { color: colors.mutedForeground }]}>Cancelar</Text>
@@ -337,10 +493,43 @@ export default function ComposeScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* â”€â”€ POST TYPE SELECTOR â”€â”€ */}
+        {/* AUTHOR CARD */}
+        <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
+          <View style={styles.authorRow}>
+            <Avatar
+              name={displayName}
+              size={38}
+              verified={user?.verified}
+              type={user?.type}
+              imageUrl={user?.avatar}
+              bgColor={currentType.color}
+            />
+            <View style={styles.authorInfo}>
+              <View style={styles.authorNameRow}>
+                <Text style={[styles.authorName, { color: colors.foreground }]}>{displayName}</Text>
+                {user?.verified && (
+                  <MaterialCommunityIcons name="check-decagram" size={13} color="#7B8B8B" />
+                )}
+              </View>
+              <View style={styles.authorMeta}>
+                <View style={[styles.roleBadge, { backgroundColor: currentType.light }]}>
+                  <Text style={[styles.roleText, { color: currentType.color }]}>
+                    {user?.type === 'ong' ? 'ONG' : user?.type === 'vet' ? 'Veterinário' : 'Protetor(a)'}
+                  </Text>
+                </View>
+                <View style={[styles.audienceBadge, { backgroundColor: colors.muted }]}>
+                  <MaterialCommunityIcons name="earth" size={10} color={colors.mutedForeground} />
+                  <Text style={[styles.audienceText, { color: colors.mutedForeground }]}>Público</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* POST TYPE SELECTOR */}
         <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-            Qual Ã© a situação?
+            Qual é a situação?
           </Text>
           <ScrollView
             horizontal
@@ -358,38 +547,7 @@ export default function ComposeScreen() {
           </ScrollView>
         </View>
 
-        {/* â”€â”€ AUTHOR CARD â”€â”€ */}
-        <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
-          <View style={styles.authorRow}>
-            <View style={[styles.avatarCircle, { backgroundColor: currentType.color }]}>
-              <Text style={styles.avatarInitial}>{displayName[0]?.toUpperCase() ?? 'V'}</Text>
-            </View>
-            <View style={styles.authorInfo}>
-              <View style={styles.authorNameRow}>
-                <Text style={[styles.authorName, { color: colors.foreground }]}>{displayName}</Text>
-                {user?.verified && (
-                  <View style={[styles.verifiedBadge, { backgroundColor: '#2F80ED15' }]}>
-                    <MaterialCommunityIcons name="check-circle" size={10} color="#2F80ED" />
-                    <Text style={styles.verifiedText}>Verificado</Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.authorMeta}>
-                <View style={[styles.roleBadge, { backgroundColor: currentType.light }]}>
-                  <Text style={[styles.roleText, { color: currentType.color }]}>
-                    {user?.type === 'ong' ? 'ðŸ… ONG' : user?.type === 'vet' ? 'ðŸ©º Veterinário' : ' Protetor(a)'}
-                  </Text>
-                </View>
-                <View style={[styles.audienceBadge, { backgroundColor: colors.muted }]}>
-                  <MaterialCommunityIcons name="earth" size={10} color={colors.mutedForeground} />
-                  <Text style={[styles.audienceText, { color: colors.mutedForeground }]}>Público</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* â”€â”€ COMPOSER â”€â”€ */}
+        {/* COMPOSER */}
         <Animated.View style={[styles.sectionAnimated, styles.composerCard, inputAnimStyle]}>
           <TextInput
             style={[styles.composer, { color: colors.foreground }]}
@@ -399,11 +557,11 @@ export default function ComposeScreen() {
                 : selectedType === 'adoption'
                 ? 'Descreva o animal: comportamento, saúde, necessidades...'
                 : selectedType === 'lost'
-                ? 'Onde e quando desapareceu? Como Ã© o animal?'
+                ? 'Onde e quando desapareceu? Como é o animal?'
                 : selectedType === 'found'
                 ? 'Onde e quando encontrou? Como está o animal?'
                 : selectedType === 'emergency'
-                ? 'Descreva a emergÃªncia com detalhes urgentes...'
+                ? 'Descreva a emergência com detalhes urgentes...'
                 : 'Descreva a campanha e o impacto que ela terá...'
             }
             placeholderTextColor={colors.mutedForeground}
@@ -429,7 +587,7 @@ export default function ComposeScreen() {
           </View>
         </Animated.View>
 
-        {/* â”€â”€ ANIMAL TYPE + HEALTH TAGS â€” oculto para posts de texto â”€â”€ */}
+        {/* ANIMAL TYPE + HEALTH TAGS - oculto para posts de texto */}
         {selectedType === 'adoption' && (
           <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Tipo de animal</Text>
@@ -464,12 +622,12 @@ export default function ComposeScreen() {
 
         )}
 
-        {/* â”€â”€ MEDIA SECTION â”€â”€ */}
+        {/* MEDIA SECTION */}
         <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
           <View style={styles.mediaTitleRow}>
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Fotos</Text>
             <Text style={[styles.mediaHint, { color: colors.mutedForeground }]}>
-              {images.length}/4 Â· fotos aumentam 3x as chances de ajuda
+              {images.length}/4 · fotos aumentam 3x as chances de ajuda
             </Text>
           </View>
           <View style={styles.mediaGrid}>
@@ -499,71 +657,82 @@ export default function ComposeScreen() {
           </View>
         </View>
 
-        {/* â”€â”€ LOCATION â”€â”€ */}
-        <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Localização</Text>
-          <CityAutocomplete
-            value={location}
-            accentColor={currentType.color}
-            placeholder="Busque uma cidade. Ex: Campinas"
-            onChangeText={(value) => {
-              setLocation(value);
-              setCoords(null);
-              setMapImageUrl(null);
-            }}
-            onSelectCity={(city) => {
-              setLocation(city.label);
-              if (city.latitude != null && city.longitude != null) {
-                setCoords({ latitude: city.latitude, longitude: city.longitude });
-                getStaticMapUrl({
-                  lat: city.latitude,
-                  lng: city.longitude,
-                  zoom: 12,
-                  width: 640,
-                  height: 320,
-                }).then((staticMap) => {
-                  if (staticMap) setMapImageUrl(staticMap);
-                });
-              }
-            }}
-          />
-          <View style={[styles.mapPreview, { backgroundColor: colors.muted }]}>
-            {mapImageUrl ? (
-              <Image source={{ uri: mapImageUrl }} style={styles.mapPreviewImage} contentFit="cover" />
-            ) : (
-              <MaterialCommunityIcons name="map-outline" size={22} color={colors.mutedForeground} />
-            )}
-            <Text style={[styles.mapPreviewText, { color: colors.mutedForeground }]}>
-              {location.trim() ? location : 'Nenhuma localização definida'}
-            </Text>
+        {/* LOCATION */}
+<View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
+  <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Localização</Text>
+  
+  <View style={{ position: 'relative', zIndex: 1000 }}>
+    <View style={styles.searchInputContainer}>
+      <MaterialCommunityIcons name="map-marker-outline" size={16} color={currentType.color} />
+      <TextInput
+        style={styles.searchInputText}
+        placeholder="Digite rua, número e cidade"
+        placeholderTextColor="#8A928B"
+        value={location}
+        onChangeText={handleLocationChange}
+        returnKeyType="search"
+        onBlur={() => {
+          setTimeout(() => setShowSuggestions(false), 200);
+        }}
+        onFocus={() => {
+          if (suggestions.length > 0) setShowSuggestions(true);
+        }}
+      />
+    </View>
+    
+    {/* Lista de sugestões flutuante */}
+    {showSuggestions && suggestions.length > 0 && (
+      <View style={[styles.suggestionsList, { backgroundColor: '#FFFFFF' }]}>
+        <ScrollView style={{ maxHeight: 200 }}>
+          {suggestions.map((item) => (
             <TouchableOpacity
-              style={[styles.autoLocBtn, { backgroundColor: currentType.color }]}
-              onPress={detectLocation}
-              activeOpacity={0.85}
+              key={item.place_id}
+              style={styles.suggestionItem}
+              onPress={() => selectSuggestion(item.place_id, item.description)}
             >
-              <MaterialCommunityIcons name="navigation-variant" size={12} color="#FFFFFF" />
-              <Text style={styles.autoLocText}>Detectar</Text>
+              <MaterialCommunityIcons name="map-marker" size={16} color="#7C867C" />
+              <Text style={[styles.suggestionText, { color: '#1D2A20' }]} numberOfLines={2}>
+                {item.description}
+              </Text>
             </TouchableOpacity>
-          </View>
-        </View>
+          ))}
+        </ScrollView>
+      </View>
+    )}
+  </View>
+  
+  {addressSearching && (
+    <Text style={[styles.addressStatusText, { color: colors.mutedForeground }]}>Buscando endereço...</Text>
+  )}
+  
+  {addressResult && (
+    <View style={[styles.addressResultBox, { backgroundColor: currentType.light }]}>
+      <MaterialCommunityIcons name="check-circle-outline" size={15} color={currentType.color} />
+      <Text style={[styles.addressResultText, { color: colors.foreground }]} numberOfLines={2}>
+        {addressResult.label}
+      </Text>
+    </View>
+  )}
+  
+</View>
 
-        {/* â”€â”€ CONTACT â”€â”€ */}
-        <View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Contato</Text>
-          <View style={[styles.locationInput, { borderColor: colors.border }]}>
-            <MaterialCommunityIcons name="phone-outline" size={16} color={currentType.color} />
-            <TextInput
-              style={[styles.locationText, { color: colors.foreground }]}
-              placeholder="WhatsApp ou telefone (opcional)"
-              placeholderTextColor={colors.mutedForeground}
-              value={contact}
-              onChangeText={setContact}
-              keyboardType="phone-pad"
-            />
-          </View>
-        </View>
+        {/* CONTACT */}
+<View style={[styles.section, { backgroundColor: '#FFFFFF' }]}>
+  <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Contato</Text>
+  <View style={styles.searchInputContainer}>
+    <MaterialCommunityIcons name="phone-outline" size={16} color={currentType.color} />
+    <TextInput
+      style={styles.searchInputText}
+      placeholder="WhatsApp ou telefone (opcional)"
+      placeholderTextColor="#8A928B"
+      value={contact}
+      onChangeText={setContact}
+      keyboardType="phone-pad"
+    />
+  </View>
+</View>
 
-        {/* â”€â”€ URGENCY â”€â”€ */}
+        {/* URGENCY */}
         <Animated.View style={[urgentStyle]}>
           <TouchableOpacity
             style={[
@@ -584,7 +753,7 @@ export default function ComposeScreen() {
                 Marcar como URGENTE
               </Text>
               <Text style={[styles.urgentDesc, { color: colors.mutedForeground }]}>
-                Aparece em destaque no feed e notifica usuários prÃ³ximos
+                Aparece em destaque no feed e notifica usuários próximos
               </Text>
             </View>
             <View style={[styles.toggleTrack, { backgroundColor: urgent ? '#C95A5A' : colors.muted }]}>
@@ -593,16 +762,16 @@ export default function ComposeScreen() {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* â”€â”€ TRUST SYSTEM â”€â”€ */}
+        {/* TRUST SYSTEM */}
         <View style={[styles.section, styles.trustCard, { backgroundColor: '#2F80ED08', borderColor: '#2F80ED30' }]}>
           <View style={styles.trustHeader}>
             <MaterialCommunityIcons name="shield-outline" size={16} color="#2F80ED" />
             <Text style={[styles.trustTitle, { color: '#2F80ED' }]}>Sistema de confiança ZooHelp</Text>
           </View>
           {[
-            { icon: 'account-check' as MCIcon,  text: 'Sua identidade Ã© verificada pela plataforma' },
-            { icon: 'eye-outline' as MCIcon,    text: 'Denúncias sÃ­o monitoradas em tempo real' },
-            { icon: 'lock-outline' as MCIcon,   text: 'DoaçÃµes com rastreabilidade total' },
+            { icon: 'account-check' as MCIcon,  text: 'Sua identidade é verificada pela plataforma' },
+            { icon: 'eye-outline' as MCIcon,    text: 'Denúncias são monitoradas em tempo real' },
+            { icon: 'lock-outline' as MCIcon,   text: 'Doações com rastreabilidade total' },
           ].map((item) => (
             <View key={item.text} style={styles.trustRow}>
               <MaterialCommunityIcons name={item.icon} size={13} color="#2F80ED" />
@@ -612,7 +781,7 @@ export default function ComposeScreen() {
         </View>
       </ScrollView>
 
-      {/* â”€â”€ BOTTOM DOCK â”€â”€ */}
+      {/* BOTTOM DOCK */}
       <View
         style={[
           styles.dock,
@@ -666,9 +835,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   cancelBtn: { minHeight: 44, justifyContent: 'center', paddingRight: 4 },
-  cancelText: { fontSize: 15, fontFamily: 'Inter_400Regular' },
+  cancelText: { fontSize: 12, fontFamily: 'Inter_400Regular' },
   headerCenter: { flex: 1, alignItems: 'center', gap: 5 },
-  headerTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
+  headerTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   progressBar: {
     width: 80,
     height: 3,
@@ -683,7 +852,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 20,
   },
-  publishTopText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  publishTopText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
 
   /* scroll */
   scroll: { flex: 1 },
@@ -712,52 +881,35 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 9,
     fontFamily: 'Inter_600SemiBold',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
 
   /* type pills */
-  typeRow: { gap: 6, paddingBottom: 2 },
+  typeRow: { gap: 5, paddingBottom: 2 },
   typePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1.5,
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 15,
+    borderWidth: 1,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 2,
   },
   typePillEmoji: { fontSize: 12 },
-  typePillLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  typePillLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
 
   /* author */
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  avatarInitial: { fontSize: 15, fontFamily: 'Inter_700Bold', color: '#FFFFFF' },
   authorInfo: { flex: 1, gap: 3 },
   authorNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   authorName: { fontSize: 13, fontFamily: 'Inter_700Bold' },
-  verifiedBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 7,
-  },
-  verifiedText: { fontSize: 9, fontFamily: 'Inter_600SemiBold', color: '#2F80ED' },
   authorMeta: { flexDirection: 'row', gap: 6 },
   roleBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
   roleText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
@@ -770,7 +922,8 @@ const styles = StyleSheet.create({
   /* composer */
   composerCard: { padding: 16, gap: 8 },
   composer: {
-    fontSize: 16,
+    fontSize: 13,
+    paddingHorizontal: 5,
     fontFamily: 'Inter_400Regular',
     lineHeight: 25,
     minHeight: 100,
@@ -780,17 +933,36 @@ const styles = StyleSheet.create({
   charCount: { fontSize: 11, fontFamily: 'Inter_400Regular' },
 
   /* animal */
-  animalGrid: { flexDirection: 'row', gap: 10 },
+  animalGrid: { flexDirection: 'row', gap: 9, paddingHorizontal: 0, },
   animalCard: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 8,
     borderRadius: 16,
-    borderWidth: 1.5,
+    borderWidth: 0.5,
     gap: 6,
   },
-  animalEmoji: { fontSize: 26 },
-  animalLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  /* inputs no estilo da busca */
+searchInputContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 10,
+  backgroundColor: '#F4F6F3',
+  borderWidth: 1,
+  borderColor: '#E4EAE5',
+  borderRadius: 17,
+  paddingHorizontal: 12,
+  minHeight: 44,
+},
+searchInputText: {
+  flex: 1,
+  fontSize: 13,
+  fontFamily: 'Inter_400Regular',
+  color: '#1D2A20',
+  padding: 0,
+},
+  animalEmoji: { fontSize: 20 },
+  animalLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
 
   /* health tags */
   tagGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -833,6 +1005,26 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 13,
   },
   locationText: { flex: 1, fontSize: 14, fontFamily: 'Inter_400Regular' },
+  addressStatusText: {
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    marginTop: -4,
+    paddingHorizontal: 2,
+  },
+  addressResultBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 13,
+  },
+  addressResultText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: 'Inter_600SemiBold',
+    lineHeight: 16,
+  },
   mapPreview: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     borderRadius: 14, padding: 12,
@@ -923,6 +1115,38 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 6,
+  },
+    /* autocomplete */
+  suggestionsList: {
+    position: 'absolute',
+    top: 55,
+    left: 0,
+    right: 0,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+    zIndex: 1000,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E8ECF0',
+    backgroundColor: '#FFFFFF',
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E8ECF0',
+  },
+  suggestionText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
   },
   publishText: { fontSize: 16, fontFamily: 'Inter_700Bold', letterSpacing: 0.1 },
 });
