@@ -67,6 +67,8 @@ export interface PostContract {
   comments: number;
   shares: number;
   urgent: boolean;
+  rescueStatus?: "open" | "active" | "resolved" | "cancelled" | string;
+  resolvedAt?: string | null;
   createdAt: string;
   contact: string;
   tags: string[];
@@ -82,6 +84,14 @@ export interface PostMediaContract {
   height?: number | null;
   sizeBytes?: number | null;
   moderationStatus: "queued" | "approved" | "rejected" | "needs_review" | string;
+}
+
+export interface PostCommentContract {
+  id: string;
+  postId: string;
+  body: string;
+  createdAt: string;
+  author: AuthorContract;
 }
 
 export interface OngContract {
@@ -167,9 +177,9 @@ export interface RescueAlertContract {
   lng: number;
   radiusKm: number;
   critical: boolean;
+  recipientCount?: number;
   recipients: Array<{
     userId: string;
-    pushToken: string;
     platform: "ios" | "android" | "expo" | "web" | string;
     distanceKm: number;
     deliveryStatus: string;
@@ -276,9 +286,9 @@ export interface RescueAlertContract {
   lng: number;
   radiusKm: number;
   critical: boolean;
+  recipientCount?: number;
   recipients: Array<{
     userId: string;
-    pushToken: string;
     platform: "ios" | "android" | "expo" | "web" | string;
     distanceKm: number;
     deliveryStatus: string;
@@ -397,6 +407,10 @@ export class ZooHelpEngine {
     return this.request<PostContract[]>(`/v1/feed${suffix}`);
   }
 
+  feedWebSocketUrl() {
+    return this.webSocketUrl("/v1/feed/ws");
+  }
+
   login(email: string, password: string) {
     return this.request<AuthResponseContract>("/v1/auth/login", {
       method: "POST",
@@ -471,7 +485,7 @@ export class ZooHelpEngine {
     fileName: string;
     contentType: "image/jpeg" | "image/png" | "image/webp" | "video/mp4" | "video/quicktime" | "video/webm" | string;
     sizeBytes: number;
-    purpose?: "post" | "ong-logo" | "profile-avatar" | string;
+    purpose?: "post" | "ong-logo" | "profile-avatar" | "kyb-document" | string;
     checksumSha256?: string;
   }) {
     return this.request<MediaUploadIntentContract>("/v1/media/upload-intents", {
@@ -489,6 +503,12 @@ export class ZooHelpEngine {
 
   post(id: string) {
     return this.request<PostContract>(`/v1/posts/${encodeURIComponent(id)}`);
+  }
+
+  deletePost(id: string) {
+    return this.request<{ status: string }>(`/v1/posts/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
   }
 
   likePost(id: string) {
@@ -602,6 +622,19 @@ export class ZooHelpEngine {
     );
   }
 
+  createMyKybDocument(input: { documentType: string; objectKey: string; publicUrl: string }) {
+    return this.request<{
+      id: string;
+      ongId: string;
+      documentType: string;
+      publicUrl: string;
+      status: string;
+    }>("/v1/me/ong/kyb-documents", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
   triggerRescue(input: { postId: string; lat: number; lng: number; accuracy?: number }) {
     return this.request<{ rescue: RescueSessionContract }>("/v1/rescue/active", {
       method: "POST",
@@ -681,6 +714,10 @@ export class ZooHelpEngine {
         body: JSON.stringify({ body }),
       },
     );
+  }
+
+  postComments(postId: string) {
+    return this.request<PostCommentContract[]>(`/v1/posts/${encodeURIComponent(postId)}/comments`);
   }
 
   reportPost(postId: string, reason: string, details?: string) {
