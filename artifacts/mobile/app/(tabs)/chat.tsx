@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   FlatList,
+  Image,
   Platform,
   StyleSheet,
   Text,
@@ -18,13 +19,16 @@ import { formatRelativeTime } from '@/services/timeFormat';
 import { createZooHelpApi } from '@/services/zoohelpApi';
 import type { ChatConversationContract } from '@/services/zoohelpEngine';
 
+const FEED_TIME_ICON =
+  'https://res.cloudinary.com/limpeja/image/upload/v1779576484/pngtree-vector-clock-icon-png-image_4152707_bfoxlj.jpg';
+
 export default function ChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [conversations, setConversations] = useState<ChatConversationContract[]>([]);
 
-  const topPad = Platform.OS === 'web' ? 67 : insets.top;
+  const topPad = (Platform.OS === 'web' ? 0 : insets.top) + 16;
 
   useEffect(() => {
     createZooHelpApi()?.chatRooms().then(setConversations).catch(() => setConversations([]));
@@ -62,9 +66,12 @@ export default function ChatScreen() {
             >
               {item.participant.name}
             </Text>
-            <Text style={[styles.convTime, { color: colors.mutedForeground }]}>
-              {formatRelativeTime(item.lastMessageTime)}
-            </Text>
+            <View style={styles.feedTimeRow}>
+              <Image source={{ uri: FEED_TIME_ICON }} style={styles.feedTimeIcon} resizeMode="contain" />
+              <Text style={[styles.feedTimeText, { color: colors.mutedForeground }]} numberOfLines={1}>
+                {formatRelativeTime(item.lastMessageTime)}
+              </Text>
+            </View>
           </View>
           <Text style={[styles.postTitle, { color: colors.primary }]} numberOfLines={1}>
             {item.postTitle}
@@ -88,7 +95,7 @@ export default function ChatScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 12 }]}>
+      <View style={[styles.header, { paddingTop: topPad }]}>
         <Text style={[styles.title, { color: colors.foreground }]}>Mensagens</Text>
         <TouchableOpacity
           style={[
@@ -188,6 +195,9 @@ const styles = StyleSheet.create({
   },
   convName: { fontSize: 15, flex: 1, marginRight: 8 },
   convTime: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  feedTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  feedTimeIcon: { width: 13, height: 13, opacity: 0.72 },
+  feedTimeText: { fontSize: 10, fontFamily: 'Montserrat_600SemiBold' },
   postTitle: { fontSize: 11, fontFamily: 'Inter_500Medium' },
   lastMessage: { fontSize: 13, lineHeight: 18 },
   separator: { height: 1, marginLeft: 80 },
