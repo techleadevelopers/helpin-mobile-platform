@@ -30,14 +30,15 @@ interface StatusBadgeProps {
   type: PostType;
   urgent?: boolean;
   resolved?: boolean;
-  size?: 'sm' | 'md';
+  size?: 'xs' | 'sm' | 'md';
   hideType?: boolean;
 }
 
 export function StatusBadge({ type, urgent, resolved, size = 'md', hideType = false }: StatusBadgeProps) {
   const config = POST_TYPE_CONFIG[type];
   const isSmall = size === 'sm';
-  const iconSize = isSmall ? 11 : 13;
+  const isExtraSmall = size === 'xs';
+  const iconSize = isExtraSmall ? 10 : isSmall ? 11 : 13;
   const gradient = TYPE_GRADIENTS[type];
 
   return (
@@ -53,12 +54,13 @@ export function StatusBadge({ type, urgent, resolved, size = 'md', hideType = fa
               shadowColor: config.bgColor,
             },
             isSmall && styles.badgeSm,
+            isExtraSmall && styles.badgeXs,
           ]}
         >
-          <View style={[styles.iconBubble, isSmall && styles.iconBubbleSm]}>
+          <View style={[styles.iconBubble, isSmall && styles.iconBubbleSm, isExtraSmall && styles.iconBubbleXs]}>
             <MaterialCommunityIcons name={TYPE_ICONS[type]} size={iconSize} color="#FFFFFF" />
           </View>
-          <Text style={[styles.label, isSmall && styles.labelSm]}>
+          <Text style={[styles.label, isSmall && styles.labelSm, isExtraSmall && styles.labelXs]}>
             {config.label}
           </Text>
         </LinearGradient>
@@ -73,12 +75,13 @@ export function StatusBadge({ type, urgent, resolved, size = 'md', hideType = fa
             styles.resolvedBadge,
             { shadowColor: '#2D6A4F' },
             isSmall && styles.badgeSm,
+            isExtraSmall && styles.badgeXs,
           ]}
         >
-          <View style={[styles.iconBubble, styles.resolvedIconBubble, isSmall && styles.iconBubbleSm]}>
+          <View style={[styles.iconBubble, styles.resolvedIconBubble, isSmall && styles.iconBubbleSm, isExtraSmall && styles.iconBubbleXs]}>
             <MaterialCommunityIcons name="check-circle" size={iconSize} color="#FFFFFF" />
           </View>
-          <Text style={[styles.label, styles.resolvedLabel, isSmall && styles.labelSm]}>
+          <Text style={[styles.label, styles.resolvedLabel, isSmall && styles.labelSm, isExtraSmall && styles.labelXs]}>
             RESOLVIDO
           </Text>
         </LinearGradient>
@@ -92,9 +95,10 @@ export function StatusBadge({ type, urgent, resolved, size = 'md', hideType = fa
             styles.urgentBadge,
             { shadowColor: '#D94B3D' },
             isSmall && styles.badgeSm,
+            isExtraSmall && styles.badgeXs,
           ]}
         >
-          <Text style={[styles.label, styles.urgentLabel, isSmall && styles.labelSm]}>
+          <Text style={[styles.label, styles.urgentLabel, isSmall && styles.labelSm, isExtraSmall && styles.labelXs]}>
             URGENTE
           </Text>
         </LinearGradient>
@@ -125,6 +129,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 3,
   },
+  badgeXs: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
   iconBubble: {
     width: 18,
     height: 18,
@@ -138,6 +146,11 @@ const styles = StyleSheet.create({
     height: 15,
     borderRadius: 7.5,
   },
+  iconBubbleXs: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+  },
   label: {
     fontSize: 12,
     fontFamily: 'Montserrat_600SemiBold',
@@ -146,6 +159,9 @@ const styles = StyleSheet.create({
   },
   labelSm: {
     fontSize: 10,
+  },
+  labelXs: {
+    fontSize: 9,
   },
   urgentBadge: {
     shadowOpacity: 0.24,
