@@ -578,7 +578,7 @@ function normalizeRescueItem(post: Post | (typeof FALLBACK_RESCUES)[number], ind
 
 export function OngDashboard() {
   const router = useRouter();
-  const { posts, user } = useApp();
+  const { posts, refreshPosts, refreshUser, user } = useApp();
   const isReducedMotionEnabled = useReducedMotion();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading] = useState(false);
@@ -634,10 +634,14 @@ export function OngDashboard() {
 
   const push = (href: Href) => router.push(href);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     if (!isReducedMotionEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 450);
+    try {
+      await Promise.all([refreshUser(), refreshPosts()]);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   if (isLoading) {
