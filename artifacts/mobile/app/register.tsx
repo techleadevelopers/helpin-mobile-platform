@@ -22,6 +22,7 @@ import { useColors } from '@/hooks/useColors';
 import { createZooHelpApi, uploadLocalImageToCloudinary } from '@/services/zoohelpApi';
 
 type AccountType = 'person' | 'ong';
+type KybDocumentType = 'document_front' | 'document_back' | 'selfie_with_document';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -31,6 +32,12 @@ const ONG_TYPES = [
   { value: 'vet', label: 'Veterinária', icon: 'medical-bag' as MCIcon },
   { value: 'hospital', label: 'Hospital', icon: 'hospital-building' as MCIcon },
   { value: 'welfare', label: 'Bem-estar', icon: 'paw' as MCIcon },
+];
+
+const KYB_DOCUMENTS: Array<{ type: KybDocumentType; label: string; icon: MCIcon }> = [
+  { type: 'document_front', label: 'Frente do documento', icon: 'card-account-details-outline' },
+  { type: 'document_back', label: 'Verso do documento', icon: 'card-account-details-star-outline' },
+  { type: 'selfie_with_document', label: 'Selfie com documento', icon: 'face-man-profile' },
 ];
 
 function totalSteps(type: AccountType | null) {
@@ -73,6 +80,11 @@ export default function RegisterScreen() {
   const [ongState, setOngState] = useState('');
   const [ongPassword, setOngPassword] = useState('');
   const [ongLogoUri, setOngLogoUri] = useState<string | null>(null);
+  const [kybDocuments, setKybDocuments] = useState<Record<KybDocumentType, string | null>>({
+    document_front: null,
+    document_back: null,
+    selfie_with_document: null,
+  });
   const [showOngPassword, setShowOngPassword] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
 
@@ -169,6 +181,10 @@ export default function RegisterScreen() {
         if (ongState.trim().length !== 2) { Alert.alert('UF obrigatoria', 'Informe a UF com 2 letras.'); return; }
         goNext(4);
       } else if (step === 4) {
+        if (KYB_DOCUMENTS.some((doc) => !kybDocuments[doc.type])) {
+          Alert.alert('Verificacao obrigatoria', 'Envie frente, verso e selfie com documento para a pericia manual da ONG.');
+          return;
+        }
         if (ongPassword.length < 8) { Alert.alert('Senha fraca', 'A senha deve ter pelo menos 8 caracteres.'); return; }
         if (!acceptedTerms) { Alert.alert('Termos de Uso', 'Aceite os Termos de Uso e a Politica de Privacidade para continuar.'); return; }
         handleSubmit();
@@ -204,6 +220,18 @@ export default function RegisterScreen() {
           state: ongState,
           ...(ongFoundationYear.trim() ? { foundationYear: Number(ongFoundationYear) } : {}),
         });
+        const api = createZooHelpApi();
+        if (!api) throw new Error('Backend API unavailable for KYB upload');
+        for (const doc of KYB_DOCUMENTS) {
+          const uri = kybDocuments[doc.type];
+          if (!uri) continue;
+          const uploaded = await uploadLocalImageToCloudinary(api, uri, 'kyb-document');
+          await api.createMyKybDocument({
+            documentType: doc.type,
+            objectKey: uploaded.objectKey,
+            publicUrl: uploaded.publicUrl,
+          });
+        }
       }
       Alert.alert(
         'Confirme seu e-mail',
@@ -227,6 +255,24 @@ export default function RegisterScreen() {
     });
     if (!result.canceled && result.assets[0]?.uri) {
       setOngLogoUri(result.assets[0].uri);
+    }
+  }
+
+  async function pickKybDocument(type: KybDocumentType) {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    const result = permission.granted
+      ? await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          allowsEditing: false,
+          quality: 0.78,
+        })
+      : await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: false,
+          quality: 0.78,
+        });
+    if (!result.canceled && result.assets[0]?.uri) {
+      setKybDocuments((prev) => ({ ...prev, [type]: result.assets[0].uri }));
     }
   }
 
@@ -495,6 +541,32 @@ export default function RegisterScreen() {
                 </View>
 
                 <View style={styles.fields}>
+                  <View style={styles.kybList}>
+                    {KYB_DOCUMENTS.map((doc) => {
+                      const selected = Boolean(kybDocuments[doc.type]);
+                      return (
+                        <TouchableOpacity
+                          key={doc.type}
+                          style={[styles.kybRow, selected && styles.kybRowComplete]}
+                          onPress={() => pickKybDocument(doc.type)}
+                          activeOpacity={0.82}
+                        >
+                          <View style={[styles.kybIconWrap, selected && styles.kybIconWrapComplete]}>
+                            <MaterialCommunityIcons
+                              name={selected ? 'check' : doc.icon}
+                              size={20}
+                              color={selected ? '#FFFFFF' : '#2D6A4F'}
+                            />
+                          </View>
+                          <View style={styles.logoPickerTextWrap}>
+                            <Text style={styles.logoPickerTitle}>{doc.label}</Text>
+                            <Text style={styles.logoPickerHint}>{selected ? 'Imagem anexada' : 'Tocar para fotografar'}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Senha</Text>
                     <View style={[styles.inputRow, { borderColor: password.length >= 8 ? '#2D6A4F' : '#E2E8F0' }]}>
@@ -1303,6 +1375,36 @@ const styles = StyleSheet.create({
   logoPickerHint: {
     fontSize: 12,
     color: '#6B7280',
+  },
+  kybList: {
+    gap: 10,
+    marginBottom: 8,
+  },
+  kybRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+  },
+  kybRowComplete: {
+    borderColor: '#2D6A4F',
+    backgroundColor: 'rgba(45, 106, 79, 0.06)',
+  },
+  kybIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(45, 106, 79, 0.10)',
+  },
+  kybIconWrapComplete: {
+    backgroundColor: '#2D6A4F',
   },
   cepLoadingText: {
     fontSize: 12,
