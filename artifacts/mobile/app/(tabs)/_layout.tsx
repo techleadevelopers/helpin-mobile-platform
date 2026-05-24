@@ -210,6 +210,12 @@ function ClassicTabLayout() {
             ),
         }}
       />
+      <Tabs.Screen
+        name="user/[id]"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
