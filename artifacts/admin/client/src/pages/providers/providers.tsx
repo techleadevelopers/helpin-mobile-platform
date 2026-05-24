@@ -2,16 +2,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
-import VerificationModal from "@/components/verification/verification-modal";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
 import { deleteProvider, fetchAdminProvidersPage } from "@/lib/api";
 import { AdminProviderPage, Provider, VerificationStatus } from "@/lib/types";
+import { ProviderOperationalDialog } from "./components/provider-operational-dialog";
 import { ProvidersPagination } from "./components/providers-pagination";
 import { ProvidersResults } from "./components/providers-results";
 import { ProvidersToolbar } from "./components/providers-toolbar";
 
-const pageSize = 9;
+const pageSize = 12;
 
 export default function Providers() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -92,10 +92,20 @@ export default function Providers() {
       <div className="flex-1 ml-72 overflow-hidden">
         <Header
           title="ONGs e Clínicas"
-          subtitle="Gerencie e verifique os ONGs e clínicas de serviço na plataforma."
+          subtitle="Rede operacional, trust, cobertura e capacidade de atendimento."
         />
 
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto bg-slate-50/70 p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Rede</p>
+              <h2 className="mt-1 text-sm font-semibold text-gray-900">Operacao das ONGs verificadas</h2>
+            </div>
+            <div className="rounded-full border border-gray-100 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm">
+              {totalCount} registros
+            </div>
+          </div>
+
           <ProvidersToolbar
             searchTerm={searchTerm}
             statusFilter={statusFilter}
@@ -131,12 +141,12 @@ export default function Providers() {
         </main>
       </div>
 
-      <VerificationModal
+      <ProviderOperationalDialog
         provider={selectedProvider}
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedProvider(null);
+        open={isModalOpen}
+        onOpenChange={(open) => {
+          setIsModalOpen(open);
+          if (!open) setSelectedProvider(null);
         }}
       />
     </div>
