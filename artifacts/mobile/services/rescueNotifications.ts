@@ -51,7 +51,7 @@ export async function registerRescueAlerts(userId: string) {
   if (locationPermission.status !== 'granted') return null;
 
   const position = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.Balanced,
+    accuracy: Location.Accuracy.High,
   });
 
   const projectId =
