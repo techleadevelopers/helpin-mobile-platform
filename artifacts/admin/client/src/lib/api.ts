@@ -145,6 +145,24 @@ const deriveFullName = (...values: (string | undefined | null)[]): string => {
     return "";
 };
 
+const resolveAvatarUrl = (payload: any): string | undefined => {
+    return (
+        payload?.avatarUrl ??
+        payload?.avatar_url ??
+        payload?.avatar ??
+        payload?.logoUrl ??
+        payload?.logo_url ??
+        payload?.imageUrl ??
+        payload?.image_url ??
+        payload?.photoUrl ??
+        payload?.photo_url ??
+        payload?.profileImageUrl ??
+        payload?.profile_image_url ??
+        payload?.picture ??
+        undefined
+    );
+};
+
 const mapProviderPayload = (payload: any): Provider => {
     const candidateFullName = deriveFullName(
         payload?.fullName,
@@ -154,7 +172,7 @@ const mapProviderPayload = (payload: any): Provider => {
     return {
         ...payload,
         fullName: candidateFullName || payload?.name || "",
-        avatarUrl: payload?.avatarUrl ?? payload?.avatar_url ?? payload?.avatar ?? null,
+        avatarUrl: resolveAvatarUrl(payload),
         legalName: payload?.legalName ?? payload?.legal_name ?? null,
         cnpj: payload?.cnpj ?? null,
         ongType: payload?.ongType ?? payload?.ong_type ?? payload?.areaType ?? payload?.area_type ?? null,
@@ -177,7 +195,7 @@ const mapOngPayloadToProvider = (payload: any): Provider => {
         name: payload?.name ?? fullName,
         fullName,
         email: payload?.email ?? "",
-        avatarUrl: payload?.avatarUrl ?? payload?.avatar_url ?? payload?.avatar ?? null,
+        avatarUrl: resolveAvatarUrl(payload),
         legalName: payload?.legalName ?? payload?.legal_name ?? payload?.name ?? null,
         cnpj: payload?.cnpj ?? null,
         ongType: payload?.ongType ?? payload?.ong_type ?? payload?.cause ?? null,
@@ -429,6 +447,16 @@ export const fetchAdminHealth = async (): Promise<ObservabilityHealthPayload> =>
     return fetchApi<ObservabilityHealthPayload>('/v1/observability').catch(() =>
         fetchApi<ObservabilityHealthPayload>('/admin/health')
     );
+};
+
+export const fetchPrometheusMetrics = async (): Promise<string> => {
+    const response = await apiClient.request<string>({
+        url: '/metrics',
+        method: 'GET',
+        headers: { Accept: 'text/plain' },
+        responseType: 'text',
+    });
+    return typeof response.data === 'string' ? response.data : String(response.data ?? '');
 };
 
 export const fetchLiveStatus = async (): Promise<LiveStatusPayload> => {
