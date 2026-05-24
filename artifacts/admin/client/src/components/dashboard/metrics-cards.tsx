@@ -1,7 +1,6 @@
-import { Users, ShieldCheck, Siren, DollarSign, TrendingUp } from "lucide-react";
+import { Activity, DollarSign, ShieldCheck, Siren, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
-// Importa DashboardMetrics dos tipos reais
 import type { DashboardMetrics } from "@/lib/types";
 
 interface MetricsCardsProps {
@@ -11,60 +10,60 @@ interface MetricsCardsProps {
 export default function MetricsCards({ metrics }: MetricsCardsProps) {
   const cards = [
     {
-      title: "Usuários ativos",
+      title: "Usuarios ativos",
       value: metrics.activeUsers.toLocaleString(),
-      change: "+12.5% no mês",
+      change: "Sessao em tempo real",
       icon: Users,
-      gradient: "from-green-400 to-green-600",
+      gradient: "from-emerald-500 to-emerald-600",
       delay: 0,
     },
     {
       title: "ONGs verificadas",
       value: metrics.approvedProviders.toLocaleString(),
-      change: "+8.2% no mês",
+      change: "Rede apta para operar",
       icon: ShieldCheck,
-      gradient: "from-light-blue to-medium-blue",
-      delay: 0.1,
+      gradient: "from-blue-500 to-blue-600",
+      delay: 0.05,
     },
     {
       title: "Resgates coordenados",
       value: metrics.servicesBooked.toLocaleString(),
-      change: "+15.3% no mês",
+      change: "Casos coordenados",
       icon: Siren,
-      gradient: "from-purple-400 to-purple-600",
-      delay: 0.2,
+      gradient: "from-violet-500 to-violet-600",
+      delay: 0.1,
     },
     {
-      title: "Doações processadas",
-      value: `R$ ${metrics.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-      change: "+22.1% no mês",
+      title: "Doacoes processadas",
+      value: `R$ ${metrics.totalRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+      change: "Fluxo financeiro",
       icon: DollarSign,
-      gradient: "from-yellow-400 to-orange-500",
-      delay: 0.3,
+      gradient: "from-amber-500 to-orange-500",
+      delay: 0.15,
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      {cards.map((card, index) => (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {cards.map((card) => (
         <motion.div
           key={card.title}
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: card.delay }}
+          transition={{ duration: 0.35, delay: card.delay }}
         >
-          <Card className="p-6 shadow-floating hover:shadow-floating-lg transition-all duration-300 hover:-translate-y-1 border-0 bg-white animate-float">
+          <Card className="border border-gray-100 bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">{card.title}</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{card.value}</p>
-                <p className="text-sm text-green-600 mt-2 flex items-center">
-                  <TrendingUp size={14} className="mr-1" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{card.title}</p>
+                <p className="mt-1 text-2xl font-semibold tracking-tight text-gray-950">{card.value}</p>
+                <p className="mt-1.5 flex items-center text-xs font-medium text-gray-500">
+                  <Activity size={12} className="mr-1 text-emerald-600" />
                   {card.change}
                 </p>
               </div>
-              <div className={`w-12 h-12 bg-gradient-to-br ${card.gradient} rounded-xl flex items-center justify-center`}>
-                <card.icon className="text-white" size={20} />
+              <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${card.gradient}`}>
+                <card.icon className="text-white" size={18} />
               </div>
             </div>
           </Card>
