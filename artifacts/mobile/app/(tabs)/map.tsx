@@ -174,7 +174,12 @@ function CaseCard({ item, index }: { item: Post; index: number }) {
 
       {/* Right */}
       <View style={styles.caseRight}>
-        <Avatar name={item.author.name} size={30} verified={item.author.verified} />
+        <Avatar
+          name={item.author.name}
+          size={30}
+          verified={item.author.verified}
+          imageUrl={item.author.avatar}
+        />
         <MaterialCommunityIcons name="chevron-right" size={15} color={colors.mutedForeground} />
       </View>
     </TouchableOpacity>
