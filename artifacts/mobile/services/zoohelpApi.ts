@@ -65,6 +65,55 @@ export async function getStaticMapUrl(input: {
   return `https://maps.googleapis.com/maps/api/staticmap?${directParams.toString()}`;
 }
 
+export async function geocodeAddress(address: string) {
+  const query = address.trim();
+  if (!query || !GOOGLE_MAPS_API_KEY) return null;
+
+  // 🔧 CORREÇÃO: Sanitiza endereços com erros comuns
+  const sanitized = query
+    .toLowerCase()
+    // Corrige "doutro" → "doutor"
+    .replace(/\bdoutro\b/gi, 'Doutor')
+    .replace(/\bdr\s+(\w+)\b/gi, 'Doutor $1')
+    // Corrige outras variações comuns
+    .replace(/\bav\b/gi, 'Avenida')
+    .replace(/\br\b/gi, 'Rua')
+    .replace(/\bal\b/gi, 'Alameda')
+    .replace(/\bpç\b/gi, 'Praça')
+    // Padroniza maiúsculas (primeira letra de cada palavra)
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+  try {
+    const params = new URLSearchParams({
+      address: sanitized,  // ← usa o endereço sanitizado
+      region: 'br',
+      key: GOOGLE_MAPS_API_KEY,
+    });
+    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`);
+    if (!response.ok) return null;
+    const payload = (await response.json()) as {
+      results?: Array<{
+        formatted_address?: string;
+        geometry?: { location?: { lat?: number; lng?: number } };
+      }>;
+      status?: string;
+    };
+    const result = payload.results?.[0];
+    const lat = result?.geometry?.location?.lat;
+    const lng = result?.geometry?.location?.lng;
+    if (typeof lat !== 'number' || typeof lng !== 'number') return null;
+    return {
+      latitude: lat,
+      longitude: lng,
+      label: result?.formatted_address ?? sanitized, // retorna o corrigido se a API achou
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function mapAuthor(author: PostContract['author']): Author {
   return {
     id: author.id,
@@ -94,6 +143,8 @@ export function mapPost(post: PostContract): Post {
     comments: post.comments,
     shares: post.shares,
     urgent: post.urgent,
+    rescueStatus: post.rescueStatus,
+    resolvedAt: post.resolvedAt,
     createdAt: post.createdAt,
     contact: post.contact,
     tags: post.tags,
@@ -125,7 +176,7 @@ export function fileNameFromUri(uri: string) {
 export async function uploadLocalImageToCloudinary(
   api: NonNullable<ReturnType<typeof createZooHelpApi>>,
   uri: string,
-  purpose: 'post' | 'ong-logo' | 'profile-avatar' = 'post',
+  purpose: 'post' | 'ong-logo' | 'profile-avatar' | 'kyb-document' = 'post',
 ) {
   const contentType = contentTypeFromUri(uri);
   const fileName = fileNameFromUri(uri);
