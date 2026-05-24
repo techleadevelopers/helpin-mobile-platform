@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -13,13 +13,17 @@ import Animated, {
 
 import { Avatar } from '@/components/Avatar';
 import { StatusBadge } from '@/components/StatusBadge';
-import { AUTHOR_TO_ONG, Post } from '@/constants/data';
+import { Post } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { formatDistanceKm } from '@/services/geoDistance';
 import { shareZooHelpItem } from '@/services/share';
+import type { PostCommentContract } from '@/services/zoohelpEngine';
+import { createZooHelpApi } from '@/services/zoohelpApi';
 
 const CARD_IMAGE_HEIGHT = 148;
+const FEED_TIME_ICON =
+  'https://res.cloudinary.com/limpeja/image/upload/v1779576484/pngtree-vector-clock-icon-png-image_4152707_bfoxlj.jpg';
 
 const ANIMAL_PLACEHOLDERS: Record<string, string> = {
   dog: 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=700&q=85',
@@ -66,13 +70,60 @@ interface PostCardProps {
   index?: number;
 }
 
+function formatPostTime(value: string) {
+  if (!value) return 'agora';
+  if (!value.includes('T')) return value.replace(/\b(\d+)\s+(min|h|d)\b/g, '$1$2');
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'agora';
+
+  const diffMs = Date.now() - date.getTime();
+  if (diffMs < 60_000) return 'agora';
+
+  const diffMinutes = Math.floor(diffMs / 60_000);
+  if (diffMinutes < 60) return `${diffMinutes} min`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays <= 7) return `${diffDays}d`;
+
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
+function limitWords(value: string, maxWords: number) {
+  const words = value.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) return value;
+  return `${words.slice(0, maxWords).join(' ')}...`;
+}
+
+function limitText(value: string, maxChars: number) {
+  const compact = value.trim();
+  if (compact.length <= maxChars) return compact;
+  return `${compact.slice(0, maxChars).trimEnd()}...`;
+}
+
 export function PostCard({ post, index = 0 }: PostCardProps) {
   const colors = useColors();
   const router = useRouter();
-  const { likedPosts, toggleLike } = useApp();
+  const { likedPosts, toggleLike, user, followedUsers, toggleFollowUser, deletePost } = useApp();
   const isLiked = likedPosts.includes(post.id);
+  const isFollowingAuthor = followedUsers.includes(post.author.id);
+  const isPostOwner = user?.id === post.author.id;
   const [localLikes, setLocalLikes] = useState(post.likes);
+  const [localComments, setLocalComments] = useState(post.comments);
   const [saved, setSaved] = useState(false);
+  const [commentOpen, setCommentOpen] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [localCommentBodies, setLocalCommentBodies] = useState<string[]>([]);
+  const [remoteComments, setRemoteComments] = useState<PostCommentContract[]>([]);
+  const [commentsLoaded, setCommentsLoaded] = useState(false);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsError, setCommentsError] = useState(false);
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const displayTime = formatPostTime(post.createdAt);
+  const locationPreview = limitText(limitWords(post.neighborhood, 15), 38);
 
   const scale = useSharedValue(1);
   const heartScale = useSharedValue(1);
@@ -110,8 +161,170 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     router.push(`/post/${post.id}`);
   }
 
+  async function loadComments() {
+    if (commentsLoading) return;
+
+    setCommentsLoading(true);
+    setCommentsError(false);
+    try {
+      const comments = await createZooHelpApi()?.postComments(post.id);
+      setRemoteComments(comments ?? []);
+      setCommentsLoaded(true);
+    } catch {
+      setCommentsError(true);
+    } finally {
+      setCommentsLoading(false);
+    }
+  }
+
+  function openCommentInput() {
+    const nextOpen = !commentOpen;
+    setCommentOpen(nextOpen);
+    if (nextOpen && !commentsLoaded) {
+      void loadComments();
+    }
+  }
+
+  async function submitComment() {
+    const body = commentText.trim();
+    if (!body || commentSubmitting) return;
+
+    setCommentSubmitting(true);
+    try {
+      await createZooHelpApi()?.commentPost(post.id, body);
+      setCommentText('');
+      setCommentOpen(false);
+      setLocalCommentBodies((prev) => [...prev, body]);
+      setLocalComments((prev) => prev + 1);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      Alert.alert('Comentário', 'Não foi possível enviar agora. Tente novamente.');
+    } finally {
+      setCommentSubmitting(false);
+    }
+  }
+
+  function removeLocalComment(index: number) {
+    setLocalCommentBodies((prev) => prev.filter((_, itemIndex) => itemIndex !== index));
+    setLocalComments((prev) => Math.max(0, prev - 1));
+  }
+
   function handleShare() {
     shareZooHelpItem(post.name, `${post.name} no ZooHelp: ${post.description}`);
+  }
+
+  function handleDeletePost() {
+    Alert.alert(
+      'Excluir post',
+      'Deseja excluir este post? Esta acao nao pode ser desfeita.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: () => {
+            deletePost(post.id).catch(() => {
+              Alert.alert('Excluir post', 'Nao foi possivel excluir agora. Tente novamente.');
+            });
+          },
+        },
+      ],
+    );
+  }
+
+  function renderCommentArea() {
+    const visibleComments = [
+      ...remoteComments.map((comment) => ({
+        id: comment.id,
+        body: comment.body,
+        authorName: comment.author.name,
+        authorAvatar: comment.author.avatar ?? null,
+        canDelete: false,
+        localIndex: null as number | null,
+      })),
+      ...localCommentBodies.map((body, localIndex) => ({
+        id: `local-${localIndex}-${body}`,
+        body,
+        authorName: user?.name?.split(' ')[0] ?? 'Você',
+        authorAvatar: user?.avatar ?? null,
+        canDelete: true,
+        localIndex,
+      })),
+    ].slice(-3);
+
+    return (
+      <>
+        {(commentOpen || localCommentBodies.length > 0) && (
+          <View style={styles.commentList}>
+            {commentsLoading && (
+              <Text style={[styles.commentHint, { color: colors.mutedForeground }]}>Carregando comentários...</Text>
+            )}
+            {!commentsLoading && commentsError && (
+              <TouchableOpacity
+                onPress={(event) => {
+                  event.stopPropagation();
+                  void loadComments();
+                }}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.commentHint, { color: colors.primary }]}>Tentar carregar comentários novamente</Text>
+              </TouchableOpacity>
+            )}
+            {!commentsLoading && !commentsError && visibleComments.length === 0 && (
+              <Text style={[styles.commentHint, { color: colors.mutedForeground }]}>Nenhum comentário ainda.</Text>
+            )}
+            {!commentsLoading && !commentsError && visibleComments.map((comment) => (
+              <View key={comment.id} style={styles.commentItem}>
+                <Avatar
+                  name={comment.authorName}
+                  size={18}
+                  imageUrl={comment.authorAvatar}
+                />
+                <Text style={[styles.commentAuthor, { color: colors.foreground }]} numberOfLines={1}>
+                  {comment.authorName}
+                </Text>
+                <Text style={[styles.commentBody, { color: colors.mutedForeground }]}>{comment.body}</Text>
+                {comment.canDelete && comment.localIndex != null && (
+                  <TouchableOpacity
+                    style={styles.commentDelete}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      removeLocalComment(comment.localIndex as number);
+                    }}
+                    activeOpacity={0.75}
+                    accessibilityRole="button"
+                    accessibilityLabel="Excluir comentário"
+                  >
+                    <MaterialCommunityIcons name="trash-can-outline" size={13} color={colors.mutedForeground} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+        {commentOpen && (
+          <View style={[styles.commentBox, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+            <TextInput
+              style={[styles.commentInput, { color: colors.foreground }]}
+              value={commentText}
+              onChangeText={setCommentText}
+              placeholder="Escreva um comentário..."
+              placeholderTextColor={colors.mutedForeground}
+              returnKeyType="send"
+              onSubmitEditing={submitComment}
+            />
+            <TouchableOpacity
+              style={[styles.commentSend, { backgroundColor: colors.primary, opacity: commentText.trim() ? 1 : 0.45 }]}
+              onPress={submitComment}
+              disabled={!commentText.trim() || commentSubmitting}
+              activeOpacity={0.82}
+            >
+              <MaterialCommunityIcons name="send" size={14} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        )}
+      </>
+    );
   }
 
   const imageUris =
@@ -123,8 +336,67 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   const imageUri = imageUris[0];
   const hasPhotoGrid = imageUris.length > 1;
   const distance = formatDistanceKm(post.distanceKm);
-  const ctaLabel = CTA_LABELS[post.type] ?? 'Ver mais';
-  const ctaColor = CTA_COLORS[post.type] ?? '#4CAF50';
+  const isResolved = post.rescueStatus === 'resolved';
+  const ctaLabel = isResolved ? 'Ver resolução' : CTA_LABELS[post.type] ?? 'Ver mais';
+  const accentColor = CTA_COLORS[post.type] ?? colors.primary;
+  const ctaColor = colors.primary;
+  const imageOverlay = (
+    <>
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.55)']}
+        style={styles.imageGradient}
+      />
+
+      <View style={styles.imageTopRow}>
+        <StatusBadge type={post.type} urgent={post.urgent && !isResolved} resolved={isResolved} size="sm" hideType />
+      </View>
+
+      <View style={styles.imageBottomRow}>
+        {distance && (
+          <View style={styles.distanceBadge}>
+            <MaterialCommunityIcons name="navigation-variant" size={11} color="#FFFFFF" />
+            <Text style={styles.distanceText}>{distance}</Text>
+          </View>
+        )}
+        {post.author.type === 'ong' && (
+          <View style={styles.ongBadge}>
+            <MaterialCommunityIcons name="check-decagram" size={11} color="#FFFFFF" />
+            <Text style={styles.ongBadgeText}>ONG Verificada</Text>
+          </View>
+        )}
+      </View>
+    </>
+  );
+  const postImageMedia = hasPhotoGrid ? (
+    <View style={[styles.imageContainer, styles.inlineImageContainer, styles.imageGrid]}>
+      {imageUris.slice(0, 2).map((uri, photoIndex) => (
+        <View key={`${uri}-${photoIndex}`} style={styles.imageGridItem}>
+          <Image
+            source={{ uri }}
+            style={styles.imageGridPhoto}
+            contentFit="cover"
+            transition={400}
+          />
+          {photoIndex === 1 && imageUris.length > 2 && (
+            <View style={styles.photoMoreOverlay}>
+              <Text style={styles.photoMoreText}>+{imageUris.length - 2}</Text>
+            </View>
+          )}
+        </View>
+      ))}
+      {imageOverlay}
+    </View>
+  ) : (
+    <View style={[styles.imageContainer, styles.inlineImageContainer]}>
+      <Image
+        source={{ uri: imageUri }}
+        style={styles.image}
+        contentFit="cover"
+        transition={400}
+      />
+      {imageOverlay}
+    </View>
+  );
 
   /* â”€â”€ TEXT-ONLY CARD (premium) â”€â”€ */
   if (post.textOnly) {
@@ -133,20 +405,21 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
         <TouchableOpacity
           style={[styles.card, styles.textCard, { backgroundColor: colors.card }]}
           onPress={handlePress}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
+          onPressIn={commentOpen ? undefined : handlePressIn}
+          onPressOut={commentOpen ? undefined : handlePressOut}
           activeOpacity={1}
+          disabled={commentOpen}
         >
           <View style={styles.textCardBody}>
             {/* Header row: badge left, save+share right */}
             <View style={styles.textHeaderRow}>
-              <StatusBadge type={post.type} size="sm" />
+              <StatusBadge type={post.type} resolved={isResolved} size="sm" />
               <View style={styles.textHeaderRight}>
                 <TouchableOpacity onPress={handleSave} activeOpacity={0.7} style={styles.iconCircle}>
                   <MaterialCommunityIcons
                     name={saved ? 'bookmark' : 'bookmark-outline'}
                     size={15}
-                    color={saved ? ctaColor : colors.mutedForeground}
+                    color={saved ? accentColor : colors.mutedForeground}
                   />
                 </TouchableOpacity>
                 <TouchableOpacity activeOpacity={0.7} style={styles.iconCircle} onPress={handleShare}>
@@ -158,13 +431,16 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
             {/* Author */}
             <TouchableOpacity
               style={styles.authorRow}
-              onPress={() => {
-                const ongId = AUTHOR_TO_ONG[post.author.id];
-                if (ongId) router.push(`/ong/${ongId}`);
-              }}
-              activeOpacity={AUTHOR_TO_ONG[post.author.id] ? 0.75 : 1}
+              onPress={() => router.push({ pathname: '/(tabs)/user/[id]', params: { id: post.author.id } })}
+              activeOpacity={0.75}
             >
-              <Avatar name={post.author.name} size={36} verified={post.author.verified} type={post.author.type} />
+              <Avatar
+                name={post.author.name}
+                size={36}
+                verified={post.author.verified}
+                type={post.author.type}
+                imageUrl={post.author.avatar}
+              />
               <View style={styles.authorInfo}>
                 <View style={styles.authorNameRow}>
                   <Text style={[styles.authorName, { color: colors.foreground }]} numberOfLines={1}>
@@ -175,7 +451,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                   )}
                 </View>
                 <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                  {post.neighborhood} Â· {post.createdAt}
+                  {post.neighborhood} · {displayTime}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -189,9 +465,9 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
           {post.tags.length > 0 && (
             <View style={styles.tagsRow}>
               {post.tags.slice(0, 2).map((tag) => (
-                  <View key={tag} style={[styles.tag, styles.infoChipTag, { backgroundColor: ctaColor + '12', borderColor: ctaColor + '28' }]}>
-                    <MaterialCommunityIcons name="check-circle-outline" size={11} color={ctaColor} />
-                    <Text style={[styles.tagText, { color: ctaColor }]}>#{tag}</Text>
+                  <View key={tag} style={[styles.tag, styles.infoChipTag, { backgroundColor: accentColor + '12', borderColor: accentColor + '28' }]}>
+                    <MaterialCommunityIcons name="check-circle-outline" size={11} color={accentColor} />
+                    <Text style={[styles.tagText, { color: accentColor }]}>#{tag}</Text>
                   </View>
                 ))}
               </View>
@@ -212,9 +488,16 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.actionBtn} onPress={handlePress} activeOpacity={0.7}>
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  openCommentInput();
+                }}
+                activeOpacity={0.7}
+              >
                 <MaterialCommunityIcons name="comment-outline" size={17} color={colors.mutedForeground} />
-                <Text style={[styles.actionCount, { color: colors.mutedForeground }]}>{post.comments}</Text>
+                <Text style={[styles.actionCount, { color: colors.mutedForeground }]}>{localComments}</Text>
               </TouchableOpacity>
 
               <View style={{ flex: 1 }} />
@@ -227,6 +510,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                 <Text style={[styles.ctaSmallText, { color: '#fff' }]}>{ctaLabel}</Text>
               </TouchableOpacity>
             </View>
+            {renderCommentArea()}
           </View>
         </TouchableOpacity>
       </Animated.View>
@@ -239,110 +523,25 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
       <TouchableOpacity
         style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}
         onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
+        onPressIn={commentOpen ? undefined : handlePressIn}
+        onPressOut={commentOpen ? undefined : handlePressOut}
         activeOpacity={1}
+        disabled={commentOpen}
       >
-        {/* Hero image */}
-        <View style={styles.imageContainer}>
-          {hasPhotoGrid ? (
-            <View style={styles.photoGrid}>
-              <Image
-                source={{ uri: imageUri }}
-                style={styles.photoGridMain}
-                contentFit="cover"
-                transition={400}
-              />
-              <View style={styles.photoGridSide}>
-                {imageUris.slice(1, 3).map((uri, photoIndex) => (
-                  <View key={`${uri}-${photoIndex}`} style={styles.photoGridThumbWrap}>
-                    <Image
-                      source={{ uri }}
-                      style={styles.photoGridThumb}
-                      contentFit="cover"
-                      transition={400}
-                    />
-                    {photoIndex === 1 && imageUris.length > 3 && (
-                      <View style={styles.photoMoreOverlay}>
-                        <Text style={styles.photoMoreText}>+{imageUris.length - 3}</Text>
-                      </View>
-                    )}
-                  </View>
-                ))}
-              </View>
-            </View>
-          ) : (
-            <Image
-              source={{ uri: imageUri }}
-              style={styles.image}
-              contentFit="cover"
-              transition={400}
-            />
-          )}
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.55)']}
-            style={styles.imageGradient}
-          />
-
-          {/* Top overlays */}
-          <View style={styles.imageTopRow}>
-            <StatusBadge type={post.type} urgent={post.urgent} size="sm" />
-            <View style={styles.imageTopRight}>
-              <TouchableOpacity
-                style={[styles.floatingBtn, { backgroundColor: 'rgba(0,0,0,0.38)' }]}
-                onPress={handleSave}
-                activeOpacity={0.8}
-              >
-                <MaterialCommunityIcons
-                  name={saved ? 'bookmark' : 'bookmark-outline'}
-                  size={16}
-                  color={saved ? '#FFD700' : '#FFFFFF'}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.floatingBtn, { backgroundColor: 'rgba(0,0,0,0.38)' }]}
-                onPress={handleShare}
-                activeOpacity={0.8}
-              >
-                <MaterialCommunityIcons name="share-variant-outline" size={16} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Bottom overlays */}
-          <View style={styles.imageBottomRow}>
-            {distance && (
-              <View style={styles.distanceBadge}>
-                <MaterialCommunityIcons name="navigation-variant" size={11} color="#FFFFFF" />
-                <Text style={styles.distanceText}>{distance}</Text>
-              </View>
-            )}
-            {hasPhotoGrid && (
-              <View style={styles.photoCountBadge}>
-                <MaterialCommunityIcons name="image-multiple-outline" size={11} color="#FFFFFF" />
-                <Text style={styles.photoCountText}>{imageUris.length}</Text>
-              </View>
-            )}
-            {post.author.type === 'ong' && (
-              <View style={styles.ongBadge}>
-                <MaterialCommunityIcons name="check-decagram" size={11} color="#FFFFFF" />
-                <Text style={styles.ongBadgeText}>ONG Verificada</Text>
-              </View>
-            )}
-          </View>
-        </View>
-
         {/* Card body */}
         <View style={styles.cardBody}>
           <TouchableOpacity
             style={styles.authorRow}
-            onPress={() => {
-              const ongId = AUTHOR_TO_ONG[post.author.id];
-              if (ongId) router.push(`/ong/${ongId}`);
-            }}
-            activeOpacity={AUTHOR_TO_ONG[post.author.id] ? 0.75 : 1}
+            onPress={() => router.push({ pathname: '/(tabs)/user/[id]', params: { id: post.author.id } })}
+            activeOpacity={0.75}
           >
-            <Avatar name={post.author.name} size={30} verified={post.author.verified} type={post.author.type} />
+            <Avatar
+              name={post.author.name}
+              size={30}
+              verified={post.author.verified}
+              type={post.author.type}
+              imageUrl={post.author.avatar}
+            />
             <View style={styles.authorInfo}>
               <View style={styles.authorNameRow}>
                 <Text style={[styles.authorName, { color: colors.foreground }]} numberOfLines={1}>
@@ -351,11 +550,37 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                 {post.author.type === 'ong' && (
                   <MaterialCommunityIcons name="check-decagram" size={13} color="#2F80ED" />
                 )}
+                <View style={{ flex: 1 }} />
+                <TouchableOpacity
+                  style={[
+                    styles.feedFollowBtn,
+                    {
+                      backgroundColor: isFollowingAuthor ? colors.muted : colors.primary,
+                      borderColor: isFollowingAuthor ? colors.border : colors.primary,
+                    },
+                  ]}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    toggleFollowUser(post.author.id);
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.feedFollowText, { color: isFollowingAuthor ? colors.mutedForeground : '#FFFFFF' }]}>
+                    {isFollowingAuthor ? 'Seguindo' : 'Seguir'}
+                  </Text>
+                </TouchableOpacity>
+                <View style={styles.feedTimeRow}>
+                  <Image source={{ uri: FEED_TIME_ICON }} style={styles.feedTimeIcon} contentFit="contain" />
+                  <Text style={[styles.feedTimeText, { color: colors.mutedForeground }]} numberOfLines={1}>
+                    {displayTime}
+                  </Text>
+                </View>
               </View>
               <View style={styles.metaRow}>
                 <MaterialCommunityIcons name="map-marker-outline" size={11} color={colors.mutedForeground} />
-                <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                  {post.neighborhood} Â· {post.createdAt}
+                <Text style={[styles.metaText, { color: colors.mutedForeground }]} numberOfLines={1}>
+                  {locationPreview}
                 </Text>
               </View>
             </View>
@@ -367,13 +592,15 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                 {post.name}
               </Text>
               <Text style={[styles.animalBreed, { color: colors.mutedForeground }]} numberOfLines={1}>
-                {post.breed} Â· {post.age}
+                {post.breed} · {post.age}
               </Text>
             </View>
             <Text style={[styles.description, { color: colors.foreground }]} numberOfLines={1}>
               {post.description}
             </Text>
           </View>
+
+          {postImageMedia}
 
           {post.tags.length > 0 && (
             <View style={styles.tagsRow}>
@@ -402,25 +629,41 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionBtn} onPress={handlePress} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={(event) => {
+                event.stopPropagation();
+                openCommentInput();
+              }}
+              activeOpacity={0.7}
+            >
               <MaterialCommunityIcons name="comment-outline" size={18} color={colors.mutedForeground} />
-              <Text style={[styles.actionCount, { color: colors.mutedForeground }]}>{post.comments}</Text>
+              <Text style={[styles.actionCount, { color: colors.mutedForeground }]}>{localComments}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionBtn} onPress={handleShare} activeOpacity={0.7}>
               <MaterialCommunityIcons name="share-variant-outline" size={18} color={colors.mutedForeground} />
             </TouchableOpacity>
 
-            <View style={{ flex: 1 }} />
-
-            <TouchableOpacity
-              style={[styles.ctaBtn, { backgroundColor: ctaColor, shadowColor: ctaColor }]}
-              onPress={handlePress}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.ctaBtnText}>{ctaLabel}</Text>
-            </TouchableOpacity>
+            {isPostOwner && (
+              <>
+                <View style={{ flex: 1 }} />
+                <TouchableOpacity
+                  style={styles.deletePostBtn}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    handleDeletePost();
+                  }}
+                  activeOpacity={0.72}
+                  accessibilityRole="button"
+                  accessibilityLabel="Excluir post"
+                >
+                  <MaterialCommunityIcons name="trash-can-outline" size={17} color="#A85645" />
+                </TouchableOpacity>
+              </>
+            )}
           </View>
+          {renderCommentArea()}
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -457,28 +700,45 @@ const styles = StyleSheet.create({
     position: 'relative',
     backgroundColor: '#E8ECF0',
   },
+  inlineImageContainer: {
+    marginTop: 2,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
   image: { width: '100%', height: CARD_IMAGE_HEIGHT },
-  photoGrid: {
-    width: '100%',
-    height: CARD_IMAGE_HEIGHT,
+  imageGrid: {
     flexDirection: 'row',
     gap: 2,
   },
-  photoGridMain: {
+  imageGridItem: {
     flex: 1,
     height: CARD_IMAGE_HEIGHT,
-  },
-  photoGridSide: {
-    width: 96,
-    height: CARD_IMAGE_HEIGHT,
-    gap: 2,
-  },
-  photoGridThumbWrap: {
-    flex: 1,
     position: 'relative',
     overflow: 'hidden',
+    backgroundColor: '#E8ECF0',
   },
-  photoGridThumb: {
+  imageGridPhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  photoThumbStrip: {
+    position: 'absolute',
+    right: 10,
+    bottom: 46,
+    flexDirection: 'row',
+    gap: 5,
+  },
+  photoThumbWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.82)',
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: 'rgba(0,0,0,0.22)',
+  },
+  photoThumb: {
     width: '100%',
     height: '100%',
   },
@@ -490,7 +750,7 @@ const styles = StyleSheet.create({
   },
   photoMoreText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 12,
     fontFamily: 'Montserrat_700Bold',
   },
   imageGradient: {
@@ -578,7 +838,22 @@ const styles = StyleSheet.create({
     textShadowRadius: 1,
   },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 1 },
-  metaText: { fontSize: 9, fontFamily: 'Montserrat_400Regular' },
+  metaText: { flex: 1, fontSize: 9, fontFamily: 'Montserrat_400Regular' },
+  feedFollowBtn: {
+    minHeight: 22,
+    paddingHorizontal: 9,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  feedFollowText: {
+    fontSize: 9,
+    fontFamily: 'Montserrat_700Bold',
+  },
+  feedTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  feedTimeIcon: { width: 13, height: 13, opacity: 0.72 },
+  feedTimeText: { fontSize: 10, fontFamily: 'Montserrat_600SemiBold' },
   animalSection: { gap: 2 },
   animalTitleRow: { flexDirection: 'row', alignItems: 'baseline', gap: 7 },
   animalName: {
@@ -603,6 +878,30 @@ const styles = StyleSheet.create({
   tagText: { fontSize: 9, fontFamily: 'Montserrat_400Regular' },
   divider: { height: 1 },
   actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 0 },
+  commentBox: {
+    minHeight: 42,
+    borderWidth: 1,
+    borderRadius: 21,
+    paddingLeft: 13,
+    paddingRight: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  commentInput: {
+    flex: 1,
+    minHeight: 38,
+    paddingVertical: 0,
+    fontSize: 12,
+    fontFamily: 'Montserrat_400Regular',
+  },
+  commentSend: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -611,7 +910,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     borderRadius: 10,
   },
+  deletePostBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(168,86,69,0.10)',
+  },
   actionCount: { fontSize: 11, fontFamily: 'Montserrat_500Medium' },
+  commentList: {
+    gap: 5,
+  },
+  commentHint: {
+    fontSize: 11,
+    fontFamily: 'Montserrat_500Medium',
+    paddingHorizontal: 2,
+  },
+  commentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 2,
+  },
+  commentAuthor: {
+    fontSize: 11,
+    fontFamily: 'Montserrat_700Bold',
+  },
+  commentBody: {
+    flex: 1,
+    fontSize: 11,
+    fontFamily: 'Montserrat_400Regular',
+    lineHeight: 15,
+  },
+  commentDelete: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -3,
+  },
   ctaBtn: {
   minHeight: 40,
   justifyContent: 'center',
@@ -641,4 +980,3 @@ const styles = StyleSheet.create({
   ctaSmall: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 18 },
   ctaSmallText: { fontSize: 11, fontFamily: 'Montserrat_500Medium' },
 });
-
