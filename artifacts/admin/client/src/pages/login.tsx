@@ -9,7 +9,10 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { PawPrint, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
+
+const ZOOHELP_LOGO_URL =
+ "https://res.cloudinary.com/limpeja/image/upload/v1779564981/Gemini_Generated_Image_isin7wisin7wisin-removebg-preview_yx0k5g.png";
 
 export default function LoginPage() {
  const [email, setEmail] = useState("");
@@ -47,11 +50,15 @@ export default function LoginPage() {
    >
     <Card className="shadow-floating-lg border-0">
      <CardHeader className="text-center">
-      <div className="flex items-center justify-center mb-4">
-       <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-700 shadow-floating">
-        <PawPrint className="h-8 w-8 text-white" />
+       <div className="flex items-center justify-center mb-4">
+        <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-white shadow-floating ring-1 ring-emerald-100">
+         <img
+          src={ZOOHELP_LOGO_URL}
+          alt="ZooHelp"
+          className="h-16 w-16 object-contain"
+         />
+        </div>
        </div>
-      </div>
       <CardTitle className="text-2xl font-bold text-gray-950">ZooHelp Admin</CardTitle>
       <div className="mt-2 flex items-center justify-center gap-2 text-sm font-medium text-gray-500">
        <ShieldCheck className="h-4 w-4 text-emerald-700" />
