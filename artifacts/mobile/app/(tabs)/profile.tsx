@@ -22,12 +22,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { StaticMapTiles } from '@/components/StaticMapTiles';
 import { MOCK_POSTS } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { shareZooHelpItem } from '@/services/share';
-import { getStaticMapUrl } from '@/services/zoohelpApi';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -50,8 +48,6 @@ export default function ProfileScreen() {
   const { isAuthenticated, isLoading, user, logout, deleteAccount, updateUserAvatar } = useApp();
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [locationLabel, setLocationLabel] = useState('Sao Paulo, SP');
-  const [mapImageUrl, setMapImageUrl] = useState<string | null>(null);
-  const [mapCoords, setMapCoords] = useState({ lat: -23.5505, lng: -46.6333 });
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [isAlertOverlayVisible, setIsAlertOverlayVisible] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -86,16 +82,7 @@ export default function ProfileScreen() {
       }
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const { latitude, longitude } = position.coords;
-      setMapCoords({ lat: latitude, lng: longitude });
       setLocationLabel(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-      const imageUrl = await getStaticMapUrl({
-        lat: latitude,
-        lng: longitude,
-        zoom: 14,
-        width: 640,
-        height: 320,
-      });
-      if (imageUrl) setMapImageUrl(imageUrl);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
       Alert.alert('Localizacao', 'Nao foi possivel detectar sua localizacao agora.');
@@ -194,7 +181,7 @@ export default function ProfileScreen() {
             )}
             {user.verified && (
               <View style={styles.profileVerifiedBadge}>
-                <MaterialCommunityIcons name="check" size={13} color="#FFFFFF" />
+                <MaterialCommunityIcons name="check-decagram" size={21} color="#7B8B8B" />
               </View>
             )}
             <View style={styles.profileCameraBadge}>
@@ -213,33 +200,6 @@ export default function ProfileScreen() {
             {detectingLocation ? 'Detectando localizacao...' : locationLabel}
           </Text>
         </TouchableOpacity>
-      </View>
-
-      <View style={styles.routeCard}>
-        <View style={styles.routeInfo}>
-          <Text style={styles.routeTitle}>Area de resgate</Text>
-          <Text style={styles.routeSubtitle}>Baseado na sua localizacao</Text>
-          <TouchableOpacity onPress={detectLocation} activeOpacity={0.78}>
-            <Text style={styles.routeLink}>{detectingLocation ? 'Atualizando...' : 'Atualizar GPS ->'}</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.mapPreview}>
-          <StaticMapTiles latitude={mapCoords.lat} longitude={mapCoords.lng} zoom={13} opacity={0.92} />
-          {mapImageUrl ? (
-            <Image
-              source={{ uri: mapImageUrl }}
-              style={styles.realMapImage}
-              contentFit="cover"
-              onError={() => setMapImageUrl(null)}
-            />
-          ) : (
-            null
-          )}
-          <View style={styles.mapPulseOuter}>
-            <View style={styles.mapPulseInner} />
-          </View>
-          <View style={styles.mapSmallPin} />
-        </View>
       </View>
 
       <View style={styles.sectionBlock}>
@@ -276,14 +236,19 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.menuCard}>
-        {MENU_ITEMS.map((item, index) => (
+        {MENU_ITEMS.map((item, index) => {
+          const isOwnProfileItem = item.label === 'Meu perfil';
+          const menuLabel = isOwnProfileItem && user?.type === 'ong' ? 'Perfil da ONG' : item.label;
+          const menuIcon = isOwnProfileItem && user?.type === 'ong' ? 'office-building-outline' : item.icon;
+
+          return (
           <React.Fragment key={item.label}>
             <TouchableOpacity
               style={styles.menuItem}
               activeOpacity={0.85}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                if (item.label === 'Meu perfil' && user?.id) {
+                if (isOwnProfileItem && user?.id) {
                   router.push({ pathname: '/(tabs)/user/[id]', params: { id: user.id } });
                 } else if (item.route) router.push(item.route as any);
                 else if (item.label === 'Convidar amigos') {
@@ -292,9 +257,9 @@ export default function ProfileScreen() {
               }}
             >
               <View style={[styles.menuIconWrap, { backgroundColor: item.color + '14' }]}>
-                <MaterialCommunityIcons name={item.icon} size={18} color={item.color} />
+                <MaterialCommunityIcons name={menuIcon} size={18} color={item.color} />
               </View>
-              <Text style={styles.menuLabel}>{item.label}</Text>
+              <Text style={styles.menuLabel}>{menuLabel}</Text>
               {item.badge && (
                 <View style={styles.menuBadge}>
                   <Text style={styles.menuBadgeText}>{item.badge}</Text>
@@ -304,7 +269,8 @@ export default function ProfileScreen() {
             </TouchableOpacity>
             {index < MENU_ITEMS.length - 1 && <View style={styles.menuDivider} />}
           </React.Fragment>
-        ))}
+          );
+        })}
       </View>
 
       <Animated.View style={animatedLogoutStyle}>
@@ -493,9 +459,14 @@ const styles = StyleSheet.create({
     borderRadius: 11.5,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2F80ED',
-    borderWidth: 2,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
     borderColor: '#F7F8F4',
+    shadowColor: '#7B8B8B',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.28,
+    shadowRadius: 4,
+    elevation: 3,
   },
   identityBlock: { alignItems: 'center', gap: 4, paddingHorizontal: 18 },
   userName: {
@@ -516,42 +487,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#EAF7EF',
   },
   locationText: { maxWidth: 220, fontSize: 10, fontFamily: 'Montserrat_600SemiBold', color: '#2D6A4F' },
-  routeCard: {
-    marginHorizontal: 18,
-    minHeight: 96,
-    borderRadius: 24,
-    backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
-    flexDirection: 'row',
-    shadowColor: '#9AA49A',
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
-  },
-  routeInfo: { width: 138, padding: 15, gap: 3, zIndex: 2 },
-  routeTitle: { fontSize: 13, fontFamily: 'Montserrat_700Bold', color: '#1C251D' },
-  routeSubtitle: { fontSize: 9, fontFamily: 'Montserrat_500Medium', color: '#9AA19A', lineHeight: 13 },
-  routeLink: { marginTop: 7, fontSize: 11, fontFamily: 'Montserrat_700Bold', color: '#2D6A4F' },
-  mapPreview: { flex: 1, backgroundColor: '#F2F3F0', position: 'relative' },
-  realMapImage: { ...StyleSheet.absoluteFillObject, zIndex: 1 },
-  mapLineOne: { position: 'absolute', top: 17, left: -12, right: 8, height: 2, backgroundColor: '#DADFD8', transform: [{ rotate: '-14deg' }] },
-  mapLineTwo: { position: 'absolute', top: 50, left: -18, right: -10, height: 2, backgroundColor: '#DEE3DD', transform: [{ rotate: '18deg' }] },
-  mapLineThree: { position: 'absolute', bottom: 20, left: 12, right: -20, height: 2, backgroundColor: '#D7DDD6', transform: [{ rotate: '-8deg' }] },
-  mapPulseOuter: {
-    position: 'absolute',
-    zIndex: 2,
-    left: '43%',
-    top: '35%',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 82, 134, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mapPulseInner: { width: 17, height: 17, borderRadius: 8.5, backgroundColor: '#FF5A8C', borderWidth: 3, borderColor: '#FFFFFF' },
-  mapSmallPin: { position: 'absolute', right: 20, top: 30, width: 10, height: 10, borderRadius: 5, backgroundColor: '#76A7FF', borderWidth: 2, borderColor: '#FFFFFF' },
   sectionBlock: { marginHorizontal: 18, gap: 9 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { fontSize: 13, fontFamily: 'Montserrat_700Bold', color: '#1C251D' },
