@@ -33,7 +33,7 @@ import { SkeletonCard } from '@/components/SkeletonCard';
 import { MOCK_AUTHORS, Post, PostType } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
-import { geocodeAddress } from '@/services/zoohelpApi';
+import { geocodeAddress, getPlaceAddressDetails, searchAddressSuggestions } from '@/services/zoohelpApi';
 
 type FeedFilter = PostType | 'all' | 'ong';
 
@@ -72,6 +72,11 @@ export default function FeedScreen() {
   const [addressQuery, setAddressQuery] = useState('');
   const [addressSearching, setAddressSearching] = useState(false);
   const [addressResult, setAddressResult] = useState<{ label: string; latitude: number; longitude: number } | null>(null);
+  const [addressSuggestions, setAddressSuggestions] = useState<Array<{ id: string; label: string }>>([]);
+  const [addressLookupFailed, setAddressLookupFailed] = useState(false);
+  const [manualNeighborhood, setManualNeighborhood] = useState('');
+  const [manualCity, setManualCity] = useState('');
+  const [manualState, setManualState] = useState('');
   const quickInputRef = useRef<TextInput>(null);
 
   const scrollY = useSharedValue(0);
@@ -133,24 +138,40 @@ export default function FeedScreen() {
   useEffect(() => {
     const query = addressQuery.trim();
     setAddressResult(null);
-    if (!locationPickerOpen || query.length < 6) {
+    if (!locationPickerOpen || query.length < 3) {
       setAddressSearching(false);
+      setAddressSuggestions([]);
+      setAddressLookupFailed(false);
       return;
     }
 
     setAddressSearching(true);
+    setAddressLookupFailed(false);
     const timer = setTimeout(() => {
-      geocodeAddress(query)
+      searchAddressSuggestions(query)
+        .then((suggestions) => {
+          setAddressSuggestions(suggestions);
+          if (suggestions.length > 0) return null;
+          return geocodeAddress(query);
+        })
         .then((result) => {
-          if (!result) return;
+          if (!result) {
+            setAddressLookupFailed(true);
+            return;
+          }
           setAddressResult({
             label: result.label,
             latitude: result.latitude,
             longitude: result.longitude,
           });
         })
+        .catch(() => {
+          setAddressSuggestions([]);
+          setAddressResult(null);
+          setAddressLookupFailed(true);
+        })
         .finally(() => setAddressSearching(false));
-    }, 500);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [addressQuery, locationPickerOpen]);
@@ -190,6 +211,7 @@ export default function FeedScreen() {
       longitude: position.coords.longitude,
     });
     setQuickLocation('Localizacao atual');
+    setAddressLookupFailed(false);
     setLocationPickerOpen(false);
   }
 
@@ -200,6 +222,33 @@ export default function FeedScreen() {
       latitude: addressResult.latitude,
       longitude: addressResult.longitude,
     });
+    setAddressSuggestions([]);
+    setAddressLookupFailed(false);
+    setLocationPickerOpen(false);
+  }
+
+  function getManualLocationLabel() {
+    const cityState = [manualCity.trim(), manualState.trim()].filter(Boolean).join(' - ');
+    return [addressQuery.trim(), manualNeighborhood.trim(), cityState].filter(Boolean).join(', ');
+  }
+
+  async function applyAddressSuggestion(suggestion: { id: string; label: string }) {
+    setAddressSearching(true);
+    const details = await getPlaceAddressDetails(suggestion.id);
+    setAddressSearching(false);
+    const selected = details ?? await geocodeAddress(suggestion.label);
+    if (!selected) {
+      Alert.alert('Endereco nao encontrado', 'Nao foi possivel validar esse endereco no Google Maps.');
+      return;
+    }
+
+    const label = selected.label || suggestion.label;
+    setAddressQuery(label);
+    setAddressResult({ ...selected, label });
+    setQuickLocation(label);
+    setQuickCoords({ latitude: selected.latitude, longitude: selected.longitude });
+    setAddressSuggestions([]);
+    setAddressLookupFailed(false);
     setLocationPickerOpen(false);
   }
 
@@ -212,12 +261,25 @@ export default function FeedScreen() {
 
     let coords = quickCoords;
     let location = quickLocation;
-    if (!coords && Platform.OS === 'web') {
-      Alert.alert('Localizacao obrigatoria', 'Para pedir ajuda real, use o app mobile com GPS ativo.');
+    const manualLocation = getManualLocationLabel();
+    const manualAddress = manualLocation || addressQuery.trim();
+    if (!coords && manualAddress.length >= 3) {
+      const geocoded = await geocodeAddress(manualAddress).catch(() => null);
+      if (geocoded) {
+        coords = { latitude: geocoded.latitude, longitude: geocoded.longitude };
+        location = geocoded.label;
+        setQuickCoords(coords);
+        setQuickLocation(location);
+      } else {
+        location = manualAddress;
+      }
+    }
+    if (!coords && Platform.OS === 'web' && !location) {
+      Alert.alert('Localizacao obrigatoria', 'Digite rua, bairro, cidade e estado para publicar.');
       return;
     }
 
-    if (!coords) {
+    if (!coords && !location) {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
         Alert.alert('Localizacao obrigatoria', 'Para pedir ajuda real, permita o GPS. Assim o sistema alerta pessoas e ONGs proximas.');
@@ -272,6 +334,11 @@ export default function FeedScreen() {
       setQuickCoords(null);
       setAddressQuery('');
       setAddressResult(null);
+      setAddressSuggestions([]);
+      setAddressLookupFailed(false);
+      setManualNeighborhood('');
+      setManualCity('');
+      setManualState('');
       setLocationPickerOpen(false);
       setQuickUrgent(true);
       setActiveFilter('all');
@@ -427,20 +494,66 @@ export default function FeedScreen() {
 
           {locationPickerOpen && (
             <View style={[styles.locationPicker, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-              <View style={styles.locationInputRow}>
-                <MaterialCommunityIcons name="map-marker-outline" size={16} color={colors.mutedForeground} />
-                <TextInput
-                  style={[styles.locationInput, { color: colors.foreground }]}
-                  value={addressQuery}
-                  onChangeText={setAddressQuery}
-                  placeholder="Rua e numero"
-                  placeholderTextColor={colors.mutedForeground}
-                  returnKeyType="search"
-                />
+              <View style={styles.locationTopRow}>
+                <View style={styles.locationInputRow}>
+                  <MaterialCommunityIcons name="map-marker-outline" size={16} color={colors.mutedForeground} />
+                  <TextInput
+                    style={[styles.locationInput, { color: colors.foreground }]}
+                    value={addressQuery}
+                    onChangeText={setAddressQuery}
+                    placeholder="Rua e numero"
+                    placeholderTextColor={colors.mutedForeground}
+                    returnKeyType="search"
+                  />
+                </View>
+                <TouchableOpacity style={styles.gpsFallbackBtn} onPress={detectQuickLocation} activeOpacity={0.8}>
+                  <MaterialCommunityIcons name="crosshairs-gps" size={14} color={colors.primary} />
+                  <Text style={[styles.gpsFallbackText, { color: colors.primary }]}>Usar GPS atual</Text>
+                </TouchableOpacity>
               </View>
               {addressSearching && (
                 <Text style={[styles.locationHint, { color: colors.mutedForeground }]}>Buscando endereco...</Text>
               )}
+              {addressLookupFailed && addressQuery.trim().length >= 3 && (
+                <View style={styles.manualLocationRow}>
+                  <TextInput
+                    style={[styles.manualLocationInput, { color: colors.foreground, borderColor: colors.border }]}
+                    value={manualNeighborhood}
+                    onChangeText={setManualNeighborhood}
+                    placeholder="Bairro"
+                    placeholderTextColor={colors.mutedForeground}
+                  />
+                  <TextInput
+                    style={[styles.manualLocationInput, { color: colors.foreground, borderColor: colors.border }]}
+                    value={manualCity}
+                    onChangeText={setManualCity}
+                    placeholder="Cidade"
+                    placeholderTextColor={colors.mutedForeground}
+                  />
+                  <TextInput
+                    style={[styles.manualLocationInput, styles.manualStateInput, { color: colors.foreground, borderColor: colors.border }]}
+                    value={manualState}
+                    onChangeText={(value) => setManualState(value.toUpperCase())}
+                    placeholder="UF"
+                    placeholderTextColor={colors.mutedForeground}
+                    maxLength={2}
+                    autoCapitalize="characters"
+                  />
+                </View>
+              )}
+              {addressSuggestions.map((suggestion) => (
+                <TouchableOpacity
+                  key={suggestion.id}
+                  style={styles.addressResult}
+                  onPress={() => applyAddressSuggestion(suggestion)}
+                  activeOpacity={0.82}
+                >
+                  <MaterialCommunityIcons name="map-marker" size={15} color={colors.primary} />
+                  <Text style={[styles.addressResultText, { color: colors.foreground }]} numberOfLines={2}>
+                    {suggestion.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
               {addressResult && (
                 <TouchableOpacity style={styles.addressResult} onPress={applyAddressResult} activeOpacity={0.82}>
                   <MaterialCommunityIcons name="check-circle-outline" size={15} color={colors.primary} />
@@ -449,10 +562,6 @@ export default function FeedScreen() {
                   </Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity style={styles.gpsFallbackBtn} onPress={detectQuickLocation} activeOpacity={0.8}>
-                <MaterialCommunityIcons name="crosshairs-gps" size={14} color={colors.primary} />
-                <Text style={[styles.gpsFallbackText, { color: colors.primary }]}>Usar GPS atual</Text>
-              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -711,11 +820,19 @@ const styles = StyleSheet.create({
   locationPicker: {
     borderWidth: 1,
     borderRadius: 18,
-    padding: 10,
-    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 6,
+  },
+  locationTopRow: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   locationInputRow: {
-    minHeight: 36,
+    flex: 1,
+    minHeight: 28,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
@@ -730,6 +847,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'Montserrat_500Medium',
   },
+  manualLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  manualLocationInput: {
+    flex: 1,
+    height: 28,
+    borderWidth: 1,
+    borderRadius: 11,
+    paddingHorizontal: 9,
+    paddingVertical: 0,
+    fontSize: 11,
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+  manualStateInput: {
+    flex: 0,
+    width: 48,
+    textAlign: 'center',
+  },
   addressResult: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -742,11 +879,11 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   gpsFallbackBtn: {
-    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    minHeight: 28,
+    minHeight: 24,
+    flexShrink: 0,
   },
   gpsFallbackText: {
     fontSize: 11,
