@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
+  Image,
   Platform,
   StyleSheet,
   Text,
@@ -22,6 +23,10 @@ import { connectChatRoom, type ChatRealtimeStatus } from '@/services/chatRealtim
 import { formatChatMessageTime } from '@/services/timeFormat';
 import { createZooHelpApi } from '@/services/zoohelpApi';
 import type { ChatConversationContract } from '@/services/zoohelpEngine';
+
+// Ícone do relógio (mesmo do feed)
+const FEED_TIME_ICON =
+  'https://res.cloudinary.com/limpeja/image/upload/v1779576484/pngtree-vector-clock-icon-png-image_4152707_bfoxlj.jpg';
 
 interface Message {
   id: string;
@@ -46,6 +51,7 @@ export default function ChatRoomScreen() {
   const [room, setRoom] = useState<ChatConversationContract | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ChatRealtimeStatus>('connecting');
   const [text, setText] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(user?.id ?? null);
   const flatListRef = useRef<FlatList>(null);
 
   const participant = room?.participant ?? (authorName ? { name: authorName, verified: false } : null);
@@ -66,15 +72,18 @@ export default function ChatRoomScreen() {
     const api = createZooHelpApi();
 
     Promise.all([
+      api?.me().catch(() => null),
       api?.chatRoom(id).catch(() => null),
       api?.chatMessages(id).catch(() => []),
-    ]).then(([loadedRoom, items]) => {
+    ]).then(([currentUser, loadedRoom, items]) => {
       if (!mounted) return;
+      const nextUserId = currentUser?.user.id ?? user?.id ?? null;
+      setCurrentUserId(nextUserId);
       if (loadedRoom) setRoom(loadedRoom);
       setMessages((items ?? []).map((item) => ({
         id: item.id,
         text: item.body,
-        sender: item.senderId === user?.id ? 'me' : 'other',
+        sender: item.senderId === nextUserId ? 'me' : 'other',
         time: item.createdAt,
         status: 'sent',
       })));
@@ -86,7 +95,7 @@ export default function ChatRoomScreen() {
         appendMessage({
           id: event.messageId,
           text: event.body,
-          sender: event.senderId === user?.id ? 'me' : 'other',
+          sender: event.senderId === (currentUserId ?? user?.id) ? 'me' : 'other',
           time: event.createdAt,
           status: 'sent',
         });
@@ -97,7 +106,7 @@ export default function ChatRoomScreen() {
       mounted = false;
       realtime.close();
     };
-  }, [appendMessage, id, user?.id]);
+  }, [appendMessage, currentUserId, id, user?.id]);
 
   function sendMessage() {
     const body = text.trim();
@@ -144,6 +153,8 @@ export default function ChatRoomScreen() {
 
   function renderMessage({ item }: { item: Message }) {
     const isMe = item.sender === 'me';
+    const displayTime = formatChatMessageTime(item.time);
+    
     return (
       <View style={[styles.msgRow, isMe ? styles.msgRowMe : styles.msgRowOther]}>
         {!isMe && participant && <Avatar name={participant.name} size={28} imageUrl={'avatar' in participant ? participant.avatar : null} />}
@@ -158,9 +169,14 @@ export default function ChatRoomScreen() {
           <Text style={[styles.bubbleText, { color: isMe ? '#FFFFFF' : colors.foreground }]}>
             {item.text}
           </Text>
-          <Text style={[styles.bubbleTime, { color: isMe ? 'rgba(255,255,255,0.7)' : colors.mutedForeground }]}>
-            {item.status === 'sending' ? 'enviando' : item.status === 'failed' ? 'falhou' : formatChatMessageTime(item.time)}
-          </Text>
+          
+          {/* Time row with icon - EXACTLY like PostCard feedTimeRow */}
+          <View style={styles.feedTimeRow}>
+            <Image source={{ uri: FEED_TIME_ICON }} style={styles.feedTimeIcon}  />
+            <Text style={[styles.feedTimeText, { color: isMe ? 'rgba(255,255,255,0.7)' : colors.mutedForeground }]} numberOfLines={1}>
+              {item.status === 'sending' ? 'enviando' : item.status === 'failed' ? 'falhou' : displayTime}
+            </Text>
+          </View>
         </View>
       </View>
     );
@@ -221,17 +237,19 @@ export default function ChatRoomScreen() {
       </View>
 
       {isAdoptionChat && (
-        <View style={[styles.adoptionBanner, { backgroundColor: '#4CAF5010', borderColor: '#4CAF5030' }]}>
-          <View style={[styles.adoptionBannerIcon, { backgroundColor: '#4CAF5020' }]}>
-            <MaterialCommunityIcons name="home-heart" size={16} color="#4CAF50" />
+        <View style={styles.adoptionBanner}>
+          <View style={styles.adoptionBannerIcon}>
+            <MaterialCommunityIcons name="home-heart" size={15} color="#2D6A4F" />
           </View>
           <View style={styles.adoptionBannerInfo}>
-            <Text style={[styles.adoptionBannerTitle, { color: '#4CAF50' }]}>Pedido de adocao</Text>
+            <Text style={styles.adoptionBannerTitle}>Pedido de adocao</Text>
             <Text style={[styles.adoptionBannerPost, { color: colors.mutedForeground }]} numberOfLines={1}>
               {postName ? decodeURIComponent(postName) : room?.postTitle}
             </Text>
           </View>
-          <MaterialCommunityIcons name="paw" size={18} color="#4CAF5060" />
+          <View style={styles.adoptionBannerMark}>
+            <MaterialCommunityIcons name="paw" size={14} color="#8FB69B" />
+          </View>
         </View>
       )}
 
@@ -247,8 +265,8 @@ export default function ChatRoomScreen() {
         keyboardShouldPersistTaps="handled"
         scrollEnabled={!!messages.length}
         ListEmptyComponent={
-          <View style={styles.emptyChatWrap}>
-            <MaterialCommunityIcons name="chat-outline" size={36} color={colors.mutedForeground} />
+          <View style={[styles.emptyChatWrap, { opacity: 0.62 }]}>
+            <MaterialCommunityIcons name="chat-outline" size={38} color={colors.mutedForeground} />
             <Text style={[styles.emptyChatText, { color: colors.mutedForeground }]}>
               Nenhuma mensagem ainda
             </Text>
@@ -331,38 +349,59 @@ const styles = StyleSheet.create({
   },
   bubbleOther: { borderBottomLeftRadius: 4 },
   bubbleText: { fontSize: 15, fontFamily: 'Inter_400Regular', lineHeight: 21 },
-  bubbleTime: { fontSize: 10, fontFamily: 'Inter_400Regular', alignSelf: 'flex-end' },
+  
+  // Estilos do relógio (exatamente iguais ao PostCard)
+  feedTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  feedTimeIcon: { 
+    width: 13, 
+    height: 13, 
+    opacity: 0.72 
+  },
+  feedTimeText: { 
+    fontSize: 10, 
+    fontFamily: 'Montserrat_600SemiBold' 
+  },
+  
   adoptionBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 9,
     marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 14,
+    marginTop: 10,
+    marginBottom: 2,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    borderRadius: 16,
     borderWidth: 1,
+    backgroundColor: '#F6FAF6',
+    borderColor: '#DDECE1',
   },
   adoptionBannerIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#E8F3EA',
   },
   adoptionBannerInfo: { flex: 1 },
-  adoptionBannerTitle: { fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase' },
+  adoptionBannerTitle: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: '#2D6A4F' },
   adoptionBannerPost: { fontSize: 13, fontFamily: 'Inter_500Medium', marginTop: 1 },
+  adoptionBannerMark: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEF6F0' },
   emptyChatWrap: {
     flex: 1,
+    minHeight: 420,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 60,
-    gap: 10,
+    paddingBottom: 22,
+    gap: 9,
     transform: [{ scaleY: -1 }],
   },
-  emptyChatText: { fontSize: 14, fontFamily: 'Inter_400Regular' },
+  emptyChatText: { fontSize: 13, fontFamily: 'Inter_400Regular' },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
