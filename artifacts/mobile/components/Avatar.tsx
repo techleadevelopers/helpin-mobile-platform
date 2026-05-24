@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -10,6 +11,8 @@ interface AvatarProps {
   verified?: boolean;
   type?: 'person' | 'ong' | 'vet';
   bgColor?: string;
+  imageUrl?: string | null;
+  uploadPlaceholder?: boolean;
 }
 
 function getInitials(name: string): string {
@@ -30,7 +33,7 @@ function getAvatarColor(name: string): string {
   return palette[Math.abs(hash) % palette.length];
 }
 
-export function Avatar({ name, size = 40, verified = false, type, bgColor: bgColorProp }: AvatarProps) {
+export function Avatar({ name, size = 40, verified = false, type, bgColor: bgColorProp, imageUrl, uploadPlaceholder = false }: AvatarProps) {
   const colors = useColors();
   const initials = getInitials(name);
   const bgColor = bgColorProp ?? getAvatarColor(name);
@@ -46,13 +49,26 @@ export function Avatar({ name, size = 40, verified = false, type, bgColor: bgCol
             width: size,
             height: size,
             borderRadius: size / 2,
-            backgroundColor: bgColor,
+            backgroundColor: uploadPlaceholder && !imageUrl ? colors.muted : bgColor,
           },
         ]}
       >
-        <Text style={[styles.initials, { fontSize, color: '#FFFFFF' }]}>
-          {initials}
-        </Text>
+        {imageUrl ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={{ width: size, height: size, borderRadius: size / 2 }}
+            contentFit="cover"
+            transition={120}
+          />
+        ) : uploadPlaceholder ? (
+          <View style={styles.uploadPlaceholder}>
+            <MaterialCommunityIcons name="camera-plus-outline" size={Math.round(size * 0.48)} color={colors.mutedForeground} />
+          </View>
+        ) : (
+          <Text style={[styles.initials, { fontSize, color: '#FFFFFF' }]}>
+            {initials}
+          </Text>
+        )}
       </View>
       {verified && (
         <View
@@ -62,15 +78,15 @@ export function Avatar({ name, size = 40, verified = false, type, bgColor: bgCol
               width: badgeSize,
               height: badgeSize,
               borderRadius: badgeSize / 2,
-              backgroundColor: '#2F80ED',
+              backgroundColor: colors.card,
               bottom: -1,
               right: -1,
               borderColor: colors.background,
-              shadowColor: '#2F80ED',
+              shadowColor: '#7B8B8B',
             },
           ]}
         >
-          <MaterialCommunityIcons name="check" size={Math.round(badgeSize * 0.6)} color="#FFFFFF" />
+          <MaterialCommunityIcons name="check-decagram" size={Math.round(badgeSize * 0.9)} color="#7B8B8B" />
         </View>
       )}
     </View>
@@ -78,7 +94,8 @@ export function Avatar({ name, size = 40, verified = false, type, bgColor: bgCol
 }
 
 const styles = StyleSheet.create({
-  circle: { alignItems: 'center', justifyContent: 'center' },
+  circle: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  uploadPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   initials: { fontFamily: 'Montserrat_700Bold' },
   badge: {
     position: 'absolute',
