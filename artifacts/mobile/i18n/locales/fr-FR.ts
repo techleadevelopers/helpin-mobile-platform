@@ -129,7 +129,7 @@ const frFR: Translations = {
     deleteMessage: 'Toutes vos donní©es, publications et historique seront dí©finitivement supprimí©s.',
     deleteConfirm: 'Supprimer mon compte', deleteFinalTitle: 'íŠtes-vous absolument sí»r(e) ?',
     deleteFinalMessage: 'Cette action est irrí©versible.', deleteFinalConfirm: 'Oui, supprimer le compte',
-    footer: 'ZooHelp v1.0 Â· Protí©gez. Sauvez. Adoptez.',
+    footer: 'ZooHelp v1.0 · Protí©gez. Sauvez. Adoptez.',
   },
   publish: {
     title: 'Publier un cas', newPost: 'Nouvelle publication', caseType: 'Type de cas', animal: 'Animal',
@@ -142,7 +142,7 @@ const frFR: Translations = {
     errRequiredTitle: 'Champs obligatoires', errEmptyTitle: 'Publication vide',
   },
   ongs: {
-    title: 'ONG Ví©rifií©es', subtitle: '{{count}} organisations Â· confiance ví©rifií©e',
+    title: 'ONG Ví©rifií©es', subtitle: '{{count}} organisations · confiance ví©rifií©e',
     filterAll: 'Tous', statsSaved: 'Animaux sauví©s', statsAdopted: 'Adoptí©s', statsActive: 'Cas actifs',
     verified: 'Ví©rifií©e', following: 'Abonní©', follow: 'Suivre', help: 'Aider',
     cnpjVerified: 'SIRET ví©rifií©', activeCases: 'Activití© en cours', searchPlaceholder: 'ONG, cause ou ville...',
