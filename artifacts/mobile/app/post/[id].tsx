@@ -20,15 +20,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { StatusBadge } from '@/components/StatusBadge';
 import { StaticMapTiles } from '@/components/StaticMapTiles';
-import { POST_TYPE_CONFIG, type Post } from '@/constants/data';
+import { MOCK_AUTHORS, POST_TYPE_CONFIG, type Post } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
+import { getStoredAccessToken } from '@/services/secureSession';
 import { shareZooHelpItem } from '@/services/share';
 import { createZooHelpApi, mapPost } from '@/services/zoohelpApi';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+type StatOverlay = 'likes' | 'comments' | null;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const FEED_TIME_ICON =
+  'https://res.cloudinary.com/limpeja/image/upload/v1779576484/pngtree-vector-clock-icon-png-image_4152707_bfoxlj.jpg';
 
 const STATS: Array<{ icon: MCIcon; key: 'likes' | 'comments' | 'shares'; label: string }> = [
   { icon: 'heart-outline',          key: 'likes',    label: 'Curtidas' },
@@ -123,6 +127,8 @@ export default function PostDetailScreen() {
   const [remotePost, setRemotePost] = useState<Post | null>(null);
   const [followingAuthor, setFollowingAuthor] = useState(false);
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  const [contactOverlayOpen, setContactOverlayOpen] = useState(false);
+  const [statOverlay, setStatOverlay] = useState<StatOverlay>(null);
 
   const post = posts.find((p) => p.id === id) ?? remotePost;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -163,6 +169,11 @@ export default function PostDetailScreen() {
     lat: activePost.latitude ?? -23.5505,
     lng: activePost.longitude ?? -46.6333,
   };
+  const statOverlayTitle = statOverlay === 'likes' ? 'Curtidas' : 'Comentarios';
+  const statOverlayUsers = [
+    activePost.author,
+    ...MOCK_AUTHORS.filter((item) => item.id !== activePost.author.id),
+  ].slice(0, statOverlay === 'comments' ? 4 : 5);
 
   function handleLike() {
     setLiked(!isLiked);
@@ -175,6 +186,11 @@ export default function PostDetailScreen() {
       Alert.alert('Contato', 'Entre em contato pelo chat do aplicativo.');
       return;
     }
+    setContactOverlayOpen(true);
+  }
+
+  function handleOpenWhatsApp() {
+    if (!activePost.contact) return;
     const phone = activePost.contact.replace(/\D/g, '');
     const whatsappPhone = phone.startsWith('55') ? phone : `55${phone}`;
     Linking.openURL(`https://wa.me/${whatsappPhone}`).catch(() => {
@@ -184,7 +200,22 @@ export default function PostDetailScreen() {
 
   async function handleOpenChat() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const rooms = await createZooHelpApi()?.chatRooms({ postId: activePost.id }).catch(() => []);
+    const token = await getStoredAccessToken();
+    if (!token) {
+      Alert.alert('Entrar para conversar', 'Faca login para abrir o chat deste caso.');
+      return;
+    }
+
+    const rooms = await createZooHelpApi(() => token)?.chatRooms({ postId: activePost.id }).catch((error) => {
+      const status = typeof error?.status === 'number' ? error.status : null;
+      if (status === 401) {
+        Alert.alert('Sessao expirada', 'Entre novamente para abrir o chat deste caso.');
+      } else {
+        Alert.alert('Chat indisponivel', 'Nao foi possivel carregar o chat agora.');
+      }
+      return null;
+    });
+    if (!rooms) return;
     const room = rooms?.find((item) => item.postId === activePost.id);
     if (!room) {
       Alert.alert('Chat indisponivel', 'O chat deste caso ainda nao foi confirmado no servidor.');
@@ -196,16 +227,14 @@ export default function PostDetailScreen() {
   }
 
   function handleRoute() {
-    if (activePost.latitude == null || activePost.longitude == null) {
-      Alert.alert('Rota indisponivel', 'Este caso ainda nao tem coordenada confirmada.');
-      return;
-    }
-
     const label = encodeURIComponent(activePost.name || 'Caso ZooHelp');
-    const destination = `${activePost.latitude},${activePost.longitude}`;
+    const hasCoords = activePost.latitude != null && activePost.longitude != null;
+    const destination = hasCoords
+      ? `${activePost.latitude},${activePost.longitude}`
+      : encodeURIComponent(locationDisplay || activePost.location || activePost.neighborhood || activePost.name);
     const url =
       Platform.OS === 'ios'
-        ? `http://maps.apple.com/?daddr=${destination}&q=${label}`
+        ? `http://maps.apple.com/?daddr=${destination}&q=${label}&dirflg=d`
         : `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`;
     Linking.openURL(url).catch(() => {
       Alert.alert('Rota indisponivel', 'Nao foi possivel abrir o mapa agora.');
@@ -214,6 +243,14 @@ export default function PostDetailScreen() {
 
   function handleShare() {
     shareZooHelpItem(activePost.name, `${activePost.name} no ZooHelp: ${activePost.description}`);
+  }
+
+  function handleStatPress(key: 'likes' | 'comments' | 'shares') {
+    if (key === 'shares') {
+      handleShare();
+      return;
+    }
+    setStatOverlay(key);
   }
 
   const actionLabel =
@@ -242,12 +279,6 @@ export default function PostDetailScreen() {
             onPress={() => router.back()}
           >
             <MaterialCommunityIcons name="arrow-left" size={20} color={colors.foreground} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.shareFloatBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-            onPress={handleShare}
-          >
-            <MaterialCommunityIcons name="share-variant-outline" size={18} color={colors.foreground} />
           </TouchableOpacity>
         </View>
 
@@ -308,58 +339,9 @@ export default function PostDetailScreen() {
                     {followingAuthor ? 'Seguindo' : 'Seguir'}
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.chatBtn,
-                    {
-                      backgroundColor: colors.primary + '08',
-                      borderColor: colors.primary + '20',
-                    },
-                  ]}
-                  onPress={handleOpenChat}
-                  activeOpacity={0.85}
-                >
-                  <MaterialCommunityIcons name="message-outline" size={16} color={colors.primary} />
-                </TouchableOpacity>
               </TouchableOpacity>
             );
           })()}
-
-          {/* Title row */}
-          <View style={styles.titleRow}>
-            <View style={styles.titleInfo}>
-              <Text style={[styles.animalName, { color: colors.foreground }]}>{post.name}</Text>
-              {breedAgeParts.length > 0 && (
-                <View style={styles.breedAgeRow}>
-                  <Text style={[styles.breedAge, { color: colors.mutedForeground }]}>
-                    {breedAgeParts.join(' · ')}
-                  </Text>
-                </View>
-              )}
-            </View>
-            <TouchableOpacity
-              style={[
-                styles.likeBtn,
-                {
-                  backgroundColor: isLiked ? '#C95A5A10' : 'transparent',
-                  borderColor: isLiked ? '#C95A5A30' : colors.border,
-                },
-              ]}
-              onPress={handleLike}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons
-                name={isLiked ? 'heart' : 'heart-outline'}
-                size={22}
-                color={isLiked ? '#C95A5A' : colors.mutedForeground}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* Description */}
-          <View style={[styles.section, styles.aboutSection]}>
-            <Text style={[styles.description, { color: colors.foreground }]}>{post.description}</Text>
-          </View>
 
           {imageUris.length > 0 && (
             <View style={styles.photoSection}>
@@ -443,14 +425,75 @@ export default function PostDetailScreen() {
             </View>
           )}
 
+          {/* Title row */}
+          <View style={styles.titleRow}>
+            <View style={styles.titleInfo}>
+              <Text style={[styles.animalName, { color: colors.foreground }]}>{post.name}</Text>
+              <Text style={[styles.description, { color: colors.foreground }]}>{post.description}</Text>
+              {breedAgeParts.length > 0 && (
+                <View style={styles.breedAgeRow}>
+                  <Text style={[styles.breedAge, { color: colors.mutedForeground }]}>
+                    {breedAgeParts.join(' - ')}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.titleActions}>
+              <TouchableOpacity
+                style={[styles.titleIconBtn, { backgroundColor: '#F8FAF7', borderColor: colors.border }]}
+                onPress={handleShare}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name="share-variant-outline" size={17} color={colors.mutedForeground} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.titleIconBtn,
+                  {
+                    backgroundColor: isLiked ? '#C95A5A0F' : '#F8FAF7',
+                    borderColor: isLiked ? '#C95A5A24' : colors.border,
+                  },
+                ]}
+                onPress={handleLike}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons
+                  name={isLiked ? 'heart' : 'heart-outline'}
+                  size={18}
+                  color={isLiked ? '#C95A5A' : colors.mutedForeground}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
           {/* Location */}
           <View style={styles.locationRow}>
             <MaterialCommunityIcons name="map-marker-outline" size={12} color={colors.mutedForeground} />
-            <Text style={[styles.locationText, { color: colors.mutedForeground }]}>
+            <Text style={[styles.locationText, { color: colors.mutedForeground }]} numberOfLines={1} ellipsizeMode="tail">
               {locationDisplay}
             </Text>
-            <Text style={[styles.timeText, { color: colors.mutedForeground }]}>· {timeDisplay}</Text>
+            <View style={styles.feedTimeRow}>
+              <Image source={{ uri: FEED_TIME_ICON }} style={styles.feedTimeIcon} contentFit="contain" />
+              <Text style={[styles.feedTimeText, { color: colors.mutedForeground }]} numberOfLines={1}>
+                {timeDisplay}
+              </Text>
+            </View>
           </View>
+
+          <TouchableOpacity style={styles.rescueMapCard} onPress={handleRoute} activeOpacity={0.86}>
+            <View style={styles.rescueMapInfo}>
+              <Text style={styles.rescueMapTitle}>Area de resgate</Text>
+              <Text style={styles.rescueMapSubtitle}>Baseado na localizacao do caso</Text>
+              <Text style={styles.rescueMapLink}>{'Abrir rota ->'}</Text>
+            </View>
+            <View style={styles.rescueMapPreview}>
+              <StaticMapTiles latitude={mapCoords.lat} longitude={mapCoords.lng} zoom={13} opacity={0.92} />
+              <View style={styles.mapPulseOuter}>
+                <View style={styles.mapPulseInner} />
+              </View>
+              <View style={styles.mapSmallPin} />
+            </View>
+          </TouchableOpacity>
 
           {activePost.contact ? (
             <TouchableOpacity
@@ -465,7 +508,7 @@ export default function PostDetailScreen() {
               activeOpacity={0.85}
             >
               <View style={[styles.contactIcon, { backgroundColor: colors.primary + '12' }]}>
-                <MaterialCommunityIcons name="whatsapp" size={20} color={colors.primary} />
+                <MaterialCommunityIcons name="whatsapp" size={17} color={colors.primary} />
               </View>
               <View style={styles.contactInfo}>
                 <Text style={[styles.contactLabel, { color: colors.mutedForeground }]}>WhatsApp do caso</Text>
@@ -477,7 +520,7 @@ export default function PostDetailScreen() {
 
           {/* Tags */}
           {post.tags.length > 0 && (
-            <View style={styles.section}>
+            <View style={[styles.section, styles.tagSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Características</Text>
               <View style={styles.tagsRow}>
                 {post.tags.map((tag) => (
@@ -501,7 +544,7 @@ export default function PostDetailScreen() {
           {/* Stats */}
           <View style={styles.statsRow}>
             {STATS.map((stat) => (
-              <View
+              <TouchableOpacity
                 key={stat.label}
                 style={[
                   styles.statBox,
@@ -510,28 +553,17 @@ export default function PostDetailScreen() {
                     borderColor: colors.border,
                   },
                 ]}
+                onPress={() => handleStatPress(stat.key)}
+                activeOpacity={0.82}
               >
-                <MaterialCommunityIcons name={stat.icon} size={18} color={colors.mutedForeground} />
-                <Text style={[styles.statValue, { color: colors.foreground }]}>{post[stat.key]}</Text>
+                <View style={styles.statTopLine}>
+                  <MaterialCommunityIcons name={stat.icon} size={15} color={colors.mutedForeground} />
+                  <Text style={[styles.statValue, { color: colors.foreground }]}>{post[stat.key]}</Text>
+                </View>
                 <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{stat.label}</Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
-
-          <TouchableOpacity style={styles.rescueMapCard} onPress={handleRoute} activeOpacity={0.86}>
-            <View style={styles.rescueMapInfo}>
-              <Text style={styles.rescueMapTitle}>Area de resgate</Text>
-              <Text style={styles.rescueMapSubtitle}>Baseado na localizacao do caso</Text>
-              <Text style={styles.rescueMapLink}>{'Abrir rota ->'}</Text>
-            </View>
-            <View style={styles.rescueMapPreview}>
-              <StaticMapTiles latitude={mapCoords.lat} longitude={mapCoords.lng} zoom={13} opacity={0.92} />
-              <View style={styles.mapPulseOuter}>
-                <View style={styles.mapPulseInner} />
-              </View>
-              <View style={styles.mapSmallPin} />
-            </View>
-          </TouchableOpacity>
 
           <View style={{ height: bottomPad + 80 }} />
         </View>
@@ -596,6 +628,69 @@ export default function PostDetailScreen() {
           )}
         </View>
       </Modal>
+
+      <Modal transparent visible={contactOverlayOpen} animationType="fade" onRequestClose={() => setContactOverlayOpen(false)}>
+        <View style={styles.contactOverlayRoot}>
+          <TouchableOpacity style={styles.contactOverlayBackdrop} activeOpacity={1} onPress={() => setContactOverlayOpen(false)} />
+          <View style={[styles.contactSheet, { paddingBottom: bottomPad + 16 }]}>
+            <View style={styles.contactSheetHandle} />
+            <View style={styles.contactSheetHeader}>
+              <View style={styles.contactSheetIcon}>
+                <MaterialCommunityIcons name="whatsapp" size={21} color="#2D6A4F" />
+              </View>
+              <TouchableOpacity style={styles.contactSheetClose} onPress={() => setContactOverlayOpen(false)} activeOpacity={0.8}>
+                <MaterialCommunityIcons name="close" size={18} color="#5F6861" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.contactSheetTitle}>Contato do caso</Text>
+            <Text style={styles.contactSheetText}>
+              Fale com gentileza, informe que viu o caso no ZooHelp e combine os detalhes com seguranca antes de se deslocar.
+            </Text>
+            <View style={styles.contactPhoneBox}>
+              <Text style={styles.contactPhoneLabel}>WhatsApp do caso</Text>
+              <Text style={styles.contactPhoneValue}>{contactDisplay || 'Indisponivel'}</Text>
+            </View>
+            <TouchableOpacity style={styles.contactWhatsAppBtn} onPress={handleOpenWhatsApp} activeOpacity={0.86}>
+              <MaterialCommunityIcons name="whatsapp" size={18} color="#FFFFFF" />
+              <Text style={styles.contactWhatsAppText}>Abrir WhatsApp</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={statOverlay !== null} animationType="fade" onRequestClose={() => setStatOverlay(null)}>
+        <View style={styles.statOverlayRoot}>
+          <TouchableOpacity style={styles.statOverlayBackdrop} activeOpacity={1} onPress={() => setStatOverlay(null)} />
+          <View style={styles.statSheet}>
+            <View style={styles.statSheetHeader}>
+              <Text style={styles.statSheetTitle}>{statOverlayTitle}</Text>
+              <TouchableOpacity style={styles.statSheetClose} onPress={() => setStatOverlay(null)} activeOpacity={0.8}>
+                <MaterialCommunityIcons name="close" size={15} color="#5F6861" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.statPeopleList}>
+              {statOverlayUsers.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.statPersonRow}
+                  onPress={() => {
+                    setStatOverlay(null);
+                    router.push({ pathname: '/(tabs)/user/[id]', params: { id: item.id } });
+                  }}
+                  activeOpacity={0.84}
+                >
+                  <Avatar name={item.name} size={30} verified={item.verified} type={item.type} imageUrl={item.avatar} />
+                  <View style={styles.statPersonInfo}>
+                    <Text style={styles.statPersonName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={styles.statPersonMeta}>{item.type === 'ong' ? 'ONG' : item.type === 'vet' ? 'Veterinario' : 'Protetor'}</Text>
+                  </View>
+                  <MaterialCommunityIcons name={statOverlay === 'likes' ? 'heart-outline' : 'comment-outline'} size={14} color="#7C867C" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -625,10 +720,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 0.5,
   },
-  content: { padding: 18, paddingTop: 10, gap: 16 },
+  content: { padding: 18, paddingTop: 10, gap: 14 },
 
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  titleInfo: { flex: 1, gap: 4 },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingHorizontal: 2,
+    paddingVertical: 2,
+  },
+  titleInfo: { flex: 1, gap: 5 },
   animalName: {
     fontSize: 22,
     fontFamily: 'Montserrat_700Bold',
@@ -637,37 +738,42 @@ const styles = StyleSheet.create({
   breedAgeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   breedAge: { fontSize: 12, fontFamily: 'Montserrat_400Regular', opacity: 0.7 },
   dot: { width: 3, height: 3, borderRadius: 1.5, opacity: 0.5 },
-  likeBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  titleActions: { flexDirection: 'row', gap: 6 },
+  titleIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+    borderWidth: 0.5,
   },
 
-  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  locationText: { fontSize: 12, fontFamily: 'Montserrat_400Regular', flex: 1 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 2 },
+  locationText: { fontSize: 12, fontFamily: 'Montserrat_400Regular', maxWidth: 150 },
   timeText: { fontSize: 11, fontFamily: 'Montserrat_400Regular', opacity: 0.6 },
+  feedTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  feedTimeIcon: { width: 13, height: 13, opacity: 0.72 },
+  feedTimeText: { fontSize: 10, fontFamily: 'Montserrat_600SemiBold' },
 
   contactCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    padding: 12,
-    borderRadius: 14,
+    gap: 9,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    borderRadius: 16,
     borderWidth: 0.5,
   },
   contactIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },
   contactInfo: { flex: 1, gap: 2 },
-  contactLabel: { fontSize: 11, fontFamily: 'Montserrat_500Medium' },
-  contactNumber: { fontSize: 15, fontFamily: 'Montserrat_700Bold' },
+  contactLabel: { fontSize: 10, fontFamily: 'Montserrat_500Medium' },
+  contactNumber: { fontSize: 13, fontFamily: 'Montserrat_700Bold' },
 
   infoChipsRow: { flexDirection: 'row', gap: 8, marginTop: 2 },
   infoChip: {
@@ -714,7 +820,7 @@ const styles = StyleSheet.create({
   },
 
   section: { gap: 6 },
-  aboutSection: { marginTop: -16, left: 10 },
+  aboutSection: { marginTop: -6, padding: 14, borderRadius: 18, borderWidth: 0.5 },
   sectionTitle: {
     fontSize: 15,
     fontFamily: 'Montserrat_600SemiBold',
@@ -722,7 +828,15 @@ const styles = StyleSheet.create({
   },
   description: { fontSize: 14, fontFamily: 'Montserrat_400Regular', lineHeight: 21, opacity: 0.85 },
 
-  photoSection: { marginTop: -8, position: 'relative' },
+  photoSection: {
+    marginTop: -2,
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
+    elevation: 3,
+  },
   photoBadgesOverlay: {
     position: 'absolute',
     top: 8,
@@ -770,8 +884,60 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.16)',
   },
   imageModalPhoto: { width: SCREEN_WIDTH, height: '78%' },
+  contactOverlayRoot: { flex: 1, justifyContent: 'flex-end' },
+  contactOverlayBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(20,28,22,0.28)' },
+  contactSheet: {
+    marginHorizontal: 10,
+    marginBottom: 10,
+    paddingTop: 8,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E6ECE7',
+  },
+  contactSheetHandle: { alignSelf: 'center', width: 34, height: 4, borderRadius: 2, backgroundColor: '#DDE5DF', marginBottom: 14 },
+  contactSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  contactSheetIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EAF3EC' },
+  contactSheetClose: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F4F6F3' },
+  contactSheetTitle: { fontSize: 18, fontFamily: 'Montserrat_700Bold', color: '#172018' },
+  contactSheetText: { marginTop: 6, fontSize: 12, fontFamily: 'Montserrat_500Medium', color: '#5E6962', lineHeight: 18 },
+  contactPhoneBox: { marginTop: 14, padding: 13, borderRadius: 16, backgroundColor: '#F8FAF7', borderWidth: 1, borderColor: '#E8EDE8' },
+  contactPhoneLabel: { fontSize: 10, fontFamily: 'Montserrat_600SemiBold', color: '#7C867C' },
+  contactPhoneValue: { marginTop: 2, fontSize: 17, fontFamily: 'Montserrat_700Bold', color: '#102018' },
+  contactWhatsAppBtn: { marginTop: 12, height: 46, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2D6A4F' },
+  contactWhatsAppText: { fontSize: 13, fontFamily: 'Montserrat_700Bold', color: '#FFFFFF' },
+  statOverlayRoot: { flex: 1, justifyContent: 'flex-end' },
+  statOverlayBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(20,28,22,0.18)' },
+  statSheet: {
+    marginHorizontal: 14,
+    marginBottom: 88,
+    padding: 12,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E6ECE7',
+    shadowColor: '#172018',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 5,
+  },
+  statSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  statSheetTitle: { fontSize: 14, fontFamily: 'Montserrat_700Bold', color: '#172018' },
+  statSheetClose: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F4F6F3' },
+  statPeopleList: { gap: 6 },
+  statPersonRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8, borderRadius: 14, backgroundColor: '#F8FAF7' },
+  statPersonInfo: { flex: 1 },
+  statPersonName: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#172018' },
+  statPersonMeta: { marginTop: 1, fontSize: 9, fontFamily: 'Montserrat_600SemiBold', color: '#7C867C' },
 
   tagsRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  tagSection: {
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 0.5,
+  },
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -782,17 +948,26 @@ const styles = StyleSheet.create({
   },
   tagText: { fontSize: 11, fontFamily: 'Montserrat_500Medium' },
 
-  statsRow: { flexDirection: 'row', gap: 8 },
+  statsRow: { flexDirection: 'row', gap: 7 },
   statBox: {
     flex: 1,
     alignItems: 'center',
-    padding: 10,
-    borderRadius: 14,
-    gap: 4,
+    justifyContent: 'center',
+    minHeight: 42,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 15,
+    gap: 2,
     borderWidth: 0.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.035,
+    shadowRadius: 10,
+    elevation: 1,
   },
-  statValue: { fontSize: 16, fontFamily: 'Montserrat_700Bold' },
-  statLabel: { fontSize: 10, fontFamily: 'Montserrat_500Medium', textAlign: 'center' },
+  statTopLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  statValue: { fontSize: 13, fontFamily: 'Montserrat_700Bold', lineHeight: 15 },
+  statLabel: { fontSize: 8, fontFamily: 'Montserrat_600SemiBold', textAlign: 'center', lineHeight: 10 },
 
   rescueMapCard: {
     height: 96,
