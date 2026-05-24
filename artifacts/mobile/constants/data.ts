@@ -33,6 +33,14 @@ export interface Post {
   tags: string[];
   latitude?: number;
   longitude?: number;
+  locationAddress?: {
+    street: string;
+    number: string;
+    neighborhood: string;
+    city: string;
+    state: string;
+    complement?: string;
+  };
   distanceKm?: number;
 }
 
