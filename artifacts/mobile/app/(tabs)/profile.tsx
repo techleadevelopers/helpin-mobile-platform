@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Alert,
   Platform,
@@ -32,6 +32,7 @@ import { getStaticMapUrl } from '@/services/zoohelpApi';
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 const MENU_ITEMS: Array<{ icon: MCIcon; label: string; badge?: string; color: string; route?: string }> = [
+  { icon: 'account-circle-outline', label: 'Meu perfil', color: '#2D6A4F' },
   { icon: 'lightning-bolt-outline', label: 'Minha atividade', color: '#2D6A4F', route: '/activity' },
   { icon: 'bell-badge-outline', label: 'Notificacoes', badge: '3', color: '#FF5A7A', route: '/notifications' },
   { icon: 'heart-outline', label: 'Meus favoritos', color: '#E84D6A', route: '/favorites' },
@@ -41,8 +42,6 @@ const MENU_ITEMS: Array<{ icon: MCIcon; label: string; badge?: string; color: st
   { icon: 'shield-check-outline', label: 'Privacidade e seguranca', color: '#3D7B7B', route: '/privacy' },
   { icon: 'cog-outline', label: 'Configuracoes', color: '#6B7280', route: '/settings' },
 ];
-
-const WEEK_DAYS = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
 
 export default function ProfileScreen() {
   const colors = useColors();
@@ -57,42 +56,20 @@ export default function ProfileScreen() {
   const [isAlertOverlayVisible, setIsAlertOverlayVisible] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const topPad = Platform.OS === 'web' ? 56 : insets.top;
+  const topPad = Platform.OS === 'web' ? 16 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
   const displayName = user?.name || '';
   const accountLabel = user?.type === 'ong' ? 'ONG verificada' : user?.type === 'vet' ? 'Veterinario' : 'Protetor animal';
   const myPosts = MOCK_POSTS.slice(0, 3);
 
-  const impactStats = useMemo(
-    () => [
-      { icon: 'paw' as MCIcon, value: user?.postsCount ?? 12, label: 'Posts' },
-      { icon: 'hand-heart' as MCIcon, value: user?.helpedCount ?? 8, label: 'Ajudas' },
-      { icon: 'home-heart' as MCIcon, value: user?.adoptionsCount ?? 3, label: 'Adocoes' },
-      { icon: 'map-marker-radius' as MCIcon, value: '8 km', label: 'Raio' },
-    ],
-    [user?.adoptionsCount, user?.helpedCount, user?.postsCount],
-  );
-
-  const cardScale = useSharedValue(1);
   const logoutScale = useSharedValue(1);
 
-  const animatedCardStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: cardScale.value }],
-  }));
   const animatedLogoutStyle = useAnimatedStyle(() => ({
     transform: [{ scale: logoutScale.value }],
   }));
 
   if (isLoading) return null;
   if (!isAuthenticated || !user) return <Redirect href="/login" />;
-
-  function pressCardIn() {
-    cardScale.value = withSpring(0.985, { damping: 20, stiffness: 400 });
-  }
-
-  function pressCardOut() {
-    cardScale.value = withSpring(1, { damping: 20, stiffness: 400 });
-  }
 
   async function detectLocation() {
     if (Platform.OS === 'web') {
@@ -183,7 +160,7 @@ export default function ProfileScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: bottomPad + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-      <View style={[styles.profileTopBar, { paddingTop: topPad + 8 }]}>
+      <View style={[styles.profileTopBar, { paddingTop: topPad + 6 }]}>
         <TouchableOpacity style={styles.profileIconBtn} activeOpacity={0.78} onPress={() => router.push('/settings')}>
           <MaterialCommunityIcons name="tune-variant" size={18} color="#2D6A4F" />
         </TouchableOpacity>
@@ -237,51 +214,6 @@ export default function ProfileScreen() {
           </Text>
         </TouchableOpacity>
       </View>
-
-      <Animated.View style={animatedCardStyle}>
-        <TouchableOpacity
-          style={styles.activityCard}
-          activeOpacity={1}
-          onPressIn={pressCardIn}
-          onPressOut={pressCardOut}
-        >
-          <View style={styles.cardHeaderRow}>
-            <View>
-              <Text style={styles.cardTitle}>Impacto</Text>
-              <Text style={styles.cardSubtitle}>Ultimos 7 dias</Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => setIsAlertOverlayVisible(true)}
-              activeOpacity={0.82}
-              accessibilityRole="button"
-              accessibilityLabel="Abrir alertas de resgate"
-            >
-              <LinearGradient colors={['#FF7AB8', '#FF4F8E']} style={styles.goalBubble}>
-                <Text style={styles.goalText}>3 alertas</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.statsGrid}>
-            {impactStats.map((stat) => (
-              <View key={stat.label} style={styles.statBox}>
-                <MaterialCommunityIcons name={stat.icon} size={16} color="#2D6A4F" />
-                <Text style={styles.statValue}>{stat.value}</Text>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.weekRow}>
-            {WEEK_DAYS.map((day, index) => (
-              <View key={`${day}-${index}`} style={styles.weekItem}>
-                <Text style={[styles.weekText, index === 2 && styles.weekTextActive]}>{day}</Text>
-                <View style={[styles.weekDot, index === 2 && styles.weekDotActive]} />
-              </View>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
 
       <View style={styles.routeCard}>
         <View style={styles.routeInfo}>
@@ -351,7 +283,9 @@ export default function ProfileScreen() {
               activeOpacity={0.85}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                if (item.route) router.push(item.route as any);
+                if (item.label === 'Meu perfil' && user?.id) {
+                  router.push({ pathname: '/(tabs)/user/[id]', params: { id: user.id } });
+                } else if (item.route) router.push(item.route as any);
                 else if (item.label === 'Convidar amigos') {
                   shareZooHelpItem('ZooHelp', 'Conheca o ZooHelp e ajude animais perto de voce.');
                 }
@@ -509,7 +443,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FFFFFF',
   },
-  avatarLift: { alignItems: 'center', marginTop: 6 },
+  avatarLift: { alignItems: 'center', marginTop: 0 },
   avatarRing: {
     width: 104,
     height: 104,
@@ -582,55 +516,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#EAF7EF',
   },
   locationText: { maxWidth: 220, fontSize: 10, fontFamily: 'Montserrat_600SemiBold', color: '#2D6A4F' },
-  activityCard: {
-    marginHorizontal: 18,
-    marginTop: 6,
-    padding: 16,
-    borderRadius: 24,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#9AA49A',
-    shadowOpacity: 0.14,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 4,
-  },
-  cardHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardTitle: { fontSize: 14, fontFamily: 'Montserrat_700Bold', color: '#1C251D' },
-  cardSubtitle: { marginTop: 2, fontSize: 10, fontFamily: 'Montserrat_500Medium', color: '#A1A8A1' },
-  goalBubble: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#FF4F8E',
-    shadowOpacity: 0.24,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-  },
-  goalText: { fontSize: 11, fontFamily: 'Montserrat_700Bold', color: '#FFFFFF', textAlign: 'center' },
-  statsGrid: {
-    marginTop: 4,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    rowGap: 14,
-  },
-  statBox: { width: '50%', gap: 2 },
-  statValue: { fontSize: 14, fontFamily: 'Montserrat_400Regular', color: '#253026' },
-  statLabel: { fontSize: 9, fontFamily: 'Montserrat_400Regular', color: '#909890' },
-  weekRow: {
-    marginTop: 14,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#EEF1EC',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  weekItem: { alignItems: 'center', gap: 6 },
-  weekText: { fontSize: 10, fontFamily: 'Montserrat_700Bold', color: '#A3AAA3' },
-  weekTextActive: { color: '#1C251D' },
-  weekDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: 'transparent' },
-  weekDotActive: { backgroundColor: '#FF5A8C' },
   routeCard: {
     marginHorizontal: 18,
     minHeight: 96,
