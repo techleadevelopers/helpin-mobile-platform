@@ -19,6 +19,7 @@ interface User {
   avatar: string | null;
   bio: string;
   type: 'person' | 'ong' | 'vet';
+  gender?: 'male' | 'female' | null;
   verified: boolean;
   verificationStatus?: string | null;
   postsCount: number;
@@ -42,6 +43,7 @@ interface AppContextType {
     type?: 'person' | 'ong',
     profile?: {
       avatar?: string | null;
+      gender?: 'male' | 'female' | null;
       ongType?: string;
       cnpj?: string;
       phone?: string;
@@ -270,6 +272,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       avatar: response.user.avatar,
       bio: response.user.bio,
       type: response.user.type,
+      gender: response.user.gender ?? null,
       verified: isApprovedOng,
       verificationStatus: ongVerificationStatus,
       postsCount: response.user.postsCount,
