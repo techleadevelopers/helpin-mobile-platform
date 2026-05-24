@@ -211,6 +211,12 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
+        name="search"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="user/[id]"
         options={{
           href: null,
