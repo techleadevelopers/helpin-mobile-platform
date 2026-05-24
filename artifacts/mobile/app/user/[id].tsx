@@ -19,10 +19,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
+import { OperationalStatus } from '@/components/OperationalStatus';
 import { StatusBadge } from '@/components/StatusBadge';
 import { AUTHOR_TO_ONG, MOCK_AUTHORS, MOCK_ONGS, MOCK_POSTS, type Author, type Post } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { shareZooHelpItem } from '@/services/share';
+import { createZooHelpApi } from '@/services/zoohelpApi';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 type ProfileTab = 'posts' | 'active' | 'resolved' | 'about';
@@ -55,10 +57,24 @@ function isActive(post: Post) {
 }
 
 function getAuthorLocation(posts: Post[]) {
-  const firstWithLocation = posts.find((post) => post.neighborhood || post.location);
+  const firstWithLocation = posts.find((post) => post.location || post.neighborhood);
   // Usa apenas neighborhood se existir, senão usa location
-  const locationText = firstWithLocation?.neighborhood || firstWithLocation?.location;
-  return locationText || 'Brasil';
+  const locationText = firstWithLocation?.location || firstWithLocation?.neighborhood;
+  if (!locationText) return 'Brasil';
+
+  const parts = locationText
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const stateIndex = parts.findIndex((part) => /^[A-Z]{2}$/i.test(part));
+  const city = stateIndex > 0 ? parts[stateIndex - 1] : null;
+  const state = stateIndex >= 0 ? parts[stateIndex].toUpperCase() : null;
+  if (city && state) return `${city}-${state}`;
+
+  const cityState = parts.find((part) => /-\s*[A-Z]{2}$/i.test(part));
+  if (cityState) return cityState.replace(/\s*-\s*/g, '-');
+
+  return locationText;
 }
 
 function getAuthorBio(author: Author, posts: Post[]) {
@@ -162,8 +178,23 @@ export default function PublicUserProfileScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
-  function handleMessage() {
-    Alert.alert('Mensagem', 'O chat direto do perfil sera conectado ao backend de conversas.');
+  async function handleMessage() {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    const chatPost = activePosts[0] ?? profilePosts[0];
+    const rooms = await createZooHelpApi()?.chatRooms(chatPost ? { postId: chatPost.id } : {}).catch(() => null);
+    const room =
+      (chatPost ? rooms?.find((item) => item.postId === chatPost.id) : null) ??
+      rooms?.find((item) => item.participant.id === author.id);
+
+    if (room) {
+      router.push(
+        `/chat/${room.id}?postName=${encodeURIComponent(room.postTitle)}&authorName=${encodeURIComponent(room.participant.name)}`
+      );
+      return;
+    }
+
+    Alert.alert('Chat indisponivel', 'Ainda nao existe uma conversa confirmada com este perfil.');
   }
 
   function handleShare() {
@@ -363,6 +394,7 @@ export default function PublicUserProfileScreen() {
                     <StatusBadge type={post.type} urgent={post.urgent && !isResolved(post)} resolved={isResolved(post)} size="xs" hideType />
                   </View>
                   <Text style={styles.postDescription} numberOfLines={2}>{post.description}</Text>
+                  <OperationalStatus post={post} variant="compact" />
                   <View style={styles.postMeta}>
                     <View style={styles.postEngagement}>
                       <MaterialCommunityIcons name="heart-outline" size={13} color="#6D766F" />
