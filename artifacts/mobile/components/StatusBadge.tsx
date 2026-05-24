@@ -29,10 +29,12 @@ const TYPE_GRADIENTS: Record<PostType, [string, string]> = {
 interface StatusBadgeProps {
   type: PostType;
   urgent?: boolean;
+  resolved?: boolean;
   size?: 'sm' | 'md';
+  hideType?: boolean;
 }
 
-export function StatusBadge({ type, urgent, size = 'md' }: StatusBadgeProps) {
+export function StatusBadge({ type, urgent, resolved, size = 'md', hideType = false }: StatusBadgeProps) {
   const config = POST_TYPE_CONFIG[type];
   const isSmall = size === 'sm';
   const iconSize = isSmall ? 11 : 13;
@@ -40,40 +42,58 @@ export function StatusBadge({ type, urgent, size = 'md' }: StatusBadgeProps) {
 
   return (
     <View style={styles.row}>
-      <LinearGradient
-        colors={gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[
-          styles.badge,
-          {
-            shadowColor: config.bgColor,
-          },
-          isSmall && styles.badgeSm,
-        ]}
-      >
-        <View style={[styles.iconBubble, isSmall && styles.iconBubbleSm]}>
-          <MaterialCommunityIcons name={TYPE_ICONS[type]} size={iconSize} color="#FFFFFF" />
-        </View>
-        <Text style={[styles.label, isSmall && styles.labelSm]}>
-          {config.label}
-        </Text>
-      </LinearGradient>
-      {urgent && (
+      {!hideType && (
         <LinearGradient
-          colors={['rgba(55,35,30,0.82)', 'rgba(30,24,22,0.78)']}
+          colors={gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[
+            styles.badge,
+            {
+              shadowColor: config.bgColor,
+            },
+            isSmall && styles.badgeSm,
+          ]}
+        >
+          <View style={[styles.iconBubble, isSmall && styles.iconBubbleSm]}>
+            <MaterialCommunityIcons name={TYPE_ICONS[type]} size={iconSize} color="#FFFFFF" />
+          </View>
+          <Text style={[styles.label, isSmall && styles.labelSm]}>
+            {config.label}
+          </Text>
+        </LinearGradient>
+      )}
+      {resolved ? (
+        <LinearGradient
+          colors={['#2D6A4F', '#1F513B']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[
+            styles.badge,
+            styles.resolvedBadge,
+            { shadowColor: '#2D6A4F' },
+            isSmall && styles.badgeSm,
+          ]}
+        >
+          <View style={[styles.iconBubble, styles.resolvedIconBubble, isSmall && styles.iconBubbleSm]}>
+            <MaterialCommunityIcons name="check-circle" size={iconSize} color="#FFFFFF" />
+          </View>
+          <Text style={[styles.label, styles.resolvedLabel, isSmall && styles.labelSm]}>
+            RESOLVIDO
+          </Text>
+        </LinearGradient>
+      ) : urgent && (
+        <LinearGradient
+          colors={['#D94B3D', '#C7332A']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[
             styles.badge,
             styles.urgentBadge,
-            { shadowColor: '#2A211F' },
+            { shadowColor: '#D94B3D' },
             isSmall && styles.badgeSm,
           ]}
         >
-          <View style={[styles.iconBubble, styles.urgentIconBubble, isSmall && styles.iconBubbleSm]}>
-            <MaterialCommunityIcons name="lightning-bolt" size={iconSize} color="#FFFFFF" />
-          </View>
           <Text style={[styles.label, styles.urgentLabel, isSmall && styles.labelSm]}>
             URGENTE
           </Text>
@@ -129,11 +149,21 @@ const styles = StyleSheet.create({
   },
   urgentBadge: {
     shadowOpacity: 0.24,
+    paddingHorizontal: 10,
+  },
+  resolvedBadge: {
+    shadowOpacity: 0.2,
   },
   urgentLabel: {
     color: '#FFFFFF',
   },
+  resolvedLabel: {
+    color: '#FFFFFF',
+  },
   urgentIconBubble: {
+    backgroundColor: 'rgba(255,255,255,0.24)',
+  },
+  resolvedIconBubble: {
     backgroundColor: 'rgba(255,255,255,0.24)',
   },
 });
