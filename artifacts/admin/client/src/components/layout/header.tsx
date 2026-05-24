@@ -8,11 +8,11 @@ interface HeaderProps {
 
 export default function Header({ title, subtitle }: HeaderProps) {
   return (
-    <header className="glass-header border-b border-gray-100 px-8 py-6 shadow-sm">
+    <header className="glass-header border-b border-gray-100 px-6 py-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-          <p className="text-gray-600 mt-1">{subtitle}</p>
+          <h1 className="text-xl font-semibold tracking-tight text-gray-950">{title}</h1>
+          <p className="mt-0.5 text-sm text-gray-500">{subtitle}</p>
         </div>
         
         <div className="flex items-center space-x-4">
@@ -21,14 +21,14 @@ export default function Header({ title, subtitle }: HeaderProps) {
             <Input
               type="text"
               placeholder="Busque ou pressione Ctrl+K"
-              className="pl-10 w-64 border-gray-200 rounded-xl focus:ring-2 focus:ring-light-blue focus:border-transparent"
+              className="h-9 w-64 rounded-xl border-gray-200 pl-10 text-sm focus:border-transparent focus:ring-2 focus:ring-light-blue"
             />
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
           </div>
           
           {/* Notifications */}
-          <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl relative">
-            <Bell size={20} />
+          <button className="relative rounded-xl p-2 text-gray-400 hover:bg-gray-50 hover:text-gray-600">
+            <Bell size={18} />
             <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
               3
             </span>
