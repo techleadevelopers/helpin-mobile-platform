@@ -473,6 +473,14 @@ export class ZooHelpEngine {
     tags?: string[];
     latitude?: number;
     longitude?: number;
+    locationAddress?: {
+      street: string;
+      number: string;
+      neighborhood: string;
+      city: string;
+      state: string;
+      complement?: string;
+    };
     idempotencyKey?: string;
   }) {
     const { idempotencyKey, ...body } = input;
@@ -735,6 +743,22 @@ export class ZooHelpEngine {
       {
         method: "POST",
         body: JSON.stringify({ reason, details }),
+      },
+    );
+  }
+
+  confirmRescueResponse(postId: string, input: { status?: "confirmed" | "cancelled" | "arrived"; lat?: number; lng?: number; etaSeconds?: number } = {}) {
+    return this.request<{ response: unknown }>(
+      `/v1/posts/${encodeURIComponent(postId)}/rescue-response`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          action: "going",
+          status: input.status ?? "confirmed",
+          lat: input.lat,
+          lng: input.lng,
+          etaSeconds: input.etaSeconds,
+        }),
       },
     );
   }
