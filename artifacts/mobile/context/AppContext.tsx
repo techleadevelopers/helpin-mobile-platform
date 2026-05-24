@@ -1,13 +1,16 @@
 ﻿import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, Platform } from 'react-native';
 
 import { Post } from '@/constants/data';
 import { loadCachedFeed, saveCachedFeed } from '@/services/feedCache';
+import { getCurrentCoordsIfGranted } from '@/services/locationService';
 import { enqueuePost, listPendingPosts, markPendingPostAttempt, removePendingPost } from '@/services/postOutbox';
 import { enqueueRescueOperation, flushRescueOutbox, listPendingRescueOperations } from '@/services/rescueOutbox';
 import { registerRescueAlerts } from '@/services/rescueNotifications';
 import { clearSessionTokens, getSecureItem, setSecureItem, REFRESH_TOKEN_KEY } from '@/services/secureSession';
 import { AUTH_TOKEN_KEY, createZooHelpApi, mapPost, supportPaymentsEnabled, uploadLocalImageToCloudinary } from '@/services/zoohelpApi';
+import { ZooHelpApiError } from '@/services/zoohelpEngine';
 
 interface User {
   id: string;
@@ -30,6 +33,7 @@ interface AppContextType {
   posts: Post[];
   likedPosts: string[];
   followedOngs: string[];
+  followedUsers: string[];
   login: (email: string, password: string) => Promise<User>;
   register: (
     name: string,
@@ -56,10 +60,13 @@ interface AppContextType {
   completeOnboarding: () => Promise<void>;
   toggleLike: (postId: string) => void;
   toggleFollowOng: (ongId: string) => void;
+  toggleFollowUser: (userId: string) => void;
+  deletePost: (postId: string) => Promise<void>;
   addPost: (post: Post) => Promise<Post>;
   refreshPosts: () => Promise<void>;
   donateToOng: (ongId: string, amountCents?: number) => Promise<void>;
   updateUserAvatar: (avatarUri: string) => Promise<void>;
+  refreshUser: () => Promise<void>;
   pendingOutboxCount: number;
   syncPendingOperations: () => Promise<void>;
   isLoading: boolean;
@@ -74,8 +81,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [likedPosts, setLikedPosts] = useState<string[]>([]);
   const [followedOngs, setFollowedOngs] = useState<string[]>([]);
+  const [followedUsers, setFollowedUsers] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingOutboxCount, setPendingOutboxCount] = useState(0);
+  const authClearingRef = useRef(false);
+  const feedRetryAfterRef = useRef(0);
+  const feedFailureCountRef = useRef(0);
 
   const api = useMemo(
     () => createZooHelpApi(() => getSecureItem(AUTH_TOKEN_KEY)),
@@ -93,13 +104,97 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      registerRescueAlerts(user.id).catch(() => {
+        // Foreground refresh keeps push targeting close to the user's real position.
+      });
+      refreshCurrentUser().catch(() => {});
+      refreshPostsFromBackend().catch(() => {});
+    });
+    return () => subscription.remove();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const interval = setInterval(() => {
+      refreshPostsFromBackend().catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const interval = setInterval(() => {
+      registerRescueAlerts(user.id).catch(() => {});
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || !api) return;
+    if (Platform.OS === 'web') return;
+    let closed = false;
+    let refreshing = false;
+    let socket: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+
+    const refreshFromEvent = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        await refreshPostsFromBackend();
+      } finally {
+        refreshing = false;
+      }
+    };
+
+    const connect = () => {
+      if (closed) return;
+      if (reconnectAttempts >= maxReconnectAttempts) return;
+      socket = new WebSocket(api.feedWebSocketUrl());
+      socket.onopen = () => {
+        reconnectAttempts = 0;
+      };
+      socket.onmessage = () => {
+        refreshFromEvent().catch(() => {});
+      };
+      socket.onclose = () => {
+        if (closed) return;
+        reconnectAttempts += 1;
+        if (reconnectAttempts >= maxReconnectAttempts) return;
+        const delayMs = Math.min(30000, 2000 * 2 ** (reconnectAttempts - 1));
+        reconnectTimer = setTimeout(connect, delayMs);
+      };
+      socket.onerror = () => {
+        if (socket?.readyState === WebSocket.OPEN) {
+          socket.close();
+        }
+      };
+    };
+
+    connect();
+    return () => {
+      closed = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (socket?.readyState === WebSocket.OPEN) {
+        socket.close();
+      }
+    };
+  }, [user?.id, api]);
+
   async function loadStoredData() {
     try {
-      const [storedUser, storedOnboarding, storedLikes, storedFollows, storedToken] = await Promise.all([
+      const [storedUser, storedOnboarding, storedLikes, storedFollows, storedUserFollows, storedToken] = await Promise.all([
         AsyncStorage.getItem('user'),
         AsyncStorage.getItem('hasSeenOnboarding'),
         AsyncStorage.getItem('likedPosts'),
         AsyncStorage.getItem('followedOngs'),
+        AsyncStorage.getItem('followedUsers'),
         getSecureItem(AUTH_TOKEN_KEY),
       ]);
 
@@ -108,15 +203,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setUser(parsedUser);
         setIsAuthenticated(true);
         if (storedToken) {
-          const currentUser = await api?.me().catch(() => null);
-          if (currentUser) {
-            await persistUser(mapAuthUser(currentUser));
-          }
+          await refreshCurrentUser();
         }
       }
       if (storedOnboarding === 'true') setHasSeenOnboarding(true);
       if (storedLikes) setLikedPosts(JSON.parse(storedLikes));
       if (storedFollows) setFollowedOngs(JSON.parse(storedFollows));
+      if (storedUserFollows) setFollowedUsers(JSON.parse(storedUserFollows));
 
       const cachedFeed = await loadCachedFeed();
       if (cachedFeed.length) setPosts(cachedFeed);
@@ -135,6 +228,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsAuthenticated(true);
     await AsyncStorage.setItem('user', JSON.stringify(nextUser));
     return nextUser;
+  }
+
+  async function refreshCurrentUser() {
+    if (!api) return;
+    const currentUser = await api.me().catch(async (error) => {
+      if (error instanceof ZooHelpApiError && error.status === 401) {
+        await clearInvalidSession();
+      }
+      return null;
+    });
+    if (currentUser) {
+      await persistUser(mapAuthUser(currentUser));
+    }
+  }
+
+  async function clearInvalidSession() {
+    if (authClearingRef.current) return;
+    authClearingRef.current = true;
+    try {
+      await AsyncStorage.removeItem('user');
+      await clearSessionTokens();
+      setUser(null);
+      setIsAuthenticated(false);
+    } finally {
+      authClearingRef.current = false;
+    }
   }
 
   function mapAuthUser(response: Pick<Awaited<ReturnType<NonNullable<typeof api>['login']>>, 'user' | 'ongProfile'>): User {
@@ -246,6 +365,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     api?.followOng(ongId).catch(() => {});
   }
 
+  function toggleFollowUser(userId: string) {
+    setFollowedUsers((prev) => {
+      const next = prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId];
+      AsyncStorage.setItem('followedUsers', JSON.stringify(next));
+      return next;
+    });
+  }
+
+  async function deletePost(postId: string) {
+    const previousPosts = posts;
+    const nextPosts = previousPosts.filter((post) => post.id !== postId);
+    setPosts(nextPosts);
+    await saveCachedFeed(nextPosts).catch(() => {});
+    try {
+      await api?.deletePost(postId);
+    } catch (error) {
+      setPosts(previousPosts);
+      await saveCachedFeed(previousPosts).catch(() => {});
+      throw error;
+    }
+  }
+
   async function publishPostToBackend(post: Post, idempotencyKey?: string) {
     if (!api) throw new Error('Backend unavailable');
     const localImages = Array.from(new Set(
@@ -310,8 +451,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const synced = await publishPostToBackend(post);
       setPosts((prev) => [synced, ...prev]);
+      await maybeTriggerRescueForSyncedPost(synced);
       return synced;
     } catch (error) {
+      if (error instanceof ZooHelpApiError && error.status === 401) {
+        await clearInvalidSession();
+        throw error;
+      }
       await enqueuePost(post, error instanceof Error ? error.message : 'Falha de rede');
       await refreshOutboxCount();
       const pendingPost = {
@@ -329,10 +475,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   async function refreshPostsFromBackend() {
     if (!api) return;
-    const feed = await api.feed();
-    const mapped = feed.map(mapPost);
-    setPosts(mapped);
-    await saveCachedFeed(mapped);
+    if (Date.now() < feedRetryAfterRef.current) return;
+    try {
+      const coords = await getCurrentCoordsIfGranted().catch(() => null);
+      const feed = await api.feed(
+        coords
+          ? {
+              lat: coords.latitude,
+              lng: coords.longitude,
+              radiusKm: 30,
+            }
+          : undefined,
+      );
+      feedFailureCountRef.current = 0;
+      feedRetryAfterRef.current = 0;
+      const mapped = feed.map(mapPost);
+      setPosts(mapped);
+      await saveCachedFeed(mapped);
+    } catch (error) {
+      feedFailureCountRef.current = Math.min(feedFailureCountRef.current + 1, 5);
+      feedRetryAfterRef.current =
+        Date.now() + Math.min(120000, 10000 * 2 ** (feedFailureCountRef.current - 1));
+      throw error;
+    }
   }
 
   async function refreshPosts() {
@@ -343,6 +508,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const cachedFeed = await loadCachedFeed();
       if (cachedFeed.length) setPosts(cachedFeed);
     }
+  }
+
+  async function refreshUser() {
+    await refreshCurrentUser();
   }
 
   async function maybeTriggerRescueForSyncedPost(post: Post) {
@@ -402,6 +571,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         posts,
         likedPosts,
         followedOngs,
+        followedUsers,
         login,
         register,
         logout,
@@ -409,10 +579,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         completeOnboarding,
         toggleLike,
         toggleFollowOng,
+        toggleFollowUser,
+        deletePost,
         addPost,
         refreshPosts,
         donateToOng,
         updateUserAvatar,
+        refreshUser,
         pendingOutboxCount,
         syncPendingOperations,
         isLoading,
