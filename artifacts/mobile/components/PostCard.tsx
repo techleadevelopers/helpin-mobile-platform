@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -12,6 +12,8 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { Avatar } from '@/components/Avatar';
+import { OperationalStatus } from '@/components/OperationalStatus';
+import { StaticMapTiles } from '@/components/StaticMapTiles';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Post } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
@@ -123,6 +125,8 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentsError, setCommentsError] = useState(false);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [goingOverlayOpen, setGoingOverlayOpen] = useState(false);
+  const [goingConfirmed, setGoingConfirmed] = useState(false);
   const displayTime = formatPostTime(post.createdAt);
   const locationPreview = limitText(limitWords(post.neighborhood, 15), 38);
 
@@ -214,7 +218,59 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     shareZooHelpItem(post.name, `${post.name} no ZooHelp: ${post.description}`);
   }
 
+  function openGoingOverlay() {
+    setGoingOverlayOpen(true);
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }
+
+  function openRoute() {
+    const label = encodeURIComponent(post.name || 'Caso ZooHelp');
+    const hasCoords = post.latitude != null && post.longitude != null;
+    const destination = hasCoords
+      ? `${post.latitude},${post.longitude}`
+      : encodeURIComponent(post.location || post.neighborhood || post.name);
+    const url =
+      Platform.OS === 'ios'
+        ? `http://maps.apple.com/?daddr=${destination}&q=${label}&dirflg=d`
+        : `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`;
+
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Rota indisponivel', 'Nao foi possivel abrir o mapa agora.');
+    });
+  }
+
+  async function confirmGoing() {
+    const api = createZooHelpApi();
+    if (!api) {
+      Alert.alert('Confirmacao indisponivel', 'Conecte ao backend para registrar sua ida.');
+      return;
+    }
+    try {
+      await api.confirmRescueResponse(post.id);
+      setGoingConfirmed(true);
+      setGoingOverlayOpen(false);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      openRoute();
+    } catch {
+      Alert.alert('Confirmacao indisponivel', 'Nao foi possivel registrar sua ida agora. Tente novamente.');
+    }
+  }
+
+  function runDeletePost() {
+    deletePost(post.id).catch(() => {
+      Alert.alert('Excluir post', 'Nao foi possivel excluir agora. Tente novamente.');
+    });
+  }
+
   function handleDeletePost() {
+    if (Platform.OS === 'web') {
+      const confirmed =
+        typeof window === 'undefined' ||
+        window.confirm('Deseja excluir este post? Esta acao nao pode ser desfeita.');
+      if (confirmed) runDeletePost();
+      return;
+    }
+
     Alert.alert(
       'Excluir post',
       'Deseja excluir este post? Esta acao nao pode ser desfeita.',
@@ -223,11 +279,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
         {
           text: 'Excluir',
           style: 'destructive',
-          onPress: () => {
-            deletePost(post.id).catch(() => {
-              Alert.alert('Excluir post', 'Nao foi possivel excluir agora. Tente novamente.');
-            });
-          },
+          onPress: runDeletePost,
         },
       ],
     );
@@ -338,6 +390,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   const hasPhotoGrid = imageUris.length > 1;
   const distance = formatDistanceKm(post.distanceKm);
   const isResolved = post.rescueStatus === 'resolved';
+  const canJoinRescue = !isResolved && (post.urgent || post.type === 'emergency');
   const ctaLabel = isResolved ? 'Ver resolução' : CTA_LABELS[post.type] ?? 'Ver mais';
   const accentColor = CTA_COLORS[post.type] ?? colors.primary;
   const ctaColor = colors.primary;
@@ -368,6 +421,75 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
       </View>
     </>
   );
+
+  function renderGoingOverlay() {
+    const mapLat = post.latitude ?? -23.5505;
+    const mapLng = post.longitude ?? -46.6333;
+    const locationLabel = post.location || post.neighborhood || 'Localizacao do caso';
+
+    return (
+      <Modal
+        transparent
+        animationType="fade"
+        visible={goingOverlayOpen}
+        onRequestClose={() => setGoingOverlayOpen(false)}
+      >
+        <View style={styles.goingOverlayRoot}>
+          <TouchableOpacity
+            style={styles.goingBackdrop}
+            activeOpacity={1}
+            onPress={() => setGoingOverlayOpen(false)}
+          />
+          <View style={styles.goingSheet}>
+            <View style={styles.goingHandle} />
+            <View style={styles.goingHeader}>
+              <View style={styles.goingHeaderIcon}>
+                <MaterialCommunityIcons name="run-fast" size={18} color="#2D6A4F" />
+              </View>
+              <View style={styles.goingHeaderText}>
+                <Text style={styles.goingTitle}>Confirmar ajuda</Text>
+                <Text style={styles.goingSubtitle} numberOfLines={2}>
+                  Confirme apenas se voce realmente consegue ir ate o local agora.
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.goingClose} onPress={() => setGoingOverlayOpen(false)} activeOpacity={0.8}>
+                <MaterialCommunityIcons name="close" size={17} color="#5F6861" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={styles.overlayMapCard} onPress={openRoute} activeOpacity={0.86}>
+              <View style={styles.overlayMapInfo}>
+                <Text style={styles.overlayMapTitle}>Area de resgate</Text>
+                <Text style={styles.overlayMapSubtitle} numberOfLines={2}>Baseado na localizacao do caso</Text>
+                <Text style={styles.overlayMapLink}>{'Abrir rota ->'}</Text>
+              </View>
+              <View style={styles.overlayMapPreview}>
+                <StaticMapTiles latitude={mapLat} longitude={mapLng} zoom={13} opacity={0.92} />
+                <View style={styles.overlayMapPulseOuter}>
+                  <View style={styles.overlayMapPulseInner} />
+                </View>
+                <View style={styles.overlayMapSmallPin} />
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.goingNotice}>
+              <MaterialCommunityIcons name="map-marker-outline" size={15} color="#7C867C" />
+              <Text style={styles.goingNoticeText} numberOfLines={2}>{locationLabel}</Text>
+            </View>
+
+            <TouchableOpacity style={styles.confirmGoingBtn} onPress={confirmGoing} activeOpacity={0.9}>
+              <MaterialCommunityIcons name="check-circle-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.confirmGoingText}>Confirmar que estou indo</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.cancelGoingBtn} onPress={() => setGoingOverlayOpen(false)} activeOpacity={0.8}>
+              <Text style={styles.cancelGoingText}>Ainda nao consigo confirmar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
   const postImageMedia = hasPhotoGrid ? (
     <View style={[styles.imageContainer, styles.inlineImageContainer, styles.imageGrid]}>
       {imageUris.slice(0, 2).map((uri, photoIndex) => (
@@ -462,6 +584,8 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
               {post.description}
             </Text>
 
+            <OperationalStatus post={post} variant="compact" />
+
             {/* Tags */}
           {post.tags.length > 0 && (
             <View style={styles.tagsRow}>
@@ -503,17 +627,35 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
 
               <View style={{ flex: 1 }} />
 
-              <TouchableOpacity
-                style={[styles.ctaSmall, { backgroundColor: ctaColor, shadowColor: ctaColor }]}
-                onPress={handlePress}
-                activeOpacity={0.85}
-              >
-                <Text style={[styles.ctaSmallText, { color: '#fff' }]}>{ctaLabel}</Text>
-              </TouchableOpacity>
+              {canJoinRescue ? (
+                <TouchableOpacity
+                  style={[styles.goingBtn, goingConfirmed && styles.goingBtnConfirmed]}
+                  onPress={openGoingOverlay}
+                  activeOpacity={0.85}
+                >
+                  <MaterialCommunityIcons
+                    name={goingConfirmed ? 'check' : 'run-fast'}
+                    size={13}
+                    color={goingConfirmed ? '#FFFFFF' : colors.primary}
+                  />
+                  <Text style={[styles.goingText, { color: goingConfirmed ? '#FFFFFF' : colors.primary }]}>
+                    {goingConfirmed ? 'Indo' : 'Estou indo'}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.ctaSmall, { backgroundColor: ctaColor, shadowColor: ctaColor }]}
+                  onPress={handlePress}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.ctaSmallText, { color: '#fff' }]}>{ctaLabel}</Text>
+                </TouchableOpacity>
+              )}
             </View>
             {renderCommentArea()}
           </View>
         </TouchableOpacity>
+        {renderGoingOverlay()}
       </Animated.View>
     );
   }
@@ -601,6 +743,8 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
             </Text>
           </View>
 
+          <OperationalStatus post={post} />
+
           {postImageMedia}
 
           {post.tags.length > 0 && (
@@ -647,6 +791,22 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
             </TouchableOpacity>
 
             <View style={{ flex: 1 }} />
+            {canJoinRescue && (
+              <TouchableOpacity
+                style={[styles.goingBtn, goingConfirmed && styles.goingBtnConfirmed]}
+                onPress={openGoingOverlay}
+                activeOpacity={0.85}
+              >
+                <MaterialCommunityIcons
+                  name={goingConfirmed ? 'check' : 'run-fast'}
+                  size={13}
+                  color={goingConfirmed ? '#FFFFFF' : colors.primary}
+                />
+                <Text style={[styles.goingText, { color: goingConfirmed ? '#FFFFFF' : colors.primary }]}>
+                  {goingConfirmed ? 'Indo' : 'Estou indo'}
+                </Text>
+              </TouchableOpacity>
+            )}
             {isPostOwner ? (
                 <TouchableOpacity
                   style={styles.actionBtn}
@@ -670,6 +830,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
           {renderCommentArea()}
         </View>
       </TouchableOpacity>
+      {renderGoingOverlay()}
     </Animated.View>
   );
 }
@@ -983,4 +1144,187 @@ const styles = StyleSheet.create({
   },
   ctaSmall: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 18 },
   ctaSmallText: { fontSize: 11, fontFamily: 'Montserrat_500Medium' },
+  goingBtn: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    backgroundColor: '#EAF3EC',
+    borderWidth: 1,
+    borderColor: '#CFE0D4',
+  },
+  goingBtnConfirmed: {
+    backgroundColor: '#2D6A4F',
+    borderColor: '#2D6A4F',
+  },
+  goingText: {
+    fontSize: 10,
+    fontFamily: 'Montserrat_700Bold',
+  },
+  goingOverlayRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  goingBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(20,28,22,0.34)',
+  },
+  goingSheet: {
+    marginHorizontal: 12,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 14,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E7EDE8',
+    shadowColor: '#172018',
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
+  },
+  goingHandle: {
+    alignSelf: 'center',
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#DDE5DF',
+    marginBottom: 13,
+  },
+  goingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  goingHeaderIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EAF3EC',
+  },
+  goingHeaderText: { flex: 1, gap: 2 },
+  goingTitle: {
+    fontSize: 16,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#172018',
+  },
+  goingSubtitle: {
+    fontSize: 11,
+    fontFamily: 'Montserrat_500Medium',
+    lineHeight: 16,
+    color: '#667168',
+  },
+  goingClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F4F6F3',
+  },
+  overlayMapCard: {
+    height: 102,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EEF2EE',
+    marginBottom: 10,
+  },
+  overlayMapInfo: {
+    width: 138,
+    padding: 15,
+    gap: 3,
+    zIndex: 2,
+    backgroundColor: '#FFFFFF',
+  },
+  overlayMapTitle: { fontSize: 13, fontFamily: 'Montserrat_700Bold', color: '#1C251D' },
+  overlayMapSubtitle: { fontSize: 9, fontFamily: 'Montserrat_500Medium', color: '#9AA19A', lineHeight: 13 },
+  overlayMapLink: { marginTop: 7, fontSize: 11, fontFamily: 'Montserrat_700Bold', color: '#2D6A4F' },
+  overlayMapPreview: { flex: 1, backgroundColor: '#F2F3F0', position: 'relative' },
+  overlayMapPulseOuter: {
+    position: 'absolute',
+    left: '45%',
+    top: '44%',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,90,140,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overlayMapPulseInner: {
+    width: 17,
+    height: 17,
+    borderRadius: 8.5,
+    backgroundColor: '#FF5A8C',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  overlayMapSmallPin: {
+    position: 'absolute',
+    right: 20,
+    top: 30,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#76A7FF',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  goingNotice: {
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 11,
+    borderRadius: 16,
+    backgroundColor: '#F7F9F6',
+    marginBottom: 10,
+  },
+  goingNoticeText: {
+    flex: 1,
+    fontSize: 11,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: '#5F6861',
+  },
+  confirmGoingBtn: {
+    minHeight: 48,
+    borderRadius: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: '#2D6A4F',
+    shadowColor: '#2D6A4F',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
+  },
+  confirmGoingText: {
+    fontSize: 13,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#FFFFFF',
+  },
+  cancelGoingBtn: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 5,
+  },
+  cancelGoingText: {
+    fontSize: 12,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#7C867C',
+  },
 });
