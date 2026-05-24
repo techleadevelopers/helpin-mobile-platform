@@ -50,6 +50,8 @@ export interface PostContract {
   comments: number;
   shares: number;
   urgent: boolean;
+  rescueStatus?: "open" | "active" | "resolved" | "cancelled" | string;
+  resolvedAt?: string | null;
   createdAt: string;
   contact: string;
   tags: string[];
@@ -192,9 +194,9 @@ export interface RescueAlertContract {
   lng: number;
   radiusKm: number;
   critical: boolean;
+  recipientCount?: number;
   recipients: Array<{
     userId: string;
-    pushToken: string;
     platform: "ios" | "android" | "expo" | "web" | string;
     distanceKm: number;
     deliveryStatus: string;
@@ -266,6 +268,18 @@ export class ZooHelpEngine {
     return this.request<PostContract[]>(`/v1/feed${suffix}`);
   }
 
+  webSocketUrl(path: string, accessToken?: string | null) {
+    const base = this.config.apiBaseUrl.replace(/^http/i, "ws");
+    const separator = path.includes("?") ? "&" : "?";
+    return accessToken
+      ? `${base}${path}${separator}access_token=${encodeURIComponent(accessToken)}`
+      : `${base}${path}`;
+  }
+
+  feedWebSocketUrl() {
+    return this.webSocketUrl("/v1/feed/ws");
+  }
+
   login(email: string, password: string) {
     return this.request<AuthResponseContract>("/v1/auth/login", {
       method: "POST",
@@ -326,6 +340,7 @@ export class ZooHelpEngine {
     fileName: string;
     contentType: "image/jpeg" | "image/png" | "image/webp" | "video/mp4" | "video/quicktime" | "video/webm" | string;
     sizeBytes: number;
+    purpose?: "post" | "ong-logo" | "profile-avatar" | "kyb-document" | string;
     checksumSha256?: string;
   }) {
     return this.request<MediaUploadIntentContract>("/v1/media/upload-intents", {
@@ -420,6 +435,19 @@ export class ZooHelpEngine {
       `/v1/notifications/rescue-alerts/${encodeURIComponent(postId)}/preview`,
       { method: "POST" },
     );
+  }
+
+  createMyKybDocument(input: { documentType: string; objectKey: string; publicUrl: string }) {
+    return this.request<{
+      id: string;
+      ongId: string;
+      documentType: string;
+      publicUrl: string;
+      status: string;
+    }>("/v1/me/ong/kyb-documents", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
   }
 
   marketplaceItems() {
