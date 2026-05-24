@@ -24,26 +24,29 @@ export function ProvidersPagination({
   }
 
   return (
-    <div className="mt-6 flex items-center justify-between text-gray-600">
-      <p className="text-sm">
-        Mostrando {showingStart}{showingEnd} de {totalCount} ONGs e clínicas
+    <div className="mt-4 flex items-center justify-between rounded-2xl border border-gray-100 bg-white px-4 py-3 text-gray-600 shadow-sm">
+      <p className="text-xs font-medium">
+        {showingStart}-{showingEnd} de {totalCount} ONGs
       </p>
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center gap-2">
         <Button
           variant="outline"
-          className="rounded-full px-4 py-2 text-sm"
+          className="h-8 rounded-xl px-3 text-xs"
           onClick={onPrevPage}
           disabled={currentPage === 1}
         >
           Anterior
         </Button>
+        <span className="text-xs font-semibold text-gray-500">
+          {currentPage}/{totalPages}
+        </span>
         <Button
           variant="outline"
-          className="rounded-full px-4 py-2 text-sm"
+          className="h-8 rounded-xl px-3 text-xs"
           onClick={onNextPage}
           disabled={currentPage === totalPages}
         >
-          PrÃ³ximo
+          Proximo
         </Button>
       </div>
     </div>
