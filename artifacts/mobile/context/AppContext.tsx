@@ -12,6 +12,9 @@ import { clearSessionTokens, getSecureItem, setSecureItem, REFRESH_TOKEN_KEY } f
 import { AUTH_TOKEN_KEY, createZooHelpApi, mapPost, supportPaymentsEnabled, uploadLocalImageToCloudinary } from '@/services/zoohelpApi';
 import { ZooHelpApiError } from '@/services/zoohelpEngine';
 
+const DELETED_POST_IDS_KEY = 'zoohelp:deletedPostIds:v1';
+const MAX_LOCAL_DELETED_POST_IDS = 200;
+
 interface User {
   id: string;
   name: string;
@@ -89,6 +92,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const authClearingRef = useRef(false);
   const feedRetryAfterRef = useRef(0);
   const feedFailureCountRef = useRef(0);
+  const deletedPostIdsRef = useRef<Set<string>>(new Set());
 
   const api = useMemo(
     () => createZooHelpApi(() => getSecureItem(AUTH_TOKEN_KEY)),
@@ -191,12 +195,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   async function loadStoredData() {
     try {
-      const [storedUser, storedOnboarding, storedLikes, storedFollows, storedUserFollows, storedToken] = await Promise.all([
+      const [storedUser, storedOnboarding, storedLikes, storedFollows, storedUserFollows, storedDeletedPostIds, storedToken] = await Promise.all([
         AsyncStorage.getItem('user'),
         AsyncStorage.getItem('hasSeenOnboarding'),
         AsyncStorage.getItem('likedPosts'),
         AsyncStorage.getItem('followedOngs'),
         AsyncStorage.getItem('followedUsers'),
+        AsyncStorage.getItem(DELETED_POST_IDS_KEY),
         getSecureItem(AUTH_TOKEN_KEY),
       ]);
 
@@ -212,9 +217,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (storedLikes) setLikedPosts(JSON.parse(storedLikes));
       if (storedFollows) setFollowedOngs(JSON.parse(storedFollows));
       if (storedUserFollows) setFollowedUsers(JSON.parse(storedUserFollows));
+      if (storedDeletedPostIds) {
+        const parsed = JSON.parse(storedDeletedPostIds);
+        if (Array.isArray(parsed)) deletedPostIdsRef.current = new Set(parsed.filter((id) => typeof id === 'string'));
+      }
 
       const cachedFeed = await loadCachedFeed();
-      if (cachedFeed.length) setPosts(cachedFeed);
+      const visibleCachedFeed = cachedFeed.filter((post) => !deletedPostIdsRef.current.has(post.id));
+      if (visibleCachedFeed.length) setPosts(visibleCachedFeed);
       await refreshOutboxCount();
       await refreshPostsFromBackend();
       await syncPendingOperations();
@@ -376,14 +386,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
+  async function markPostDeletedLocally(postId: string) {
+    const next = new Set(deletedPostIdsRef.current);
+    next.add(postId);
+    const ids = Array.from(next).slice(-MAX_LOCAL_DELETED_POST_IDS);
+    deletedPostIdsRef.current = new Set(ids);
+    await AsyncStorage.setItem(DELETED_POST_IDS_KEY, JSON.stringify(ids)).catch(() => {});
+  }
+
   async function deletePost(postId: string) {
     const previousPosts = posts;
     const nextPosts = previousPosts.filter((post) => post.id !== postId);
+    const isBackendPost = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId);
     setPosts(nextPosts);
     await saveCachedFeed(nextPosts).catch(() => {});
+    await removePendingPost(postId).catch(() => {});
+    if (!isBackendPost) {
+      await markPostDeletedLocally(postId);
+      return;
+    }
     try {
       await api?.deletePost(postId);
+      await markPostDeletedLocally(postId);
     } catch (error) {
+      if (error instanceof ZooHelpApiError && error.status === 405) {
+        await markPostDeletedLocally(postId);
+        return;
+      }
       setPosts(previousPosts);
       await saveCachedFeed(previousPosts).catch(() => {});
       throw error;
@@ -416,9 +445,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       tags: post.tags,
       latitude: post.latitude,
       longitude: post.longitude,
+      locationAddress: post.locationAddress,
       idempotencyKey,
     });
     return mapPost(response.post);
+  }
+
+  function hasVolatileWebMedia(post: Post) {
+    if (Platform.OS !== 'web') return false;
+    const media = post.images?.length ? post.images : post.image ? [post.image] : [];
+    return media.some((uri) => typeof uri === 'string' && uri.startsWith('blob:'));
   }
 
   async function refreshOutboxCount() {
@@ -433,6 +469,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (api) {
       const pendingPosts = await listPendingPosts();
       for (const pending of pendingPosts) {
+        if (hasVolatileWebMedia(pending.post)) {
+          await removePendingPost(pending.id);
+          setPosts((prev) => prev.filter((item) => item.id !== pending.post.id));
+          continue;
+        }
         try {
           const synced = await publishPostToBackend(pending.post, pending.idempotencyKey);
           await removePendingPost(pending.id);
@@ -459,6 +500,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       if (error instanceof ZooHelpApiError && error.status === 401) {
         await clearInvalidSession();
+        throw error;
+      }
+      if (error instanceof ZooHelpApiError && error.status != null && error.status < 500) {
+        throw error;
+      }
+      if (hasVolatileWebMedia(post)) {
         throw error;
       }
       await enqueuePost(post, error instanceof Error ? error.message : 'Falha de rede');
@@ -492,12 +539,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       );
       feedFailureCountRef.current = 0;
       feedRetryAfterRef.current = 0;
-      const mapped = feed.map(mapPost);
+      const mapped = feed.map(mapPost).filter((post) => !deletedPostIdsRef.current.has(post.id));
       const backendIds = new Set(mapped.map((post) => post.id));
       let nextFeed = mapped;
       setPosts((prev) => {
         const now = Date.now();
         const stickyLocalPosts = prev.filter((post) => {
+          if (deletedPostIdsRef.current.has(post.id)) return false;
           if (backendIds.has(post.id)) return false;
           if (post.createdAt === 'pendente' || post.createdAt === 'agora') return true;
           if (post.author.id !== user?.id) return false;
@@ -522,7 +570,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await refreshPostsFromBackend();
     } catch {
       const cachedFeed = await loadCachedFeed();
-      if (cachedFeed.length) setPosts(cachedFeed);
+      const visibleCachedFeed = cachedFeed.filter((post) => !deletedPostIdsRef.current.has(post.id));
+      if (visibleCachedFeed.length) setPosts(visibleCachedFeed);
     }
   }
 
