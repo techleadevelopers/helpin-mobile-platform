@@ -24,6 +24,102 @@ export function createZooHelpApi(getAccessToken: () => Promise<string | null> | 
 
 export { AUTH_TOKEN_KEY };
 
+declare global {
+  interface Window {
+    google?: any;
+    __zoohelpGoogleMapsPromise?: Promise<any>;
+  }
+}
+
+function loadGoogleMapsForWeb() {
+  if (Platform.OS !== 'web' || !GOOGLE_MAPS_API_KEY || typeof window === 'undefined') return null;
+  if (window.google?.maps?.places) return Promise.resolve(window.google);
+  if (window.__zoohelpGoogleMapsPromise) return window.__zoohelpGoogleMapsPromise;
+
+  window.__zoohelpGoogleMapsPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[data-zoohelp-google-maps="true"]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(window.google));
+      existing.addEventListener('error', reject);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}&libraries=places&language=pt-BR&region=BR`;
+    script.async = true;
+    script.defer = true;
+    script.dataset.zoohelpGoogleMaps = 'true';
+    script.onload = () => resolve(window.google);
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+
+  return window.__zoohelpGoogleMapsPromise;
+}
+
+async function geocodeAddressWithWebSdk(address: string) {
+  const google = await loadGoogleMapsForWeb()?.catch(() => null);
+  if (!google?.maps?.Geocoder) return null;
+
+  return new Promise<{ label: string; latitude: number; longitude: number } | null>((resolve) => {
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address, region: 'BR' }, (results: any[] | null, status: string) => {
+      if (status !== 'OK' || !results?.[0]?.geometry?.location) {
+        resolve(null);
+        return;
+      }
+      const location = results[0].geometry.location;
+      resolve({
+        label: results[0].formatted_address ?? address,
+        latitude: location.lat(),
+        longitude: location.lng(),
+      });
+    });
+  });
+}
+
+async function placeDetailsWithWebSdk(placeId: string) {
+  const google = await loadGoogleMapsForWeb()?.catch(() => null);
+  if (!google?.maps?.Geocoder) return null;
+
+  return new Promise<{ label: string; latitude: number; longitude: number } | null>((resolve) => {
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ placeId }, (results: any[] | null, status: string) => {
+      if (status !== 'OK' || !results?.[0]?.geometry?.location) {
+        resolve(null);
+        return;
+      }
+      const location = results[0].geometry.location;
+      resolve({
+        label: results[0].formatted_address ?? '',
+        latitude: location.lat(),
+        longitude: location.lng(),
+      });
+    });
+  });
+}
+
+async function addressSuggestionsWithWebSdk(input: string) {
+  const google = await loadGoogleMapsForWeb()?.catch(() => null);
+  if (!google?.maps?.Geocoder) return [];
+
+  return new Promise<Array<{ id: string; label: string }>>((resolve) => {
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address: input, region: 'BR' }, (results: any[] | null, status: string) => {
+      if (status !== 'OK' || !results) {
+        resolve([]);
+        return;
+      }
+      resolve(
+        results
+          .filter((item) => item.place_id && item.formatted_address)
+          .slice(0, 5)
+          .map((item) => ({ id: item.place_id, label: item.formatted_address })),
+      );
+    });
+  });
+}
+
 export async function getStaticMapUrl(input: {
   lat: number;
   lng: number;
@@ -67,7 +163,7 @@ export async function getStaticMapUrl(input: {
 
 export async function geocodeAddress(address: string) {
   const query = address.trim();
-  if (!query || !GOOGLE_MAPS_API_KEY) return null;
+  if (!query) return null;
 
   // 🔧 CORREÇÃO: Sanitiza endereços com erros comuns
   const sanitized = query
@@ -84,6 +180,29 @@ export async function geocodeAddress(address: string) {
     .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
+
+  if (Platform.OS === 'web') {
+    return geocodeAddressWithWebSdk(sanitized);
+  }
+
+  try {
+    const params = new URLSearchParams({ address: sanitized });
+    const response = await fetch(`${API_BASE_URL}/v1/maps/geocode?${params.toString()}`);
+    if (response.ok) {
+      const payload = (await response.json()) as { label?: string; latitude?: number; longitude?: number } | null;
+      if (typeof payload?.latitude === 'number' && typeof payload.longitude === 'number') {
+        return {
+          latitude: payload.latitude,
+          longitude: payload.longitude,
+          label: payload.label || sanitized,
+        };
+      }
+    }
+  } catch {
+    // Browser CORS blocks direct Google geocoding; keep web quiet.
+  }
+
+  if (!GOOGLE_MAPS_API_KEY) return null;
 
   try {
     const params = new URLSearchParams({
@@ -108,6 +227,110 @@ export async function geocodeAddress(address: string) {
       latitude: lat,
       longitude: lng,
       label: result?.formatted_address ?? sanitized, // retorna o corrigido se a API achou
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function searchAddressSuggestions(input: string) {
+  const query = input.trim();
+  if (query.length < 3) return [];
+
+  if (Platform.OS === 'web') {
+    return addressSuggestionsWithWebSdk(query);
+  }
+
+  try {
+    const params = new URLSearchParams({ input: query });
+    const response = await fetch(`${API_BASE_URL}/v1/maps/place-autocomplete?${params.toString()}`);
+    if (response.ok) {
+      const payload = (await response.json()) as {
+        predictions?: Array<{ placeId?: string; place_id?: string; description?: string }>;
+      };
+      return (payload.predictions ?? [])
+        .map((item) => ({ id: item.placeId ?? item.place_id ?? '', label: item.description ?? '' }))
+        .filter((item) => item.id && item.label)
+        .slice(0, 5);
+    }
+  } catch {
+    // Browser CORS blocks direct Google Places; keep web quiet.
+  }
+
+  if (!GOOGLE_MAPS_API_KEY) return [];
+
+  try {
+    const params = new URLSearchParams({
+      input: query,
+      key: GOOGLE_MAPS_API_KEY,
+      components: 'country:br',
+      types: 'address',
+      language: 'pt-BR',
+    });
+    const response = await fetch(`https://maps.googleapis.com/maps/api/place/autocomplete/json?${params.toString()}`);
+    if (!response.ok) return [];
+    const payload = (await response.json()) as {
+      predictions?: Array<{ place_id?: string; description?: string }>;
+    };
+
+    return (payload.predictions ?? [])
+      .filter((item): item is { place_id: string; description: string } => Boolean(item.place_id && item.description))
+      .slice(0, 5)
+      .map((item) => ({ id: item.place_id, label: item.description }));
+  } catch {
+    return [];
+  }
+}
+
+export async function getPlaceAddressDetails(placeId: string) {
+  if (!placeId) return null;
+
+  if (Platform.OS === 'web') {
+    return placeDetailsWithWebSdk(placeId);
+  }
+
+  try {
+    const params = new URLSearchParams({ placeId, place_id: placeId });
+    const response = await fetch(`${API_BASE_URL}/v1/maps/place-details?${params.toString()}`);
+    if (response.ok) {
+      const payload = (await response.json()) as { label?: string; latitude?: number; longitude?: number } | null;
+      if (typeof payload?.latitude === 'number' && typeof payload.longitude === 'number') {
+        return {
+          label: payload.label ?? '',
+          latitude: payload.latitude,
+          longitude: payload.longitude,
+        };
+      }
+    }
+  } catch {
+    // Browser CORS blocks direct Google Places details; keep web quiet.
+  }
+
+  if (!GOOGLE_MAPS_API_KEY) return null;
+
+  try {
+    const params = new URLSearchParams({
+      place_id: placeId,
+      key: GOOGLE_MAPS_API_KEY,
+      fields: 'geometry,formatted_address',
+      language: 'pt-BR',
+    });
+    const response = await fetch(`https://maps.googleapis.com/maps/api/place/details/json?${params.toString()}`);
+    if (!response.ok) return null;
+    const payload = (await response.json()) as {
+      result?: {
+        formatted_address?: string;
+        geometry?: { location?: { lat?: number; lng?: number } };
+      };
+    };
+    const lat = payload.result?.geometry?.location?.lat;
+    const lng = payload.result?.geometry?.location?.lng;
+    if (typeof lat !== 'number' || typeof lng !== 'number') return null;
+
+    return {
+      label: payload.result?.formatted_address ?? '',
+      latitude: lat,
+      longitude: lng,
     };
   } catch {
     return null;
