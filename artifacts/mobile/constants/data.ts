@@ -26,6 +26,8 @@ export interface Post {
   comments: number;
   shares: number;
   urgent: boolean;
+  rescueStatus?: 'open' | 'active' | 'resolved' | 'cancelled' | string;
+  resolvedAt?: string | null;
   createdAt: string;
   contact: string;
   tags: string[];
