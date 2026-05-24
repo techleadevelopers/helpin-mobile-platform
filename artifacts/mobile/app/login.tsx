@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -17,6 +18,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { createZooHelpApi } from '@/services/zoohelpApi';
+
+const ZOOHELP_LOGIN_LOGO =
+  'https://res.cloudinary.com/limpeja/image/upload/v1779564981/Gemini_Generated_Image_isin7wisin7wisin-removebg-preview_yx0k5g.png';
 
 export default function LoginScreen() {
   const colors = useColors();
@@ -70,17 +74,8 @@ export default function LoginScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.logoSection}>
-          <View
-            style={[
-              styles.logoCircle,
-              {
-                backgroundColor: colors.primary,
-                borderColor: colors.primary + '50',
-                shadowColor: colors.primary,
-              },
-            ]}
-          >
-            <MaterialCommunityIcons name="paw" size={34} color="#FFFFFF" />
+          <View style={styles.logoMark}>
+            <Image source={{ uri: ZOOHELP_LOGIN_LOGO }} style={styles.logoImage} resizeMode="contain" />
           </View>
           <Text style={[styles.logoText, { color: colors.primary }]}>ZooHelp</Text>
           <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
@@ -172,17 +167,21 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: { flexGrow: 1, paddingHorizontal: 24, gap: 32 },
   logoSection: { alignItems: 'center', gap: 12 },
-  logoCircle: {
+  logoMark: {
     width: 76,
     height: 76,
     borderRadius: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
+    backgroundColor: '#FFFFFF',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.12,
     shadowRadius: 14,
     elevation: 8,
+  },
+  logoImage: {
+    width: 64,
+    height: 64,
   },
   logoText: { fontSize: 32, fontFamily: 'Inter_700Bold', letterSpacing: -1 },
   tagline: { fontSize: 14, fontFamily: 'Inter_400Regular', textAlign: 'center' },
@@ -226,7 +225,7 @@ const styles = StyleSheet.create({
   forgotBtn: { alignSelf: 'flex-end' },
   forgotText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
   signInButton: {
-    backgroundColor: '#2D6A4F',
+    backgroundColor: '#606864',
     borderRadius: 28,
     paddingVertical: 8,
     top: Platform.OS === 'ios' ? 0 : 2,
@@ -236,14 +235,14 @@ const styles = StyleSheet.create({
     marginTop: 10,
     bottom: 55,
     marginBottom: Platform.OS === 'ios' ? 35 : 25,
-    shadowColor: '#2D6A4F',
+    shadowColor: '#606864',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 0,
   },
   buttonDisabled: {
-    backgroundColor: '#A0CFFF',
+    backgroundColor: '#445e55',
     elevation: 0,
     shadowOpacity: 0,
   },
