@@ -903,21 +903,39 @@ export default function ComposeScreen() {
         </Animated.View>
 
         {/* TRUST SYSTEM */}
-        <View style={[styles.section, styles.trustCard, { backgroundColor: '#2F80ED08', borderColor: '#2F80ED30' }]}>
+        <View style={[styles.section, styles.trustCard]}>
           <View style={styles.trustHeader}>
-            <MaterialCommunityIcons name="shield-outline" size={16} color="#2F80ED" />
-            <Text style={[styles.trustTitle, { color: '#2F80ED' }]}>Sistema de confiança ZooHelp</Text>
-          </View>
-          {[
-            { icon: 'account-check' as MCIcon,  text: 'Sua identidade é verificada pela plataforma' },
-            { icon: 'eye-outline' as MCIcon,    text: 'Denúncias são monitoradas em tempo real' },
-            { icon: 'lock-outline' as MCIcon,   text: 'Doações com rastreabilidade total' },
-          ].map((item) => (
-            <View key={item.text} style={styles.trustRow}>
-              <MaterialCommunityIcons name={item.icon} size={13} color="#2F80ED" />
-              <Text style={[styles.trustText, { color: colors.mutedForeground }]}>{item.text}</Text>
+            <View style={styles.trustIconBadge}>
+              <MaterialCommunityIcons name="shield-check-outline" size={20} color="#2D6A4F" />
             </View>
-          ))}
+            <View style={styles.trustTitleBlock}>
+              <Text style={styles.trustTitle}>Sistema de confiança ZooHelp</Text>
+              <Text style={styles.trustSubtitle}>Camadas de segurança antes e depois da publicação</Text>
+            </View>
+          </View>
+
+          <View style={styles.trustSignal}>
+            <View style={styles.trustSignalDot} />
+            <Text style={styles.trustSignalText}>Publicação protegida</Text>
+          </View>
+
+          <View style={styles.trustList}>
+            {[
+              { icon: 'account-check' as MCIcon, title: 'Identidade verificada', text: 'Perfil e histórico ajudam a reduzir interações suspeitas.' },
+              { icon: 'eye-outline' as MCIcon, title: 'Monitoramento ativo', text: 'Denúncias entram em análise para manter a comunidade segura.' },
+              { icon: 'lock-outline' as MCIcon, title: 'Rastreabilidade', text: 'Apoios e contatos preservam contexto para acompanhamento.' },
+            ].map((item) => (
+              <View key={item.title} style={styles.trustRow}>
+                <View style={styles.trustRowIcon}>
+                  <MaterialCommunityIcons name={item.icon} size={15} color="#2D6A4F" />
+                </View>
+                <View style={styles.trustRowText}>
+                  <Text style={styles.trustRowTitle}>{item.title}</Text>
+                  <Text style={styles.trustText}>{item.text}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
       </ScrollView>
 
@@ -928,20 +946,6 @@ export default function ComposeScreen() {
           { borderTopColor: colors.border, paddingBottom: bottomPad + 6 },
         ]}
       >
-        <View style={styles.dockIcons}>
-          {[
-            { icon: 'image-outline' as MCIcon, color: '#2D6A4F', label: 'Foto', onPress: pickImage },
-            { icon: 'map-marker-outline' as MCIcon, color: '#D4A259', label: 'Local', onPress: detectLocation },
-          ].map(({ icon, color, label, onPress }) => (
-            <TouchableOpacity key={icon} style={styles.dockBtn} onPress={onPress} activeOpacity={0.7}>
-              <View style={[styles.dockIcon, { backgroundColor: color + '18', borderColor: color + '30', shadowColor: color }]}>
-                <MaterialCommunityIcons name={icon} size={18} color={color} />
-              </View>
-              <Text style={[styles.dockLabel, { color: colors.mutedForeground }]}>{label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
         <TouchableOpacity
           style={[
             styles.publishBtn,
@@ -1260,13 +1264,80 @@ manualCityInput: {
   /* trust */
   trustCard: {
     marginHorizontal: 12,
-    borderRadius: 20, padding: 14, borderWidth: 1,
-    gap: 8,
+    borderRadius: 26,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#DCE8DF',
+    backgroundColor: '#F9FBF8',
+    gap: 12,
+    overflow: 'hidden',
+    shadowColor: '#244C35',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.10,
+    shadowRadius: 24,
+    elevation: 6,
   },
-  trustHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  trustTitle: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
-  trustRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  trustText: { fontSize: 12, fontFamily: 'Inter_400Regular', flex: 1 },
+  trustHeader: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  trustIconBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EAF3EC',
+    borderWidth: 1,
+    borderColor: '#CFE0D4',
+  },
+  trustTitleBlock: { flex: 1, gap: 2 },
+  trustTitle: { fontSize: 15, fontFamily: 'Montserrat_700Bold', color: '#172018', letterSpacing: -0.2 },
+  trustSubtitle: { fontSize: 10.5, fontFamily: 'Montserrat_500Medium', color: '#7C867C', lineHeight: 15 },
+  trustSignal: {
+    alignSelf: 'flex-start',
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: '#EAF7EF',
+  },
+  trustSignalDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#2D6A4F',
+  },
+  trustSignalText: { fontSize: 10.5, fontFamily: 'Montserrat_700Bold', color: '#2D6A4F' },
+  trustList: {
+    gap: 0,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E7EDE8',
+  },
+  trustRow: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 11,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF2EE',
+  },
+  trustRowIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EAF3EC',
+    marginTop: 1,
+  },
+  trustRowText: { flex: 1, gap: 2 },
+  trustRowTitle: { fontSize: 12.5, fontFamily: 'Montserrat_700Bold', color: '#253026' },
+  trustText: { fontSize: 10.5, fontFamily: 'Montserrat_500Medium', color: '#7C867C', lineHeight: 15 },
 
   /* dock */
   dock: {
@@ -1282,16 +1353,6 @@ manualCityInput: {
     shadowRadius: 12,
     elevation: 10,
   },
-  dockIcons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-  },
-  dockBtn: { alignItems: 'center', gap: 4 },
-  dockIcon: {
-    width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center',
-  },
-  dockLabel: { fontSize: 9, fontFamily: 'Inter_400Regular' },
   publishBtn: {
     flexDirection: 'row',
     alignItems: 'center',
