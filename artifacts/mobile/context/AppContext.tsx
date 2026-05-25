@@ -10,10 +10,11 @@ import { enqueueRescueOperation, flushRescueOutbox, listPendingRescueOperations 
 import { registerRescueAlerts } from '@/services/rescueNotifications';
 import { clearSessionTokens, getSecureItem, setSecureItem, REFRESH_TOKEN_KEY } from '@/services/secureSession';
 import { AUTH_TOKEN_KEY, createZooHelpApi, mapPost, supportPaymentsEnabled, uploadLocalImageToCloudinary } from '@/services/zoohelpApi';
-import { ZooHelpApiError } from '@/services/zoohelpEngine';
+import { ZooHelpApiError, type ChatConversationContract } from '@/services/zoohelpEngine';
 
 const DELETED_POST_IDS_KEY = 'zoohelp:deletedPostIds:v1';
 const POST_IMAGES_CACHE_KEY = 'zoohelp:postImages:v1';
+const LIKED_POST_USERS_KEY = 'zoohelp:likedPostUsers:v1';
 const MAX_LOCAL_DELETED_POST_IDS = 200;
 const MAX_POST_IMAGES_CACHE_ITEMS = 500;
 
@@ -109,8 +110,18 @@ interface AppContextType {
   hasSeenOnboarding: boolean;
   posts: Post[];
   likedPosts: string[];
+  likedPostCounts: Record<string, number>;
   followedOngs: string[];
   followedUsers: string[];
+  chatUnreadCount: number;
+  chatMessageNotifications: Array<{
+    id: string;
+    roomId: string;
+    title: string;
+    body: string;
+    createdAt: string;
+    isRead: boolean;
+  }>;
   login: (email: string, password: string) => Promise<User>;
   register: (
     name: string,
@@ -145,6 +156,7 @@ interface AppContextType {
   donateToOng: (ongId: string, amountCents?: number) => Promise<void>;
   updateUserAvatar: (avatarUri: string) => Promise<void>;
   refreshUser: () => Promise<void>;
+  refreshChatState: () => Promise<void>;
   pendingOutboxCount: number;
   syncPendingOperations: () => Promise<void>;
   isLoading: boolean;
@@ -152,14 +164,37 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 
+function likedPostsStorageKey(userId: string) {
+  return `likedPosts:${userId}`;
+}
+
+function normalizeLikedPostUsers(raw: unknown) {
+  if (!raw || typeof raw !== 'object') return {};
+  return Object.entries(raw as Record<string, unknown>).reduce<Record<string, string[]>>((acc, [postId, userIds]) => {
+    if (!Array.isArray(userIds)) return acc;
+    const ids = Array.from(new Set(userIds.filter((id): id is string => typeof id === 'string' && id.length > 0)));
+    if (ids.length) acc[postId] = ids;
+    return acc;
+  }, {});
+}
+
+function likedPostCountsFromUsers(likedPostUsers: Record<string, string[]>) {
+  return Object.fromEntries(
+    Object.entries(likedPostUsers).map(([postId, userIds]) => [postId, userIds.length])
+  );
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [likedPosts, setLikedPosts] = useState<string[]>([]);
+  const [likedPostUsers, setLikedPostUsers] = useState<Record<string, string[]>>({});
   const [followedOngs, setFollowedOngs] = useState<string[]>([]);
   const [followedUsers, setFollowedUsers] = useState<string[]>([]);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [chatMessageNotifications, setChatMessageNotifications] = useState<AppContextType['chatMessageNotifications']>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingOutboxCount, setPendingOutboxCount] = useState(0);
   const authClearingRef = useRef(false);
@@ -171,16 +206,70 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     () => createZooHelpApi(() => getSecureItem(AUTH_TOKEN_KEY)),
     [],
   );
+  const likedPostCounts = useMemo(() => likedPostCountsFromUsers(likedPostUsers), [likedPostUsers]);
 
   useEffect(() => {
     loadStoredData();
   }, []);
 
   useEffect(() => {
+    if (!user?.id) {
+      setLikedPosts([]);
+      return;
+    }
+    const storageKey = likedPostsStorageKey(user.id);
+    Promise.all([
+      AsyncStorage.getItem(storageKey),
+      AsyncStorage.getItem('likedPosts'),
+    ])
+      .then(async ([storedLikes, legacyLikes]) => {
+        const sourceLikes = storedLikes ?? legacyLikes;
+        if (!sourceLikes) {
+          setLikedPosts([]);
+          return;
+        }
+        const parsed = JSON.parse(sourceLikes);
+        const nextLikes = Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : [];
+        setLikedPosts(nextLikes);
+        setLikedPostUsers((current) => {
+          let changed = false;
+          const next = { ...current };
+          nextLikes.forEach((postId) => {
+            const userIds = next[postId] ?? [];
+            if (!userIds.includes(user.id)) {
+              next[postId] = [...userIds, user.id];
+              changed = true;
+            }
+          });
+          if (changed) AsyncStorage.setItem(LIKED_POST_USERS_KEY, JSON.stringify(next)).catch(() => {});
+          return changed ? next : current;
+        });
+        if (!storedLikes && legacyLikes) {
+          await AsyncStorage.setItem(storageKey, JSON.stringify(nextLikes)).catch(() => {});
+          await AsyncStorage.removeItem('likedPosts').catch(() => {});
+        }
+      })
+      .catch(() => setLikedPosts([]));
+  }, [user?.id]);
+
+  useEffect(() => {
     if (!user?.id) return;
     registerRescueAlerts(user.id).catch(() => {
       // Push/geolocation permission is optional; the app keeps working without it.
     });
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setChatUnreadCount(0);
+      setChatMessageNotifications([]);
+      return;
+    }
+    refreshChatState();
+    const timer = setInterval(() => {
+      refreshChatState();
+    }, 30000);
+    return () => clearInterval(timer);
   }, [user?.id]);
 
   useEffect(() => {
@@ -268,13 +357,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   async function loadStoredData() {
     try {
-      const [storedUser, storedOnboarding, storedLikes, storedFollows, storedUserFollows, storedDeletedPostIds, storedToken] = await Promise.all([
+      const [storedUser, storedOnboarding, storedFollows, storedUserFollows, storedDeletedPostIds, storedLikedPostUsers, storedToken] = await Promise.all([
         AsyncStorage.getItem('user'),
         AsyncStorage.getItem('hasSeenOnboarding'),
-        AsyncStorage.getItem('likedPosts'),
         AsyncStorage.getItem('followedOngs'),
         AsyncStorage.getItem('followedUsers'),
         AsyncStorage.getItem(DELETED_POST_IDS_KEY),
+        AsyncStorage.getItem(LIKED_POST_USERS_KEY),
         getSecureItem(AUTH_TOKEN_KEY),
       ]);
 
@@ -287,12 +376,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
       if (storedOnboarding === 'true') setHasSeenOnboarding(true);
-      if (storedLikes) setLikedPosts(JSON.parse(storedLikes));
       if (storedFollows) setFollowedOngs(JSON.parse(storedFollows));
       if (storedUserFollows) setFollowedUsers(JSON.parse(storedUserFollows));
       if (storedDeletedPostIds) {
         const parsed = JSON.parse(storedDeletedPostIds);
         if (Array.isArray(parsed)) deletedPostIdsRef.current = new Set(parsed.filter((id) => typeof id === 'string'));
+      }
+      if (storedLikedPostUsers) {
+        setLikedPostUsers(normalizeLikedPostUsers(JSON.parse(storedLikedPostUsers)));
       }
 
       const cachedFeed = await loadCachedFeed();
@@ -329,6 +420,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (currentUser) {
       await persistUser(mapAuthUser(currentUser));
     }
+  }
+
+  function buildChatNotification(room: ChatConversationContract) {
+    return {
+      id: `chat-${room.id}-${room.lastMessageTime}`,
+      roomId: room.id,
+      title: `Nova mensagem de ${room.participant.name}`,
+      body: room.lastMessage || `Mensagem sobre ${room.postTitle}`,
+      createdAt: room.lastMessageTime || new Date().toISOString(),
+      isRead: false,
+    };
+  }
+
+  async function refreshChatState() {
+    if (!api || !user?.id) {
+      setChatUnreadCount(0);
+      setChatMessageNotifications([]);
+      return;
+    }
+    const rooms = await api.chatRooms().catch(() => null);
+    if (!rooms) return;
+    const unreadRooms = rooms.filter((room) => room.unread > 0);
+    setChatUnreadCount(unreadRooms.reduce((sum, room) => sum + room.unread, 0));
+    setChatMessageNotifications(unreadRooms.map(buildChatNotification));
   }
 
   async function clearInvalidSession() {
@@ -423,6 +538,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.removeItem('user');
     await clearSessionTokens();
     setUser(null);
+    setLikedPosts([]);
+    setChatUnreadCount(0);
+    setChatMessageNotifications([]);
     setIsAuthenticated(false);
   }
 
@@ -437,9 +555,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   function toggleLike(postId: string) {
+    if (!user?.id) return;
+    const storageKey = likedPostsStorageKey(user.id);
     setLikedPosts((prev) => {
-      const next = prev.includes(postId) ? prev.filter((id) => id !== postId) : [...prev, postId];
-      AsyncStorage.setItem('likedPosts', JSON.stringify(next));
+      const wasLiked = prev.includes(postId);
+      const next = wasLiked ? prev.filter((id) => id !== postId) : [...prev, postId];
+      AsyncStorage.setItem(storageKey, JSON.stringify(next));
+      setLikedPostUsers((current) => {
+        const currentUserIds = current[postId] ?? [];
+        const nextUserIds = wasLiked
+          ? currentUserIds.filter((id) => id !== user.id)
+          : Array.from(new Set([...currentUserIds, user.id]));
+        const nextMap = { ...current };
+        if (nextUserIds.length) {
+          nextMap[postId] = nextUserIds;
+        } else {
+          delete nextMap[postId];
+        }
+        AsyncStorage.setItem(LIKED_POST_USERS_KEY, JSON.stringify(nextMap)).catch(() => {});
+        return nextMap;
+      });
       return next;
     });
     api?.likePost(postId).catch(() => {});
@@ -718,8 +853,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         hasSeenOnboarding,
         posts,
         likedPosts,
+        likedPostCounts,
         followedOngs,
         followedUsers,
+        chatUnreadCount,
+        chatMessageNotifications,
         login,
         register,
         logout,
@@ -734,6 +872,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         donateToOng,
         updateUserAvatar,
         refreshUser,
+        refreshChatState,
         pendingOutboxCount,
         syncPendingOperations,
         isLoading,
