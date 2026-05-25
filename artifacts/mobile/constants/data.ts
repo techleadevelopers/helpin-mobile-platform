@@ -8,6 +8,13 @@ export interface Author {
   type: 'person' | 'ong' | 'vet';
 }
 
+export interface RescueOperationalSummary {
+  fanoutPhase?: number | null;
+  helpGoingCount: number;
+  helpArrivedCount: number;
+  operationalLabel: string;
+}
+
 export interface Post {
   id: string;
   type: PostType;
@@ -27,6 +34,7 @@ export interface Post {
   shares: number;
   urgent: boolean;
   rescueStatus?: 'open' | 'active' | 'resolved' | 'cancelled' | string;
+  rescueOperational?: RescueOperationalSummary | null;
   resolvedAt?: string | null;
   createdAt: string;
   contact: string;
