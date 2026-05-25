@@ -8,6 +8,7 @@ import {
   Alert,
   FlatList,
   Image,
+  Modal,
   Platform,
   RefreshControl,
   StyleSheet,
@@ -41,10 +42,10 @@ type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 const FILTERS: Array<{ label: string; value: FeedFilter; icon: MCIcon; color: string; activeBg: string }> = [
   { label: 'Todos',       value: 'all',       icon: 'paw',               color: '#4caf4f00', activeBg: '#586158' },
+  { label: 'Emergência',  value: 'emergency', icon: 'alert-circle',      color: '#FF3B30', activeBg: '#586158' },
   { label: 'Adoção',      value: 'adoption',  icon: 'home-heart',        color: '#4CAF50', activeBg: '#586158' },
   { label: 'Perdidos',    value: 'lost',       icon: 'magnify',           color: '#FF9800', activeBg: '#586158' },
   { label: 'Encontrados', value: 'found',      icon: 'check-circle',      color: '#2F80ED', activeBg: '#586158' },
-  { label: 'Emergência',  value: 'emergency',  icon: 'alert-circle',      color: '#FF3B30', activeBg: '#586158' },
   { label: 'Campanhas',   value: 'campaign',   icon: 'heart-multiple',    color: '#9B59B6', activeBg: '#586158' },
   { label: 'ONGs',        value: 'ong',        icon: 'shield-check',      color: '#2F80ED', activeBg: '#586158' },
 ];
@@ -60,6 +61,7 @@ export default function FeedScreen() {
   const router = useRouter();
   const { posts, refreshPosts, user, addPost, syncPendingOperations } = useApp();
   const [activeFilter, setActiveFilter] = useState<FeedFilter>('all');
+  const [filterMenuVisible, setFilterMenuVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading] = useState(false);
   const [quickText, setQuickText] = useState('');
@@ -70,7 +72,6 @@ export default function FeedScreen() {
   const [quickCoords, setQuickCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [quickSubmitting, setQuickSubmitting] = useState(false);
   const [quickError, setQuickError] = useState('');
-  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [addressQuery, setAddressQuery] = useState('');
   const [addressSearching, setAddressSearching] = useState(false);
   const [addressResult, setAddressResult] = useState<{ label: string; latitude: number; longitude: number } | null>(null);
@@ -81,7 +82,10 @@ export default function FeedScreen() {
   const [manualNeighborhood, setManualNeighborhood] = useState('');
   const [manualCity, setManualCity] = useState('');
   const [manualState, setManualState] = useState('');
+  const [quickContact, setQuickContact] = useState('');
   const quickInputRef = useRef<TextInput>(null);
+  const addressInputRef = useRef<TextInput>(null);
+  const contactInputRef = useRef<TextInput>(null);
 
   const scrollY = useSharedValue(0);
 
@@ -110,6 +114,7 @@ export default function FeedScreen() {
   }, [posts, activeFilter]);
 
   function handleFilterPress(value: FeedFilter) {
+    setFilterMenuVisible(false);
     if (value === 'ong') {
       router.push('/ongs');
       return;
@@ -143,7 +148,7 @@ export default function FeedScreen() {
   useEffect(() => {
     const query = addressQuery.trim();
     setAddressResult(null);
-    if (!locationPickerOpen || query.length < 3) {
+    if (query.length < 3) {
       setAddressSearching(false);
       setAddressSuggestions([]);
       setAddressLookupFailed(false);
@@ -191,7 +196,7 @@ export default function FeedScreen() {
       clearTimeout(timer);
       clearTimeout(fallbackTimer);
     };
-  }, [addressQuery, locationPickerOpen]);
+  }, [addressQuery]);
 
   async function pickQuickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -220,7 +225,6 @@ export default function FeedScreen() {
     });
     setQuickLocation('Localizacao atual');
     setAddressLookupFailed(false);
-    setLocationPickerOpen(false);
   }
 
   async function getQuickCurrentPosition() {
@@ -281,7 +285,6 @@ export default function FeedScreen() {
     });
     setAddressSuggestions([]);
     setAddressLookupFailed(false);
-    setLocationPickerOpen(false);
   }
 
   function getManualLocationParts() {
@@ -355,7 +358,6 @@ export default function FeedScreen() {
     setQuickCoords({ latitude: selected.latitude, longitude: selected.longitude });
     setAddressSuggestions([]);
     setAddressLookupFailed(false);
-    setLocationPickerOpen(false);
   }
 
   async function handleQuickPost() {
@@ -365,6 +367,11 @@ export default function FeedScreen() {
     if (!description && quickImages.length === 0) {
       setQuickError('Escreva o que aconteceu ou adicione uma foto.');
       quickInputRef.current?.focus();
+      return;
+    }
+    if (quickContact.replace(/\D/g, '').length < 10) {
+      setQuickError('Informe um WhatsApp ou telefone valido para receber contato sobre o resgate.');
+      contactInputRef.current?.focus();
       return;
     }
 
@@ -491,7 +498,7 @@ export default function FeedScreen() {
       shares: 0,
       urgent: webAddressOnlyPost ? false : quickUrgent,
       createdAt: 'agora',
-      contact: '',
+      contact: quickContact.trim(),
       tags: quickUrgent ? ['ajuda', 'urgente'] : ['ajuda'],
       latitude: coords?.latitude,
       longitude: coords?.longitude,
@@ -514,7 +521,7 @@ export default function FeedScreen() {
       setManualNeighborhood('');
       setManualCity('');
       setManualState('');
-      setLocationPickerOpen(false);
+      setQuickContact('');
       setQuickUrgent(true);
       setActiveFilter('all');
       if (webAddressOnlyPost) {
@@ -662,7 +669,7 @@ export default function FeedScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.quickTool, { backgroundColor: quickLocation ? colors.primary + '18' : colors.muted }]}
-                onPress={() => setLocationPickerOpen((open) => !open)}
+                onPress={() => addressInputRef.current?.focus()}
                 activeOpacity={0.75}
               >
                 <MaterialCommunityIcons name="map-marker-outline" size={16} color={quickLocation ? colors.primary : colors.mutedForeground} />
@@ -700,12 +707,12 @@ export default function FeedScreen() {
             </View>
           ) : null}
 
-          {locationPickerOpen && (
-            <View style={[styles.locationPicker, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+          <View style={[styles.locationPicker, { backgroundColor: colors.muted, borderColor: colors.border }]}>
               <View style={styles.locationTopRow}>
                 <View style={styles.locationInputRow}>
                   <MaterialCommunityIcons name="map-marker-outline" size={16} color={colors.mutedForeground} />
                   <TextInput
+                    ref={addressInputRef}
                     style={[styles.locationInput, { color: colors.foreground }]}
                     value={addressQuery}
                     onChangeText={setAddressQuery}
@@ -759,6 +766,21 @@ export default function FeedScreen() {
                   />
                 </View>
               )}
+              {(addressLookupFailed || addressManualFallbackVisible) && addressQuery.trim().length >= 3 && (
+                <View style={styles.quickContactRow}>
+                  <MaterialCommunityIcons name="phone-outline" size={15} color={colors.mutedForeground} />
+                  <TextInput
+                    ref={contactInputRef}
+                    style={[styles.quickContactInput, { color: colors.foreground, borderColor: colors.border }]}
+                    value={quickContact}
+                    onChangeText={setQuickContact}
+                    placeholder="WhatsApp ou telefone para contato"
+                    placeholderTextColor={colors.mutedForeground}
+                    keyboardType="phone-pad"
+                    returnKeyType="done"
+                  />
+                </View>
+              )}
               {addressSuggestions.map((suggestion) => (
                 <TouchableOpacity
                   key={suggestion.id}
@@ -780,41 +802,77 @@ export default function FeedScreen() {
                   </Text>
                 </TouchableOpacity>
               )}
-            </View>
-          )}
+          </View>
         </View>
       </View>
 
       {/* ── Filter chips ── */}
-      <FlatList
-        data={FILTERS}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(f) => f.value}
-        contentContainerStyle={styles.filterList}
-        renderItem={({ item: f }) => {
+      <View style={styles.filterList}>
+        {FILTERS.slice(0, 4).map((f) => {
           const isActive = activeFilter === f.value;
           const textColor = isActive ? '#FFFFFF' : colors.mutedForeground;
           return (
             <TouchableOpacity
+              key={f.value}
               style={[
                 styles.filterChip,
                 {
-                  backgroundColor: isActive ? f.activeBg : colors.card,
-                  borderColor: isActive ? f.color : colors.border,
-                  shadowColor: isActive ? f.color : '#00000018',
+                  backgroundColor: isActive ? '#DDEEE2' : '#EFF7F1',
+                  borderColor: isActive ? '#BED9C5' : '#D7E7DA',
                 },
               ]}
               onPress={() => handleFilterPress(f.value)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.filterText, { color: textColor }]}>
+              <Text style={[styles.filterText, { color: isActive ? '#245137' : '#326044' }]}>
                 {f.label}
               </Text>
             </TouchableOpacity>
           );
-        }}
-      />
+        })}
+        <TouchableOpacity
+          style={[
+            styles.filterChip,
+            {
+              backgroundColor: FILTERS.slice(4).some((f) => f.value === activeFilter) ? '#DDEEE2' : '#EFF7F1',
+              borderColor: FILTERS.slice(4).some((f) => f.value === activeFilter) ? '#BED9C5' : '#D7E7DA',
+            },
+          ]}
+          onPress={() => setFilterMenuVisible(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.filterText, { color: FILTERS.slice(4).some((f) => f.value === activeFilter) ? '#245137' : '#326044' }]}>
+            Mais
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <Modal visible={filterMenuVisible} transparent animationType="fade" onRequestClose={() => setFilterMenuVisible(false)}>
+        <View style={styles.filterModalBackdrop}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setFilterMenuVisible(false)} activeOpacity={1} />
+          <BlurView intensity={64} tint="default" style={styles.filterMenu}>
+            <View pointerEvents="none" style={styles.filterMenuTint} />
+            <Text style={styles.filterMenuTitle}>Mais filtros</Text>
+            <View style={styles.filterMenuOptions}>
+              {FILTERS.slice(4).map((f) => {
+                const isActive = activeFilter === f.value;
+                return (
+                  <TouchableOpacity
+                    key={f.value}
+                    style={[styles.filterMenuOption, isActive && styles.filterMenuOptionActive]}
+                    onPress={() => handleFilterPress(f.value)}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons name={f.icon} size={16} color={isActive ? '#245137' : '#326044'} />
+                    <Text style={[styles.filterMenuText, isActive && styles.filterMenuTextActive]}>{f.label}</Text>
+                    {isActive && <MaterialCommunityIcons name="check" size={16} color="#245137" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </BlurView>
+        </View>
+      </Modal>
 
       {/* ── Section heading ── */}
       <View style={styles.sectionRow}>
@@ -991,7 +1049,7 @@ const styles = StyleSheet.create({
     paddingRight: 6,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
   quickInput: {
     flex: 1,
@@ -1168,6 +1226,24 @@ const styles = StyleSheet.create({
   manualCityInput: {
     flex: 0.36,
   },
+  quickContactRow: {
+    width: '100%',
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  quickContactInput: {
+    flex: 1,
+    minHeight: 32,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 9,
+    paddingVertical: 0,
+    fontSize: 11,
+    fontFamily: 'Montserrat_500Medium',
+    backgroundColor: '#FFFFFF',
+  },
   addressResult: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1191,22 +1267,21 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_700Bold',
   },
   filterList: {
-    paddingHorizontal: 16,
-    gap: 7,
+    flexDirection: 'row',
+    gap: 8,
+    paddingLeft: 16,
     paddingBottom: 8,
+    paddingRight: 15,
     paddingTop: 4,
   },
   filterChip: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 11,
-    paddingVertical: 4,
-    borderRadius: 18,
+    minHeight: 20,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 10,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   filterIconWrap: {
     width: 28,
@@ -1216,8 +1291,66 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   filterText: {
-    fontSize: 11,
-    fontFamily: 'Montserrat_500Medium',
+    fontSize: 9,
+    fontFamily: 'Montserrat_600SemiBold',
+    textTransform: 'uppercase',
+  },
+  filterModalBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(18,27,21,0.28)',
+    padding: 16,
+  },
+  filterMenu: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 16,
+    gap: 12,
+    shadowColor: '#244C35',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.14,
+    shadowRadius: 22,
+    elevation: 8,
+  },
+  filterMenuTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(42, 87, 58, 0.27)',
+  },
+  filterMenuTitle: {
+    fontSize: 9,
+    fontFamily: 'Montserrat_600SemiBold',
+    textTransform: 'uppercase',
+    color: '#F3F7F4',
+  },
+  filterMenuOptions: {
+    gap: 7,
+  },
+  filterMenuOption: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#E5F0E7',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.34)',
+  },
+  filterMenuOptionActive: {
+    backgroundColor: '#D7E9DA',
+    borderColor: '#A0C5A9',
+  },
+  filterMenuText: {
+    flex: 1,
+    color: '#326044',
+    fontSize: 9,
+    fontFamily: 'Montserrat_600SemiBold',
+    textTransform: 'uppercase',
+  },
+  filterMenuTextActive: {
+    color: '#245137',
   },
   sectionRow: {
     flexDirection: 'row',
