@@ -659,7 +659,7 @@ export default function FeedScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.quickTool, { backgroundColor: colors.muted }]}
-                onPress={() => router.push('/compose?intent=help&type=emergency&rescue=1')}
+                onPress={() => router.push('/composer?intent=help&type=emergency&rescue=1')}
                 activeOpacity={0.75}
               >
                 <MaterialCommunityIcons name="dots-horizontal" size={16} color={colors.mutedForeground} />
@@ -934,14 +934,16 @@ const styles = StyleSheet.create({
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 0,
   },
   logoIcon: {
-    width: 30,
-    height: 30,
+    width: 31.5,
+    height: 31.5,
     borderRadius: 8,
   },
   logoText: {
+    marginLeft: 2,
+    top: 2,
     fontSize: 25,
     fontFamily: 'Montserrat_700Bold',
     letterSpacing: -1,
