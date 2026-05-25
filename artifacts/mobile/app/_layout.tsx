@@ -86,6 +86,14 @@ function RootLayoutNav() {
           animation: "slide_from_bottom",
         }}
       />
+      <Stack.Screen
+        name="composer"
+        options={{
+          headerShown: false,
+          presentation: "modal",
+          animation: "slide_from_bottom",
+        }}
+      />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="favorites" />
       <Stack.Screen name="verification" />
