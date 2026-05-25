@@ -3,13 +3,15 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { Redirect, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -29,6 +31,7 @@ type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 const MENU_ITEMS: Array<{ icon: MCIcon; label: string; color: string; route?: string }> = [
   { icon: 'account-circle-outline', label: 'Meu perfil', color: '#2D6A4F' },
+  { icon: 'card-account-details-outline', label: 'Meus dados', color: '#2D6A4F' },
   { icon: 'lightning-bolt-outline', label: 'Minha atividade', color: '#2D6A4F', route: '/activity' },
   { icon: 'bell-badge-outline', label: 'Notificacoes', color: '#FF5A7A', route: '/notifications' },
   { icon: 'heart-outline', label: 'Meus favoritos', color: '#E84D6A', route: '/favorites' },
@@ -52,11 +55,25 @@ export default function ProfileScreen() {
     logout,
     deleteAccount,
     updateUserAvatar,
+    updateUserProfile,
   } = useApp();
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [isDataOverlayVisible, setIsDataOverlayVisible] = useState(false);
   const [locationLabel, setLocationLabel] = useState('Localizacao nao definida');
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [cepLoading, setCepLoading] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [profileCep, setProfileCep] = useState('');
+  const [profileStreet, setProfileStreet] = useState('');
+  const [profileNumber, setProfileNumber] = useState('');
+  const [profileComplement, setProfileComplement] = useState('');
+  const [profileNeighborhood, setProfileNeighborhood] = useState('');
+  const [profileCity, setProfileCity] = useState('');
+  const [profileState, setProfileState] = useState('');
+  const [addressFieldsVisible, setAddressFieldsVisible] = useState(false);
+  const lastCepLookupRef = useRef('');
 
   const topPad = Platform.OS === 'web' ? 16 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -64,6 +81,7 @@ export default function ProfileScreen() {
   const accountLabel = user?.type === 'ong' ? 'ONG verificada' : user?.type === 'vet' ? 'Veterinario' : 'Protetor animal';
   const myPosts = user?.id ? posts.filter((post) => post.author.id === user.id).slice(0, 3) : [];
   const unreadNotifications = chatUnreadCount + chatMessageNotifications.filter((item) => !item.isRead).length;
+  const menuItems = MENU_ITEMS.filter((item) => item.label !== 'Verificacao de conta' || user?.type === 'ong');
 
   const logoutScale = useSharedValue(1);
 
@@ -71,8 +89,114 @@ export default function ProfileScreen() {
     transform: [{ scale: logoutScale.value }],
   }));
 
+  useEffect(() => {
+    const address = user?.profileAddress;
+    const nextLocation = [address?.neighborhood, address?.city, address?.state?.toUpperCase()]
+      .filter(Boolean)
+      .join(', ');
+    setLocationLabel(nextLocation || 'Localizacao nao definida');
+  }, [user?.profileAddress]);
+
   if (isLoading) return null;
   if (!isAuthenticated || !user) return <Redirect href="/login" />;
+
+  function formatCep(text: string) {
+    const digits = text.replace(/\D/g, '').slice(0, 8);
+    if (digits.length <= 5) return digits;
+    return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+  }
+
+  function openDataOverlay() {
+    if (!user) return;
+    const address = user.profileAddress ?? {};
+    setProfileName(user.name);
+    setProfileCep(formatCep(address.cep ?? ''));
+    setProfileStreet(address.street ?? '');
+    setProfileNumber(address.number ?? '');
+    setProfileComplement(address.complement ?? '');
+    setProfileNeighborhood(address.neighborhood ?? '');
+    setProfileCity(address.city ?? '');
+    setProfileState((address.state ?? '').toUpperCase());
+    setAddressFieldsVisible(Boolean(address.cep || address.street || address.city || address.state));
+    lastCepLookupRef.current = (address.cep ?? '').replace(/\D/g, '');
+    setIsDataOverlayVisible(true);
+  }
+
+  async function lookupCep(nextCep = profileCep) {
+    const digits = nextCep.replace(/\D/g, '');
+    if (digits.length !== 8) return;
+    if (lastCepLookupRef.current === digits && profileCity && profileState) {
+      setAddressFieldsVisible(true);
+      return;
+    }
+
+    lastCepLookupRef.current = digits;
+    setCepLoading(true);
+    setAddressFieldsVisible(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const payload = (await response.json()) as {
+        erro?: boolean;
+        localidade?: string;
+        uf?: string;
+        logradouro?: string;
+        bairro?: string;
+      };
+      if (!response.ok || payload.erro) {
+        Alert.alert('CEP nao encontrado', 'Confira o CEP e tente novamente.');
+        return;
+      }
+      if (lastCepLookupRef.current !== digits) return;
+      setProfileStreet(payload.logradouro ?? '');
+      setProfileNeighborhood(payload.bairro ?? '');
+      setProfileCity(payload.localidade ?? '');
+      setProfileState((payload.uf ?? '').toUpperCase());
+    } catch {
+      Alert.alert('CEP indisponivel', 'Nao foi possivel consultar o CEP agora. Preencha o endereco manualmente.');
+    } finally {
+      setCepLoading(false);
+    }
+  }
+
+  function handleCepChange(value: string) {
+    const nextCep = formatCep(value);
+    setProfileCep(nextCep);
+    const digits = nextCep.replace(/\D/g, '');
+    if (digits.length === 8) lookupCep(nextCep);
+    else setAddressFieldsVisible(false);
+  }
+
+  async function handleSaveProfileData() {
+    const cleanName = profileName.trim();
+    if (!cleanName) {
+      Alert.alert('Nome obrigatorio', 'Informe seu nome para salvar.');
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      await updateUserProfile({
+        name: cleanName,
+        cep: profileCep.replace(/\D/g, ''),
+        street: profileStreet.trim(),
+        number: profileNumber.trim(),
+        complement: profileComplement.trim(),
+        neighborhood: profileNeighborhood.trim(),
+        city: profileCity.trim(),
+        state: profileState.trim().toUpperCase(),
+      });
+      const nextLocation = [profileNeighborhood.trim(), profileCity.trim(), profileState.trim().toUpperCase()]
+        .filter(Boolean)
+        .join(', ');
+      if (nextLocation) setLocationLabel(nextLocation);
+      setIsDataOverlayVisible(false);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      Alert.alert('Meus dados', 'Nao foi possivel salvar seus dados agora.');
+    } finally {
+      setSavingProfile(false);
+    }
+  }
 
   async function detectLocation() {
     if (Platform.OS === 'web') {
@@ -244,7 +368,7 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.menuCard}>
-        {MENU_ITEMS.map((item, index) => {
+        {menuItems.map((item, index) => {
           const isOwnProfileItem = item.label === 'Meu perfil';
           const menuLabel = isOwnProfileItem && user?.type === 'ong' ? 'Perfil da ONG' : item.label;
           const menuIcon = isOwnProfileItem && user?.type === 'ong' ? 'office-building-outline' : item.icon;
@@ -258,6 +382,8 @@ export default function ProfileScreen() {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 if (isOwnProfileItem && user?.id) {
                   router.push({ pathname: '/(tabs)/user/[id]', params: { id: user.id } });
+                } else if (item.label === 'Meus dados') {
+                  openDataOverlay();
                 } else if (item.route) router.push(item.route as any);
                 else if (item.label === 'Convidar amigos') {
                   shareZooHelpItem('ZooHelp', 'Conheca o ZooHelp e ajude animais perto de voce.');
@@ -275,7 +401,7 @@ export default function ProfileScreen() {
               )}
               <MaterialCommunityIcons name="chevron-right" size={16} color="#A4AAA4" />
             </TouchableOpacity>
-            {index < MENU_ITEMS.length - 1 && <View style={styles.menuDivider} />}
+            {index < menuItems.length - 1 && <View style={styles.menuDivider} />}
           </React.Fragment>
           );
         })}
@@ -322,6 +448,137 @@ export default function ProfileScreen() {
         )}
       </View>
       </ScrollView>
+
+      <Modal transparent visible={isDataOverlayVisible} animationType="fade" onRequestClose={() => setIsDataOverlayVisible(false)}>
+        <View style={styles.dataOverlayRoot}>
+          <TouchableOpacity style={styles.dataBackdrop} activeOpacity={1} onPress={() => setIsDataOverlayVisible(false)} />
+          <View style={[styles.dataSheet, { paddingBottom: bottomPad + 14 }]}>
+            <View style={styles.dataHandle} />
+            <View style={styles.dataHeader}>
+              <View style={styles.dataHeaderIcon}>
+                <MaterialCommunityIcons name="card-account-details-outline" size={20} color="#2D6A4F" />
+              </View>
+              <View style={styles.dataHeaderText}>
+                <Text style={styles.dataTitle}>Meus dados</Text>
+                <Text style={styles.dataSubtitle}>Atualize nome e endereco principal</Text>
+              </View>
+              <TouchableOpacity style={styles.dataCloseBtn} onPress={() => setIsDataOverlayVisible(false)} activeOpacity={0.8}>
+                <MaterialCommunityIcons name="close" size={18} color="#667066" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.fieldLabel}>Nome</Text>
+              <TextInput
+                style={styles.textField}
+                value={profileName}
+                onChangeText={setProfileName}
+                placeholder="Seu nome"
+                placeholderTextColor="#8A928B"
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.fieldLabel}>CEP</Text>
+              <TextInput
+                style={styles.textField}
+                value={profileCep}
+                onChangeText={handleCepChange}
+                onBlur={() => lookupCep()}
+                placeholder="00000-000"
+                placeholderTextColor="#8A928B"
+                keyboardType="number-pad"
+                maxLength={9}
+              />
+              {cepLoading && <Text style={styles.cepLoadingText}>Consultando CEP...</Text>}
+            </View>
+
+            {addressFieldsVisible && (
+              <View style={styles.addressFields}>
+                <View style={styles.formGroup}>
+                  <Text style={styles.fieldLabel}>Rua</Text>
+                  <TextInput
+                    style={styles.textField}
+                    value={profileStreet}
+                    onChangeText={setProfileStreet}
+                    placeholder="Rua"
+                    placeholderTextColor="#8A928B"
+                  />
+                </View>
+
+                <View style={styles.microRow}>
+                  <View style={[styles.formGroup, styles.numberField]}>
+                    <Text style={styles.fieldLabel}>Numero</Text>
+                    <TextInput
+                      style={styles.textField}
+                      value={profileNumber}
+                      onChangeText={setProfileNumber}
+                      placeholder="N"
+                      placeholderTextColor="#8A928B"
+                      keyboardType="numbers-and-punctuation"
+                    />
+                  </View>
+                  <View style={[styles.formGroup, styles.complementField]}>
+                    <Text style={styles.fieldLabel}>Complemento</Text>
+                    <TextInput
+                      style={styles.textField}
+                      value={profileComplement}
+                      onChangeText={setProfileComplement}
+                      placeholder="Apto, bloco"
+                      placeholderTextColor="#8A928B"
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.microRow}>
+                  <View style={[styles.formGroup, styles.neighborhoodField]}>
+                    <Text style={styles.fieldLabel}>Bairro</Text>
+                    <TextInput
+                      style={styles.textField}
+                      value={profileNeighborhood}
+                      onChangeText={setProfileNeighborhood}
+                      placeholder="Bairro"
+                      placeholderTextColor="#8A928B"
+                    />
+                  </View>
+                  <View style={[styles.formGroup, styles.cityField]}>
+                    <Text style={styles.fieldLabel}>Cidade</Text>
+                    <TextInput
+                      style={styles.textField}
+                      value={profileCity}
+                      onChangeText={setProfileCity}
+                      placeholder="Cidade"
+                      placeholderTextColor="#8A928B"
+                    />
+                  </View>
+                  <View style={[styles.formGroup, styles.stateField]}>
+                    <Text style={styles.fieldLabel}>UF</Text>
+                    <TextInput
+                      style={styles.textField}
+                      value={profileState}
+                      onChangeText={(value) => setProfileState(value.toUpperCase())}
+                      placeholder="SP"
+                      placeholderTextColor="#8A928B"
+                      autoCapitalize="characters"
+                      maxLength={2}
+                    />
+                  </View>
+                </View>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[styles.saveDataBtn, savingProfile && styles.saveDataBtnDisabled]}
+              onPress={handleSaveProfileData}
+              disabled={savingProfile}
+              activeOpacity={0.86}
+            >
+              <MaterialCommunityIcons name="content-save-outline" size={17} color="#FFFFFF" />
+              <Text style={styles.saveDataText}>{savingProfile ? 'Salvando...' : 'Salvar dados'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -510,4 +767,96 @@ const styles = StyleSheet.create({
     borderColor: '#F3C4CC',
   },
   deleteBtnText: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#B84D5F' },
+  dataOverlayRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  dataBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(18, 27, 20, 0.34)',
+  },
+  dataSheet: {
+    marginHorizontal: 12,
+    marginBottom: 12,
+    borderRadius: 28,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    shadowColor: '#1C251D',
+    shadowOpacity: 0.22,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 12,
+  },
+  dataHandle: {
+    alignSelf: 'center',
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#DCE4DA',
+    marginBottom: 12,
+  },
+  dataHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    marginBottom: 14,
+  },
+  dataHeaderIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EAF7EF',
+  },
+  dataHeaderText: { flex: 1, gap: 2 },
+  dataTitle: { fontSize: 17, fontFamily: 'Montserrat_700Bold', color: '#1C251D' },
+  dataSubtitle: { fontSize: 11, fontFamily: 'Montserrat_500Medium', color: '#7C867C' },
+  dataCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F4EF',
+  },
+  formGroup: { gap: 5, marginBottom: 10 },
+  fieldLabel: { fontSize: 10, fontFamily: 'Montserrat_700Bold', color: '#6B756C', marginLeft: 2 },
+  textField: {
+    minHeight: 42,
+    borderRadius: 15,
+    paddingHorizontal: 12,
+    backgroundColor: '#F7F9F6',
+    borderWidth: 1,
+    borderColor: '#E4EAE5',
+    fontSize: 13,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: '#1C251D',
+  },
+  cepLoadingText: { fontSize: 10, fontFamily: 'Montserrat_600SemiBold', color: '#2D6A4F', marginLeft: 2 },
+  addressFields: { marginTop: 2 },
+  microRow: { flexDirection: 'row', gap: 8 },
+  numberField: { width: 86 },
+  complementField: { flex: 1 },
+  neighborhoodField: { flex: 1.1 },
+  cityField: { flex: 1 },
+  stateField: { width: 58 },
+  saveDataBtn: {
+    marginTop: 6,
+    minHeight: 46,
+    borderRadius: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#2D6A4F',
+    shadowColor: '#2D6A4F',
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 5,
+  },
+  saveDataBtnDisabled: { opacity: 0.62 },
+  saveDataText: { fontSize: 13, fontFamily: 'Montserrat_700Bold', color: '#FFFFFF' },
 });
