@@ -11,13 +11,11 @@ import {
   Cog,
   LogOut,
   Handshake,
-  DollarSign,
   Radar,
   MessageSquare,
   Gift,
   Activity,
   PawPrint,
-  ShieldAlert,
   Stethoscope,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -75,8 +73,6 @@ export default function Sidebar() {
     { path: "/dispute-management", icon: Handshake, label: "Moderação e Golpes", isActive: location === "/dispute-management" },
     { path: "/live-tracking", icon: Radar, label: "Live Tracking", isActive: location === "/live-tracking" },
     { path: "/observability", icon: Activity, label: "Saúde da Plataforma", isActive: location === "/observability" },
-    { path: "/payment-management", icon: DollarSign, label: "Doações e Payouts", isActive: location === "/payment-management" },
-    { path: "/safety-alerts", icon: ShieldAlert, label: "Trust & Safety", isActive: location === "/safety-alerts" },
     { path: "/support-center", icon: MessageSquare, label: "Central de Suporte", isActive: location === "/support-center" },
   ];
 
@@ -206,4 +202,3 @@ export default function Sidebar() {
     </div>
   );
 }
-
