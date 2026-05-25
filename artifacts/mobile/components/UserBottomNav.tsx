@@ -26,9 +26,11 @@ export function UserBottomNav() {
   const router = useRouter();
   const pathname = normalizePath(usePathname());
   const insets = useSafeAreaInsets();
-  const { user } = useApp();
+  const { user, chatUnreadCount, chatMessageNotifications } = useApp();
   const isOng = user?.type === 'ong';
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
+  const unreadChatNotifications = chatMessageNotifications.filter((item) => !item.isRead).length;
+  const chatBadgeCount = Math.max(chatUnreadCount, unreadChatNotifications);
 
   const items: NavItem[] = [
     {
@@ -92,7 +94,14 @@ export function UserBottomNav() {
             onPress={() => router.push(item.route as any)}
             activeOpacity={0.82}
           >
-            <MaterialCommunityIcons name={item.icon} size={21} color={itemColor} />
+            <View style={styles.iconWrap}>
+              <MaterialCommunityIcons name={item.icon} size={21} color={itemColor} />
+              {item.label === 'Chat' && chatBadgeCount > 0 && (
+                <View style={styles.chatBadge}>
+                  <Text style={styles.chatBadgeText}>{chatBadgeCount > 9 ? '9+' : chatBadgeCount}</Text>
+                </View>
+              )}
+            </View>
             <Text style={[styles.bottomNavText, { color: itemColor }]} numberOfLines={1}>
               {item.label}
             </Text>
@@ -126,5 +135,32 @@ const styles = StyleSheet.create({
   bottomNavText: {
     fontSize: 10,
     fontFamily: 'Inter_500Medium',
+  },
+  iconWrap: {
+    position: 'relative',
+    width: 28,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatBadge: {
+    position: 'absolute',
+    top: -3,
+    right: 0,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#606864',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  chatBadgeText: {
+    fontSize: 9,
+    lineHeight: 11,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#FFFFFF',
   },
 });
