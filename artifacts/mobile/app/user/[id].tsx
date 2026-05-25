@@ -22,8 +22,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { OperationalStatus } from '@/components/OperationalStatus';
 import { StatusBadge } from '@/components/StatusBadge';
+import { ZooHelpHeader } from '@/components/ZooHelpHeader';
 import { AUTHOR_TO_ONG, MOCK_AUTHORS, MOCK_ONGS, MOCK_POSTS, type Author, type Post } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
+import { useColors } from '@/hooks/useColors';
 import { shareZooHelpItem } from '@/services/share';
 import { createZooHelpApi } from '@/services/zoohelpApi';
 
@@ -111,10 +113,17 @@ function getAuthorBio(author: Author, posts: Post[]) {
 }
 
 export default function PublicUserProfileScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, profileName, profileAvatar, profileVerified, profileType } = useLocalSearchParams<{
+    id: string;
+    profileName?: string;
+    profileAvatar?: string;
+    profileVerified?: string;
+    profileType?: Author['type'];
+  }>();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const router = useRouter();
+  const colors = useColors();
   const { posts, user, followedUsers, toggleFollowUser } = useApp();
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [userSearch, setUserSearch] = useState('');
@@ -149,6 +158,16 @@ export default function PublicUserProfileScreen() {
     authors.forEach((item) => byId.set(item.id, item));
     return Array.from(byId.values());
   }, [allPosts, user]);
+  const routedAuthor: Author | null =
+    profileName && (profileType === 'person' || profileType === 'ong' || profileType === 'vet')
+      ? {
+          id,
+          name: profileName,
+          avatar: profileAvatar || null,
+          verified: profileVerified === 'true',
+          type: profileType,
+        }
+      : null;
   const author =
     profilePosts[0]?.author ??
     MOCK_AUTHORS.find((item) => item.id === id) ??
@@ -160,7 +179,7 @@ export default function PublicUserProfileScreen() {
           verified: user.verified,
           type: user.type,
         }
-      : null);
+      : routedAuthor);
 
   if (!author) {
     return (
@@ -186,7 +205,6 @@ export default function PublicUserProfileScreen() {
     .slice(0, socialOverlay === 'following' ? 6 : 8);
   const socialTitle = socialOverlay === 'following' ? 'Seguindo' : 'Seguidores';
   const socialCount = socialOverlay === 'following' ? followingCount : followers;
-  const topPad = Platform.OS === 'web' ? 22 : insets.top + 8;
   const visiblePosts =
     activeTab === 'active' ? activePosts :
     activeTab === 'resolved' ? resolvedPosts :
@@ -206,13 +224,10 @@ export default function PublicUserProfileScreen() {
   async function handleMessage() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const chatPost = activePosts[0] ?? profilePosts[0];
     const api = createZooHelpApi();
-    const openedRoom = chatPost ? await api?.openChatRoom(chatPost.id).catch(() => null) : null;
-    const rooms = !openedRoom ? await api?.chatRooms().catch(() => null) : null;
-    const room =
-      openedRoom ??
-      rooms?.find((item) => item.participant.id === author.id);
+    const rooms = await api?.chatRooms().catch(() => null);
+    const existingRoom = rooms?.find((item) => item.participant.id === author.id);
+    const room = existingRoom ?? await api?.openDirectChat(author.id).catch(() => null);
 
     if (room) {
       router.push(
@@ -240,22 +255,18 @@ export default function PublicUserProfileScreen() {
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} bounces>
-        <LinearGradient colors={['#F5F7F2', '#FFFFFF']} style={[styles.header, { paddingTop: topPad }]}>
-          <View style={styles.topBar}>
-            <TouchableOpacity style={[styles.iconButton, styles.backButton]} onPress={() => router.back()} activeOpacity={0.8}>
-              <MaterialCommunityIcons name="arrow-left" size={20} color="#5F6861" />
-            </TouchableOpacity>
-            <View style={[styles.userSearchBox, styles.headerSearchBox]}>
-              <MaterialCommunityIcons name="account-search-outline" size={15} color="#7C867C" />
-              <TextInput
-                style={styles.userSearchInput}
-                value={userSearch}
-                onChangeText={setUserSearch}
-                placeholder="Buscar usuario"
-                placeholderTextColor="#8A928B"
-                returnKeyType="search"
-              />
-            </View>
+        <ZooHelpHeader />
+        <LinearGradient colors={['#F5F7F2', '#FFFFFF']} style={styles.header}>
+          <View style={[styles.userSearchBox, styles.headerSearchBox]}>
+            <MaterialCommunityIcons name="account-search-outline" size={15} color="#7C867C" />
+            <TextInput
+              style={styles.userSearchInput}
+              value={userSearch}
+              onChangeText={setUserSearch}
+              placeholder="Buscar usuario"
+              placeholderTextColor="#8A928B"
+              returnKeyType="search"
+            />
           </View>
 
           <View style={styles.profileHead}>
@@ -499,10 +510,14 @@ const styles = StyleSheet.create({
   emptyButton: { marginTop: 18, paddingHorizontal: 18, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#2D6A4F' },
   emptyButtonText: { fontSize: 13, fontFamily: 'Montserrat_700Bold', color: '#FFFFFF' },
   header: { paddingHorizontal: 18, paddingBottom: 12 },
-  topBar: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 25 },
+  topBar: { position: 'relative', flexDirection: 'row', alignItems: 'center', marginBottom: 10, minHeight: 34 },
   iconButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.86)' },
   backButton: { width: 32, height: 32, borderRadius: 16 },
-  profileHead: { position: 'relative', flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20 },
+  logoCenter: { position: 'absolute', left: 0, right: 0, height: 34, alignItems: 'center', justifyContent: 'center' },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 0 },
+  logoIcon: { width: 31.5, height: 31.5, borderRadius: 8 },
+  logoText: { marginLeft: 2, top: 2, fontSize: 25, fontFamily: 'Montserrat_700Bold', letterSpacing: -1, lineHeight: 31, textShadowColor: 'rgba(46,125,50,0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+  profileHead: { position: 'relative', flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, marginTop: 18 },
   profileIdentity: { flex: 1, gap: 2, paddingRight: 42 },
   profileShareButton: { position: 'absolute', right: 20, top: 8, width: 36, height: 36, borderRadius: 18 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
@@ -530,7 +545,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E4EAE5',
   },
-  headerSearchBox: { flex: 1, marginTop: 0 },
+  headerSearchBox: { marginTop: 0 },
   userSearchInput: {
     flex: 1,
     padding: 0,
