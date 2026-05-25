@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  Animated,
   Dimensions,
   Modal,
   Linking,
@@ -39,6 +40,41 @@ const STATS: Array<{ icon: MCIcon; key: 'likes' | 'comments' | 'shares'; label: 
   { icon: 'comment-outline',        key: 'comments', label: 'Comentários' },
   { icon: 'share-variant-outline',  key: 'shares',   label: 'Compartilhar' },
 ];
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+
+function PremiumTouchableOpacity({
+  onPressIn,
+  onPressOut,
+  style,
+  ...props
+}: React.ComponentProps<typeof TouchableOpacity>) {
+  const scale = React.useRef(new Animated.Value(1)).current;
+
+  function animateScale(value: number) {
+    Animated.spring(scale, {
+      toValue: value,
+      speed: 36,
+      bounciness: 4,
+      useNativeDriver: true,
+    }).start();
+  }
+
+  return (
+    <AnimatedTouchableOpacity
+      {...props}
+      style={[style, { transform: [{ scale }] }]}
+      onPressIn={(event) => {
+        animateScale(0.975);
+        onPressIn?.(event);
+      }}
+      onPressOut={(event) => {
+        animateScale(1);
+        onPressOut?.(event);
+      }}
+    />
+  );
+}
 
 function DetailInfoChip({
   icon,
@@ -175,13 +211,18 @@ export default function PostDetailScreen() {
     ...MOCK_AUTHORS.filter((item) => item.id !== activePost.author.id),
   ].slice(0, statOverlay === 'comments' ? 4 : 5);
 
-  function handleLike() {
-    setLiked(!isLiked);
-    toggleLike(activePost.id);
+  function tapFeedback() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
+  function handleLike() {
+    setLiked(!isLiked);
+    toggleLike(activePost.id);
+    tapFeedback();
+  }
+
   function handleContact() {
+    tapFeedback();
     if (!activePost.contact) {
       Alert.alert('Contato', 'Entre em contato pelo chat do aplicativo.');
       return;
@@ -206,7 +247,7 @@ export default function PostDetailScreen() {
       return;
     }
 
-    const rooms = await createZooHelpApi(() => token)?.chatRooms({ postId: activePost.id }).catch((error) => {
+    const room = await createZooHelpApi(() => token)?.openChatRoom(activePost.id).catch((error) => {
       const status = typeof error?.status === 'number' ? error.status : null;
       if (status === 401) {
         Alert.alert('Sessao expirada', 'Entre novamente para abrir o chat deste caso.');
@@ -215,10 +256,7 @@ export default function PostDetailScreen() {
       }
       return null;
     });
-    if (!rooms) return;
-    const room = rooms?.find((item) => item.postId === activePost.id);
     if (!room) {
-      Alert.alert('Chat indisponivel', 'O chat deste caso ainda nao foi confirmado no servidor.');
       return;
     }
     router.push(
@@ -227,6 +265,7 @@ export default function PostDetailScreen() {
   }
 
   function handleRoute() {
+    tapFeedback();
     const label = encodeURIComponent(activePost.name || 'Caso ZooHelp');
     const hasCoords = activePost.latitude != null && activePost.longitude != null;
     const destination = hasCoords
@@ -242,6 +281,7 @@ export default function PostDetailScreen() {
   }
 
   function handleShare() {
+    tapFeedback();
     shareZooHelpItem(activePost.name, `${activePost.name} no ZooHelp: ${activePost.description}`);
   }
 
@@ -250,6 +290,7 @@ export default function PostDetailScreen() {
       handleShare();
       return;
     }
+    tapFeedback();
     setStatOverlay(key);
   }
 
@@ -289,6 +330,7 @@ export default function PostDetailScreen() {
             const authorLabel =
               post.author.type === 'ong' ? 'ONG' :
               post.author.type === 'vet' ? 'Veterinário' : 'Protetor';
+            const showsProtectorSince = !isOrg;
             return (
               <TouchableOpacity
                 style={[
@@ -316,8 +358,9 @@ export default function PostDetailScreen() {
                       <MaterialCommunityIcons name="check-decagram" size={12} color="#7B8B8B" />
                     )}
                   </View>
-                  <Text style={[styles.authorType, { color: colors.mutedForeground }]}>
+                  <Text style={styles.authorType}>
                     {authorLabel}
+                    {showsProtectorSince && <Text style={styles.authorSince}>: Desde 05/2026</Text>}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -479,7 +522,7 @@ export default function PostDetailScreen() {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.rescueMapCard} onPress={handleRoute} activeOpacity={0.86}>
+          <PremiumTouchableOpacity style={styles.rescueMapCard} onPress={handleRoute} activeOpacity={0.9}>
             <View style={styles.rescueMapInfo}>
               <Text style={styles.rescueMapTitle}>Area de resgate</Text>
               <Text style={styles.rescueMapSubtitle}>Baseado na localizacao do caso</Text>
@@ -492,7 +535,7 @@ export default function PostDetailScreen() {
               </View>
               <View style={styles.mapSmallPin} />
             </View>
-          </TouchableOpacity>
+          </PremiumTouchableOpacity>
 
           {activePost.contact ? (
             <TouchableOpacity
@@ -517,33 +560,10 @@ export default function PostDetailScreen() {
             </TouchableOpacity>
           ) : null}
 
-          {/* Tags */}
-          {post.tags.length > 0 && (
-            <View style={[styles.section, styles.tagSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Características</Text>
-              <View style={styles.tagsRow}>
-                {post.tags.map((tag) => (
-                  <View
-                    key={tag}
-                    style={[
-                      styles.tag,
-                      {
-                        backgroundColor: colors.muted,
-                        borderColor: colors.border,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.tagText, { color: colors.mutedForeground }]}>#{tag}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
           {/* Stats */}
           <View style={styles.statsRow}>
             {STATS.map((stat) => (
-              <TouchableOpacity
+              <PremiumTouchableOpacity
                 key={stat.label}
                 style={[
                   styles.statBox,
@@ -560,7 +580,7 @@ export default function PostDetailScreen() {
                   <Text style={[styles.statValue, { color: colors.foreground }]}>{post[stat.key]}</Text>
                 </View>
                 <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{stat.label}</Text>
-              </TouchableOpacity>
+              </PremiumTouchableOpacity>
             ))}
           </View>
 
@@ -575,46 +595,42 @@ export default function PostDetailScreen() {
           { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: bottomPad + 10 },
         ]}
       >
-        <TouchableOpacity
+        <PremiumTouchableOpacity
           style={[styles.shareBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
           onPress={handleShare}
-          activeOpacity={0.8}
+          activeOpacity={0.88}
         >
           <MaterialCommunityIcons name="share-variant-outline" size={20} color={colors.mutedForeground} />
-        </TouchableOpacity>
+        </PremiumTouchableOpacity>
 
-        {isEmergency && !isResolved && (
-          <TouchableOpacity
-            style={[styles.bottomChatBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
-            onPress={handleRoute}
-            activeOpacity={0.8}
-          >
-            <MaterialCommunityIcons name="navigation-variant-outline" size={16} color={colors.mutedForeground} />
-            <Text style={[styles.chatBtnText, { color: colors.mutedForeground }]}>Rota</Text>
-          </TouchableOpacity>
-        )}
+        <PremiumTouchableOpacity
+          style={[styles.bottomChatBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
+          onPress={handleRoute}
+          activeOpacity={0.88}
+        >
+          <MaterialCommunityIcons name="navigation-variant-outline" size={16} color={colors.mutedForeground} />
+          <Text style={[styles.chatBtnText, { color: colors.mutedForeground }]}>Rota</Text>
+        </PremiumTouchableOpacity>
 
-        {(post.type === 'adoption' || isEmergency) && (
-          <TouchableOpacity
-            style={[styles.bottomChatBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
-            onPress={handleOpenChat}
-            activeOpacity={0.8}
-          >
-            <MaterialCommunityIcons name="chat-outline" size={16} color={colors.mutedForeground} />
-            <Text style={[styles.chatBtnText, { color: colors.mutedForeground }]}>Chat</Text>
-          </TouchableOpacity>
-        )}
+        <PremiumTouchableOpacity
+          style={[styles.bottomChatBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
+          onPress={handleOpenChat}
+          activeOpacity={0.88}
+        >
+          <MaterialCommunityIcons name="chat-outline" size={16} color={colors.mutedForeground} />
+          <Text style={[styles.chatBtnText, { color: colors.mutedForeground }]}>Chat</Text>
+        </PremiumTouchableOpacity>
 
-        <TouchableOpacity
+        <PremiumTouchableOpacity
           style={[
             styles.mainActionBtn,
             { backgroundColor: cfg.bgColor },
           ]}
           onPress={isEmergency ? handleOpenChat : handleContact}
-          activeOpacity={0.85}
+          activeOpacity={0.9}
         >
           <Text style={styles.mainActionText}>{actionLabel}</Text>
-        </TouchableOpacity>
+        </PremiumTouchableOpacity>
       </View>
 
       <Modal visible={Boolean(selectedImageUri)} transparent animationType="fade" onRequestClose={() => setSelectedImageUri(null)}>
@@ -710,6 +726,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 0.5,
+    shadowColor: '#1F3528',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   shareFloatBtn: {
     width: 36,
@@ -745,6 +766,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 0.5,
+    shadowColor: '#1F3528',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 7,
+    elevation: 1,
   },
 
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 2 },
@@ -762,6 +788,11 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 16,
     borderWidth: 0.5,
+    shadowColor: '#1F3528',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
   },
   contactIcon: {
     width: 30,
@@ -791,11 +822,17 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 12,
     borderRadius: 16,
+    shadowColor: '#1F3528',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.055,
+    shadowRadius: 13,
+    elevation: 2,
   },
   authorInfo: { flex: 1, gap: 2 },
   authorNameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
   authorName: { fontSize: 14, fontFamily: 'Montserrat_600SemiBold' },
-  authorType: { fontSize: 11, fontFamily: 'Montserrat_400Regular', opacity: 0.6 },
+  authorType: { fontSize: 11, fontFamily: 'Montserrat_600SemiBold', color: '#2D6A4F' },
+  authorSince: { fontFamily: 'Montserrat_400Regular', color: '#7C867C' },
   followBtn: {
     minWidth: 58,
     height: 30,
@@ -825,7 +862,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_600SemiBold',
     letterSpacing: -0.3,
   },
-  description: { fontSize: 14, fontFamily: 'Montserrat_400Regular', lineHeight: 21, opacity: 0.85 },
+  description: { fontSize: 12, fontFamily: 'Montserrat_400Regular', lineHeight: 18, opacity: 0.85 },
 
   photoSection: {
     marginTop: -2,
@@ -931,22 +968,6 @@ const styles = StyleSheet.create({
   statPersonName: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#172018' },
   statPersonMeta: { marginTop: 1, fontSize: 9, fontFamily: 'Montserrat_600SemiBold', color: '#7C867C' },
 
-  tagsRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  tagSection: {
-    padding: 14,
-    borderRadius: 18,
-    borderWidth: 0.5,
-  },
-  tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 14,
-    borderWidth: 0.5,
-  },
-  tagText: { fontSize: 11, fontFamily: 'Montserrat_500Medium' },
-
   statsRow: { flexDirection: 'row', gap: 7 },
   statBox: {
     flex: 1,
@@ -958,11 +979,11 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     gap: 2,
     borderWidth: 0.5,
-    shadowColor: '#000',
+    shadowColor: '#1F3528',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.035,
-    shadowRadius: 10,
-    elevation: 1,
+    shadowOpacity: 0.075,
+    shadowRadius: 12,
+    elevation: 2,
   },
   statTopLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   statValue: { fontSize: 13, fontFamily: 'Montserrat_700Bold', lineHeight: 15 },
@@ -974,6 +995,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: 22,
     backgroundColor: '#FFFFFF',
+    borderWidth: 0.5,
+    borderColor: '#E3EAE5',
+    shadowColor: '#1F3528',
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.09,
+    shadowRadius: 17,
+    elevation: 3,
   },
   rescueMapInfo: { width: 138, padding: 15, gap: 3, zIndex: 2 },
   rescueMapTitle: { fontSize: 13, fontFamily: 'Montserrat_700Bold', color: '#1C251D' },
@@ -1019,6 +1047,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     borderTopWidth: 0.5,
+    shadowColor: '#14261B',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.07,
+    shadowRadius: 16,
+    elevation: 10,
   },
   shareBtn: {
     width: 44,
@@ -1027,6 +1060,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 0.5,
+    shadowColor: '#1F3528',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 1,
   },
   mainActionBtn: {
     flex: 1,
@@ -1034,6 +1072,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#314339',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 3,
   },
   mainActionText: {
     fontSize: 14,
@@ -1050,6 +1093,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    shadowColor: '#1F3528',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 1,
   },
   chatBtnText: { fontSize: 13, fontFamily: 'Montserrat_600SemiBold' },
 });
