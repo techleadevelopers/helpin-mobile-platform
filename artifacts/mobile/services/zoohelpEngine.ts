@@ -69,6 +69,12 @@ export interface PostContract {
   shares: number;
   urgent: boolean;
   rescueStatus?: "open" | "active" | "resolved" | "cancelled" | string;
+  rescueOperational?: {
+    fanoutPhase?: number | null;
+    helpGoingCount: number;
+    helpArrivedCount: number;
+    operationalLabel: string;
+  } | null;
   resolvedAt?: string | null;
   createdAt: string;
   contact: string;
