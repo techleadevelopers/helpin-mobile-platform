@@ -428,7 +428,6 @@ export default function PostDetailScreen() {
           {/* Title row */}
           <View style={styles.titleRow}>
             <View style={styles.titleInfo}>
-              <Text style={[styles.animalName, { color: colors.foreground }]}>{post.name}</Text>
               <Text style={[styles.description, { color: colors.foreground }]}>{post.description}</Text>
               {breedAgeParts.length > 0 && (
                 <View style={styles.breedAgeRow}>
