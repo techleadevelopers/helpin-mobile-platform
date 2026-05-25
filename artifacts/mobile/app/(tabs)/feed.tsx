@@ -683,7 +683,7 @@ export default function FeedScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.quickTool, { backgroundColor: colors.muted }]}
-                onPress={() => router.push('/compose?intent=help&type=emergency&rescue=1')}
+                onPress={() => router.push('/composer?intent=help&type=emergency&rescue=1')}
                 activeOpacity={0.75}
               >
                 <MaterialCommunityIcons name="dots-horizontal" size={16} color={colors.mutedForeground} />
@@ -933,7 +933,7 @@ export default function FeedScreen() {
       <View style={[styles.emergencyDock, { paddingBottom: insets.bottom + 12 }]}>
         <TouchableOpacity
           style={styles.emergencyButton}
-          onPress={() => router.push('/compose?intent=help&type=emergency&rescue=1')}
+          onPress={() => router.push('/composer?intent=help&type=emergency&rescue=1')}
           activeOpacity={0.88}
         >
           <View style={styles.emergencyIcon}>
@@ -974,14 +974,15 @@ const styles = StyleSheet.create({
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginRight: 11,
+    gap: 0,
     
   },
   logoIcon: {
-    width: 45,
-    height: 45,
+    width: 47.25,
+    height: 47.25,
     borderRadius: 8,
+    paddingLeft: 8,
+    paddingRight: 8,
   },
   logoText: {
     fontSize: 23,
