@@ -5,6 +5,7 @@ import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColors } from '@/hooks/useColors';
+import { useApp } from '@/context/AppContext';
 import { ackNotification, getNotifications, markNotificationAsRead, type AppNotification } from '@/services/notificationService';
 import { getStoredAccessToken } from '@/services/secureSession';
 
@@ -19,6 +20,7 @@ export default function NotificationsScreen() {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { chatMessageNotifications, refreshChatState } = useApp();
   const [items, setItems] = useState<AppNotification[]>([
     {
       id: 'local-1',
@@ -33,9 +35,31 @@ export default function NotificationsScreen() {
 
   useEffect(() => {
     getNotifications(getToken).then((next) => {
-      if (next.length) setItems(next);
+      if (next.length) {
+        setItems((current) => {
+          const localOnly = current.filter((item) => String(item.id).startsWith('chat-'));
+          return [...localOnly, ...next];
+        });
+      }
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    setItems((current) => {
+      const withoutChat = current.filter((item) => !String(item.id).startsWith('chat-'));
+      const chatItems: AppNotification[] = chatMessageNotifications.map((item) => ({
+        id: item.id,
+        title: item.title,
+        body: item.body,
+        isRead: item.isRead,
+        createdAt: item.createdAt,
+        kind: 'chat',
+        critical: false,
+        payload: { roomId: item.roomId },
+      }));
+      return [...chatItems, ...withoutChat].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    });
+  }, [chatMessageNotifications]);
 
   async function openNotification(item: AppNotification) {
     setItems((prev) => prev.map((candidate) => candidate.id === item.id ? { ...candidate, isRead: true } : candidate));
@@ -43,6 +67,12 @@ export default function NotificationsScreen() {
       markNotificationAsRead(item.id, getToken).catch(() => {}),
       ackNotification(item.id, getToken).catch(() => {}),
     ]);
+    const roomId = typeof item.payload?.roomId === 'string' ? item.payload.roomId : null;
+    if (roomId) {
+      await refreshChatState().catch(() => {});
+      router.push(`/chat/${roomId}` as any);
+      return;
+    }
     if (item.postId) router.push(`/post/${item.postId}` as any);
   }
 
