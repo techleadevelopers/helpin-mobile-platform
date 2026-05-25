@@ -59,7 +59,7 @@ export default function FeedScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { posts, refreshPosts, user, addPost, syncPendingOperations } = useApp();
+  const { posts, refreshPosts, user, addPost, syncPendingOperations, chatUnreadCount, chatMessageNotifications } = useApp();
   const [activeFilter, setActiveFilter] = useState<FeedFilter>('all');
   const [filterMenuVisible, setFilterMenuVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -69,6 +69,7 @@ export default function FeedScreen() {
   const [quickImages, setQuickImages] = useState<string[]>([]);
   const [quickUrgent, setQuickUrgent] = useState(true);
   const [quickLocation, setQuickLocation] = useState('');
+  const [quickLocationPickerVisible, setQuickLocationPickerVisible] = useState(false);
   const [quickCoords, setQuickCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [quickSubmitting, setQuickSubmitting] = useState(false);
   const [quickError, setQuickError] = useState('');
@@ -143,6 +144,8 @@ export default function FeedScreen() {
   })();
 
   const displayName = user?.name?.split(' ')[0] ?? 'Conta';
+  const unreadChatNotifications = chatMessageNotifications.filter((item) => !item.isRead).length;
+  const notificationBadgeCount = Math.max(chatUnreadCount, unreadChatNotifications);
   const urgentCount = filteredPosts.filter((post) => post.urgent || post.type === 'emergency').length;
 
   useEffect(() => {
@@ -510,6 +513,7 @@ export default function FeedScreen() {
       setQuickImage(null);
       setQuickImages([]);
       setQuickLocation('');
+      setQuickLocationPickerVisible(false);
       setQuickCoords(null);
       setQuickError('');
       setAddressQuery('');
@@ -578,7 +582,11 @@ export default function FeedScreen() {
               activeOpacity={0.75}
             >
               <MaterialCommunityIcons name="bell-outline" size={18} color={colors.foreground} />
-              <View style={[styles.notifDot, { backgroundColor: '#FF3B30' }]} />
+              {notificationBadgeCount > 0 && (
+                <View style={styles.notifBadge}>
+                  <Text style={styles.notifBadgeText}>{notificationBadgeCount > 9 ? '9+' : notificationBadgeCount}</Text>
+                </View>
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {
@@ -668,25 +676,27 @@ export default function FeedScreen() {
                 <MaterialCommunityIcons name="image-outline" size={16} color={quickImages.length ? colors.primary : colors.mutedForeground} />
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.quickTool, { backgroundColor: quickLocation ? colors.primary + '18' : colors.muted }]}
-                onPress={() => addressInputRef.current?.focus()}
+                style={[styles.quickLabelTool, { backgroundColor: quickLocation ? colors.primary + '18' : colors.muted }]}
+                onPress={() => {
+                  setQuickLocationPickerVisible(true);
+                  setTimeout(() => addressInputRef.current?.focus(), 0);
+                }}
                 activeOpacity={0.75}
               >
-                <MaterialCommunityIcons name="map-marker-outline" size={16} color={quickLocation ? colors.primary : colors.mutedForeground} />
+                <MaterialCommunityIcons name="map-marker-outline" size={14} color={quickLocation ? colors.primary : colors.mutedForeground} />
+                <Text style={[styles.quickLabelText, { color: quickLocation ? colors.primary : colors.mutedForeground }]}>
+                  ENDEREÇO
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.quickTool, { backgroundColor: quickUrgent ? '#FF3B3014' : colors.muted }]}
+                style={[styles.quickUrgentTool, { backgroundColor: quickUrgent ? '#FF3B3014' : colors.muted }]}
                 onPress={() => setQuickUrgent((prev) => !prev)}
                 activeOpacity={0.75}
               >
-                <MaterialCommunityIcons name="alert-circle-outline" size={16} color={quickUrgent ? '#FF3B30' : colors.mutedForeground} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.quickTool, { backgroundColor: colors.muted }]}
-                onPress={() => router.push('/composer?intent=help&type=emergency&rescue=1')}
-                activeOpacity={0.75}
-              >
-                <MaterialCommunityIcons name="dots-horizontal" size={16} color={colors.mutedForeground} />
+                <MaterialCommunityIcons name="alert-circle-outline" size={14} color={quickUrgent ? '#FF3B30' : colors.mutedForeground} />
+                <Text style={[styles.quickUrgentText, { color: quickUrgent ? '#FF3B30' : colors.mutedForeground }]}>
+                  URGENTE
+                </Text>
               </TouchableOpacity>
             </View>
             <TouchableOpacity
@@ -707,7 +717,8 @@ export default function FeedScreen() {
             </View>
           ) : null}
 
-          <View style={[styles.locationPicker, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+          {quickLocationPickerVisible && (
+            <View style={[styles.locationPicker, { backgroundColor: colors.muted, borderColor: colors.border }]}>
               <View style={styles.locationTopRow}>
                 <View style={styles.locationInputRow}>
                   <MaterialCommunityIcons name="map-marker-outline" size={16} color={colors.mutedForeground} />
@@ -802,7 +813,8 @@ export default function FeedScreen() {
                   </Text>
                 </TouchableOpacity>
               )}
-          </View>
+            </View>
+          )}
         </View>
       </View>
 
@@ -937,7 +949,7 @@ export default function FeedScreen() {
           activeOpacity={0.88}
         >
           <View style={styles.emergencyIcon}>
-            <MaterialCommunityIcons name="alert-circle" size={18} color="#FFFFFF" />
+            <MaterialCommunityIcons name="alarm-light" size={20} color="#FFFFFF" />
           </View>
           <View style={styles.emergencyTextWrap}>
             <Text style={styles.emergencyTitle}>Acionar resgate agora</Text>
@@ -978,8 +990,8 @@ const styles = StyleSheet.create({
     
   },
   logoIcon: {
-    width: 47.25,
-    height: 47.25,
+    width: 38.25,
+    height: 38.25,
     borderRadius: 8,
     paddingLeft: 8,
     paddingRight: 8,
@@ -1019,6 +1031,26 @@ const styles = StyleSheet.create({
     borderRadius: 3.5,
     borderWidth: 1.5,
     borderColor: '#F8FAF8',
+  },
+  notifBadge: {
+    position: 'absolute',
+    right: 5,
+    bottom: 4,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 8.5,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#606864',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  notifBadgeText: {
+    fontSize: 9,
+    lineHeight: 11,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#FFFFFF',
   },
   quickPostCard: {
     borderRadius: 22,
@@ -1125,6 +1157,32 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  quickUrgentTool: {
+    height: 36,
+    borderRadius: 18,
+    paddingHorizontal: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  quickLabelTool: {
+    height: 36,
+    borderRadius: 18,
+    paddingHorizontal: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  quickLabelText: {
+    fontSize: 9,
+    fontFamily: 'Montserrat_700Bold',
+  },
+  quickUrgentText: {
+    fontSize: 9,
+    fontFamily: 'Montserrat_700Bold',
   },
   quickPostCta: {
     flexDirection: 'row',
