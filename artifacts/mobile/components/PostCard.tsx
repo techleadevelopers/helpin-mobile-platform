@@ -15,17 +15,18 @@ import { Avatar } from '@/components/Avatar';
 import { OperationalStatus } from '@/components/OperationalStatus';
 import { StaticMapTiles } from '@/components/StaticMapTiles';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Post } from '@/constants/data';
+import { Post, RescueOperationalSummary } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { formatDistanceKm } from '@/services/geoDistance';
 import { shareZooHelpItem } from '@/services/share';
-import type { PostCommentContract } from '@/services/zoohelpEngine';
-import { createZooHelpApi } from '@/services/zoohelpApi';
+import { ZooHelpApiError, type PostCommentContract } from '@/services/zoohelpEngine';
+import { createZooHelpApi, geocodeAddress, geocodeStructuredAddress } from '@/services/zoohelpApi';
 
-const CARD_IMAGE_HEIGHT = 148;
+const CARD_IMAGE_HEIGHT = 330;
 const FEED_TIME_ICON =
   'https://res.cloudinary.com/limpeja/image/upload/v1779576484/pngtree-vector-clock-icon-png-image_4152707_bfoxlj.jpg';
+const DEFAULT_MAP_COORDS = { latitude: -23.5505, longitude: -46.6333 };
 
 const ANIMAL_PLACEHOLDERS: Record<string, string> = {
   dog: 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=700&q=85',
@@ -127,6 +128,8 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [goingOverlayOpen, setGoingOverlayOpen] = useState(false);
   const [goingConfirmed, setGoingConfirmed] = useState(false);
+  const [localRescueOperational, setLocalRescueOperational] = useState<RescueOperationalSummary | null | undefined>();
+  const [resolvedGoingCoords, setResolvedGoingCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const displayTime = formatPostTime(post.createdAt);
   const locationPreview = limitText(limitWords(post.neighborhood, 15), 38);
 
@@ -218,16 +221,59 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     shareZooHelpItem(post.name, `${post.name} no ZooHelp: ${post.description}`);
   }
 
+  function hasPostCoords() {
+    return Number.isFinite(post.latitude) && Number.isFinite(post.longitude);
+  }
+
+  function getRouteCoords() {
+    if (hasPostCoords()) {
+      return { latitude: post.latitude as number, longitude: post.longitude as number };
+    }
+    return resolvedGoingCoords;
+  }
+
+  function manualAddressText() {
+    if (!post.locationAddress) return '';
+    const { street, number, neighborhood, city, state } = post.locationAddress;
+    return [street, number, neighborhood, city, state].filter(Boolean).join(', ');
+  }
+
+  async function resolveGoingMapCoords() {
+    if (hasPostCoords() || resolvedGoingCoords) return;
+
+    const manualAddress = post.locationAddress;
+    let result: { latitude: number; longitude: number } | null = null;
+    if (manualAddress?.street && manualAddress.number && manualAddress.city && manualAddress.state) {
+      result = await geocodeStructuredAddress({
+        street: manualAddress.street,
+        number: manualAddress.number,
+        neighborhood: manualAddress.neighborhood,
+        city: manualAddress.city,
+        state: manualAddress.state,
+      });
+    }
+
+    if (!result) {
+      const address = manualAddressText() || post.location || post.neighborhood;
+      result = address ? await geocodeAddress(address) : null;
+    }
+
+    if (result) {
+      setResolvedGoingCoords({ latitude: result.latitude, longitude: result.longitude });
+    }
+  }
+
   function openGoingOverlay() {
     setGoingOverlayOpen(true);
+    resolveGoingMapCoords().catch(() => {});
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
   function openRoute() {
     const label = encodeURIComponent(post.name || 'Caso ZooHelp');
-    const hasCoords = post.latitude != null && post.longitude != null;
-    const destination = hasCoords
-      ? `${post.latitude},${post.longitude}`
+    const coords = getRouteCoords();
+    const destination = coords
+      ? `${coords.latitude},${coords.longitude}`
       : encodeURIComponent(post.location || post.neighborhood || post.name);
     const url =
       Platform.OS === 'ios'
@@ -249,9 +295,19 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
       await api.confirmRescueResponse(post.id);
       setGoingConfirmed(true);
       setGoingOverlayOpen(false);
+      void api.post(post.id)
+        .then((updatedPost) => setLocalRescueOperational(updatedPost.rescueOperational))
+        .catch(() => {});
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       openRoute();
-    } catch {
+    } catch (error) {
+      if (error instanceof ZooHelpApiError && error.status === 404) {
+        Alert.alert(
+          'Confirmacao ainda indisponivel',
+          'A API publicada ainda nao suporta esta confirmacao. Atualize o backend e tente novamente.',
+        );
+        return;
+      }
       Alert.alert('Confirmacao indisponivel', 'Nao foi possivel registrar sua ida agora. Tente novamente.');
     }
   }
@@ -390,7 +446,10 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   const hasPhotoGrid = imageUris.length > 1;
   const distance = formatDistanceKm(post.distanceKm);
   const isResolved = post.rescueStatus === 'resolved';
-  const canJoinRescue = !isResolved && (post.urgent || post.type === 'emergency');
+  const displayUrgent = post.urgent || post.tags.includes('urgente');
+  const canJoinRescue = !isResolved;
+  const helpGoingCount = (localRescueOperational ?? post.rescueOperational)?.helpGoingCount ?? 0;
+  const helpGoingLabel = helpGoingCount === 1 ? '1 pessoa a caminho' : `${helpGoingCount} pessoas a caminho`;
   const ctaLabel = isResolved ? 'Ver resolução' : CTA_LABELS[post.type] ?? 'Ver mais';
   const accentColor = CTA_COLORS[post.type] ?? colors.primary;
   const ctaColor = colors.primary;
@@ -402,7 +461,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
       />
 
       <View style={styles.imageTopRow}>
-        <StatusBadge type={post.type} urgent={post.urgent && !isResolved} resolved={isResolved} size="sm" hideType />
+        <StatusBadge type={post.type} urgent={displayUrgent && !isResolved} resolved={isResolved} size="sm" hideType />
       </View>
 
       <View style={styles.imageBottomRow}>
@@ -423,8 +482,9 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   );
 
   function renderGoingOverlay() {
-    const mapLat = post.latitude ?? -23.5505;
-    const mapLng = post.longitude ?? -46.6333;
+    const coords = getRouteCoords() ?? DEFAULT_MAP_COORDS;
+    const mapLat = coords.latitude;
+    const mapLng = coords.longitude;
     const locationLabel = post.location || post.neighborhood || 'Localizacao do caso';
 
     return (
@@ -536,7 +596,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
           <View style={styles.textCardBody}>
             {/* Header row: badge left, save+share right */}
             <View style={styles.textHeaderRow}>
-              <StatusBadge type={post.type} resolved={isResolved} size="sm" />
+              <StatusBadge type={post.type} urgent={displayUrgent && !isResolved} resolved={isResolved} size="sm" />
               <View style={styles.textHeaderRight}>
                 <TouchableOpacity onPress={handleSave} activeOpacity={0.7} style={styles.iconCircle}>
                   <MaterialCommunityIcons
@@ -585,6 +645,12 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
             </Text>
 
             <OperationalStatus post={post} variant="compact" />
+            {helpGoingCount > 0 && (
+              <View style={styles.rescueMomentum}>
+                <View style={styles.rescueMomentumDot} />
+                <Text style={styles.rescueMomentumText}>{helpGoingLabel}</Text>
+              </View>
+            )}
 
             {/* Tags */}
           {post.tags.length > 0 && (
@@ -730,20 +796,18 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
           </TouchableOpacity>
 
           <View style={styles.animalSection}>
-            <View style={styles.animalTitleRow}>
-              <Text style={[styles.animalName, { color: colors.foreground }]} numberOfLines={1}>
-                {post.name}
-              </Text>
-              <Text style={[styles.animalBreed, { color: colors.mutedForeground }]} numberOfLines={1}>
-                {post.breed} · {post.age}
-              </Text>
-            </View>
-            <Text style={[styles.description, { color: colors.foreground }]} numberOfLines={1}>
+            <Text style={[styles.description, styles.descriptionPrimary, { color: colors.foreground }]} numberOfLines={2}>
               {post.description}
             </Text>
           </View>
 
           <OperationalStatus post={post} />
+          {helpGoingCount > 0 && (
+            <View style={styles.rescueMomentum}>
+              <View style={styles.rescueMomentumDot} />
+              <Text style={styles.rescueMomentumText}>{helpGoingLabel}</Text>
+            </View>
+          )}
 
           {postImageMedia}
 
@@ -863,7 +927,7 @@ const styles = StyleSheet.create({
   imageContainer: {
     height: CARD_IMAGE_HEIGHT,
     position: 'relative',
-    backgroundColor: '#E8ECF0',
+    backgroundColor: '#F4F6F3',
   },
   inlineImageContainer: {
     marginTop: 2,
@@ -1031,7 +1095,32 @@ const styles = StyleSheet.create({
   },
   animalBreed: { flex: 1, fontSize: 10, fontFamily: 'Montserrat_400Regular' },
   description: { fontSize: 11, fontFamily: 'Montserrat_400Regular', lineHeight: 15, marginTop: 1 },
+  descriptionPrimary: { fontSize: 12, fontFamily: 'Montserrat_500Medium', lineHeight: 17, marginTop: 0, marginLeft: 7 },
   textContent: { fontSize: 13, fontFamily: 'Montserrat_400Regular', lineHeight: 19 },
+  rescueMomentum: {
+    alignSelf: 'flex-start',
+    minHeight: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 11,
+    backgroundColor: '#EFF7F1',
+    borderWidth: 1,
+    borderColor: '#D7E7DA',
+  },
+  rescueMomentumDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#32A05B',
+  },
+  rescueMomentumText: {
+    fontSize: 10,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: '#326044',
+  },
   tagsRow: { flexDirection: 'row', gap: 5, flexWrap: 'wrap' },
   tag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   infoChipTag: {
