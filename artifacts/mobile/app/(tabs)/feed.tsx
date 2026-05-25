@@ -32,7 +32,7 @@ import { SkeletonCard } from '@/components/SkeletonCard';
 import { MOCK_AUTHORS, Post, PostType } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
-import { geocodeAddress, getPlaceAddressDetails, searchAddressSuggestions } from '@/services/zoohelpApi';
+import { geocodeAddress, geocodeStructuredAddress, getPlaceAddressDetails, searchAddressSuggestions } from '@/services/zoohelpApi';
 import { ZooHelpApiError } from '@/services/zoohelpEngine';
 
 type FeedFilter = PostType | 'all' | 'ong';
@@ -211,20 +211,9 @@ export default function FeedScreen() {
   }
 
   async function detectQuickLocation() {
-    if (Platform.OS === 'web') {
-      Alert.alert('Localizacao', 'GPS real esta disponivel no app mobile. No web, use a publicacao completa.');
-      return;
-    }
+    const position = await getQuickCurrentPosition();
+    if (!position) return;
 
-    const permission = await Location.requestForegroundPermissionsAsync();
-    if (permission.status !== 'granted') {
-      Alert.alert('Permissao de localizacao', 'Ative a localizacao para alertar ONGs e pessoas proximas.');
-      return;
-    }
-
-    const position = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-    });
     setQuickCoords({
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,
@@ -232,6 +221,55 @@ export default function FeedScreen() {
     setQuickLocation('Localizacao atual');
     setAddressLookupFailed(false);
     setLocationPickerOpen(false);
+  }
+
+  async function getQuickCurrentPosition() {
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert('Permissao de localizacao', 'Ative a localizacao para alertar ONGs e pessoas proximas.');
+        return null;
+      }
+
+      return await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+    } catch {
+      if (Platform.OS !== 'web') {
+        Alert.alert('Localizacao indisponivel', 'Nao foi possivel capturar sua localizacao agora.');
+        return null;
+      }
+
+      const geolocation = globalThis.navigator?.geolocation;
+      if (!geolocation) {
+        Alert.alert('Localizacao indisponivel', 'Seu navegador nao liberou o GPS. Use um endereco validado pelo mapa.');
+        return null;
+      }
+
+      return new Promise<Location.LocationObject | null>((resolve) => {
+        geolocation.getCurrentPosition(
+          (position) => {
+            resolve({
+              coords: {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                altitude: position.coords.altitude,
+                accuracy: position.coords.accuracy,
+                altitudeAccuracy: position.coords.altitudeAccuracy,
+                heading: position.coords.heading,
+                speed: position.coords.speed,
+              },
+              timestamp: position.timestamp,
+            });
+          },
+          () => {
+            Alert.alert('Permissao de localizacao', 'Ative a localizacao do navegador ou use uma sugestao validada pelo mapa.');
+            resolve(null);
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+        );
+      });
+    }
   }
 
   function applyAddressResult() {
@@ -271,12 +309,31 @@ export default function FeedScreen() {
   function geocodeWithQuickTimeout(address: string) {
     return Promise.race([
       geocodeAddress(address).catch(() => null),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 12000)),
     ]);
   }
 
   async function resolveManualAddress(address: string) {
-    const geocoded = await geocodeWithQuickTimeout(address);
+    const parts = getManualLocationParts();
+    const geocoded = hasCompleteManualLocation()
+      ? await Promise.race([
+          geocodeStructuredAddress(parts).catch((error) => {
+            console.warn('Structured geocode failed', error);
+            return null;
+          }),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 12000)),
+        ]) || await geocodeWithQuickTimeout(address)
+      : await geocodeWithQuickTimeout(address);
+    if (!geocoded && hasCompleteManualLocation()) {
+      console.warn('Manual address geocode returned null', {
+        street: parts.street,
+        number: parts.number,
+        neighborhood: parts.neighborhood,
+        city: parts.city,
+        state: parts.state,
+        label: address,
+      });
+    }
     if (!geocoded) return null;
     return { ...geocoded, label: address };
   }
@@ -316,6 +373,8 @@ export default function FeedScreen() {
     try {
       let coords = quickCoords;
       let location = quickLocation;
+      let locationAddress: Post['locationAddress'] | undefined;
+      let webAddressOnlyPost = false;
       const manualLocation = getManualLocationLabel();
       const manualComplete = hasCompleteManualLocation();
       const manualAddress = manualLocation || addressQuery.trim();
@@ -326,18 +385,21 @@ export default function FeedScreen() {
 
       if (manualComplete) {
         const geocoded = await resolveManualAddress(manualLocation);
-        if (!geocoded) {
-          const message = 'Nao consegui encontrar coordenadas para esse endereco completo. Confira rua, numero, bairro, cidade e UF.';
-          setAddressLookupFailed(true);
-          setAddressManualFallbackVisible(true);
-          setQuickError(message);
-          Alert.alert('Endereco nao localizado', message);
-          return;
+        if (geocoded) {
+          coords = { latitude: geocoded.latitude, longitude: geocoded.longitude };
+          location = manualLocation;
+          locationAddress = getManualLocationParts();
+          setQuickCoords(coords);
+          setQuickLocation(location);
+        } else {
+          location = manualLocation;
+          if (Platform.OS === 'web') {
+            webAddressOnlyPost = true;
+          } else {
+            locationAddress = getManualLocationParts();
+          }
+          setQuickLocation(location);
         }
-        coords = { latitude: geocoded.latitude, longitude: geocoded.longitude };
-        location = manualLocation;
-        setQuickCoords(coords);
-        setQuickLocation(location);
       } else if (hasManualFallbackAddress) {
         const message = 'Preencha rua, numero, bairro, cidade e UF para publicar com coordenada correta.';
         setAddressLookupFailed(true);
@@ -372,16 +434,13 @@ export default function FeedScreen() {
       }
 
       if (!coords && !location) {
-        const permission = await Location.requestForegroundPermissionsAsync();
-        if (permission.status !== 'granted') {
+        const position = await getQuickCurrentPosition();
+        if (!position) {
           const message = 'Para pedir ajuda real, permita o GPS. Assim o sistema alerta pessoas e ONGs proximas.';
           setQuickError(message);
           Alert.alert('Localizacao obrigatoria', message);
           return;
         }
-        const position = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High,
-        });
         coords = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
@@ -401,7 +460,7 @@ export default function FeedScreen() {
         }
       }
 
-      if (!coords) {
+      if (!coords && !locationAddress && !webAddressOnlyPost) {
         const message = 'Digite rua, numero, bairro, cidade e UF para publicar.';
         setAddressLookupFailed(true);
         setAddressManualFallbackVisible(true);
@@ -413,7 +472,7 @@ export default function FeedScreen() {
       location = location || 'Localizacao atual';
       const post: Post = {
       id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
-      type: 'emergency',
+      type: webAddressOnlyPost ? 'post' : 'emergency',
       animalType: 'other',
       name: description.split(' ').slice(0, 3).join(' ') || 'Pedido de ajuda',
       breed: '',
@@ -430,13 +489,13 @@ export default function FeedScreen() {
       likes: 0,
       comments: 0,
       shares: 0,
-      urgent: quickUrgent,
+      urgent: webAddressOnlyPost ? false : quickUrgent,
       createdAt: 'agora',
       contact: '',
       tags: quickUrgent ? ['ajuda', 'urgente'] : ['ajuda'],
       latitude: coords?.latitude,
       longitude: coords?.longitude,
-      locationAddress: manualComplete ? getManualLocationParts() : undefined,
+      locationAddress,
       };
 
       const savedPost = await addPost(post);
@@ -458,7 +517,11 @@ export default function FeedScreen() {
       setLocationPickerOpen(false);
       setQuickUrgent(true);
       setActiveFilter('all');
-      router.push(`/rescue/status?postId=${encodeURIComponent(savedPost.id)}` as any);
+      if (webAddressOnlyPost) {
+        router.push(`/post/${savedPost.id}` as any);
+      } else {
+        router.push(`/rescue/status?postId=${encodeURIComponent(savedPost.id)}` as any);
+      }
     } catch (error) {
       console.error('Quick post failed', error);
       const backendMessage =
