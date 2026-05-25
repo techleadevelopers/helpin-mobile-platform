@@ -696,15 +696,15 @@ export function OngDashboard() {
               primary: isPendingReview ? 'Aguardando analise' : 'Novo resgate',
               secondary: 'Adocao',
             }}
-            onOpenRescue={() => push('/compose?type=emergency')}
-            onOpenAdoption={() => push('/compose?type=adoption')}
-            onOpenUpdates={() => push('/compose')}
+            onOpenRescue={() => push('/composer?type=emergency')}
+            onOpenAdoption={() => push('/composer?type=adoption')}
+            onOpenUpdates={() => push('/composer')}
             onOpenCases={() => push('/(tabs)/cases')}
             onOpenChat={() => push('/(tabs)/chat')}
             onOpenDonations={() => push('/marketplace')}
             onOpenMap={() => push('/(tabs)/map')}
             onOpenMarketplace={() => push('/marketplace')}
-            onOpenBoost={() => push('/compose?type=campaign')}
+            onOpenBoost={() => push('/composer?type=campaign')}
             animation={quickActionsAnim}
             isReducedMotionEnabled={isReducedMotionEnabled}
           />
@@ -846,7 +846,7 @@ export function OngDashboard() {
             </Text>
             <View style={quickActionStyles.servicesButtonRow}>
               <TouchableOpacity
-                onPress={() => push('/compose?type=campaign')}
+                onPress={() => push('/composer?type=campaign')}
                 style={[quickActionStyles.servicesButton, quickActionStyles.servicesButtonPrimary]}
                 accessibilityRole="button"
               >
