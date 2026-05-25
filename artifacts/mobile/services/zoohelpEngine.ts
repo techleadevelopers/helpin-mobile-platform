@@ -48,6 +48,15 @@ export interface UserContract extends AuthorContract {
   postsCount: number;
   helpedCount: number;
   adoptionsCount: number;
+  profileAddress?: {
+    cep?: string | null;
+    street?: string | null;
+    number?: string | null;
+    complement?: string | null;
+    neighborhood?: string | null;
+    city?: string | null;
+    state?: string | null;
+  } | null;
 }
 
 export interface PostContract {
@@ -512,6 +521,22 @@ export class ZooHelpEngine {
 
   updateAvatar(input: { avatarUrl: string }) {
     return this.request<{ avatarUrl: string }>("/v1/me/avatar", {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  }
+
+  updateProfile(input: {
+    name?: string;
+    cep?: string;
+    street?: string;
+    number?: string;
+    complement?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+  }) {
+    return this.request<CurrentUserResponseContract>("/v1/me", {
       method: "PATCH",
       body: JSON.stringify(input),
     });
