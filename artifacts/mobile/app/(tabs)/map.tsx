@@ -3,7 +3,7 @@ import * as Location from 'expo-location';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Platform,
@@ -25,7 +25,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { OperationalStatus } from '@/components/OperationalStatus';
 import { StaticMapTiles } from '@/components/StaticMapTiles';
+import { ZooHelpHeader } from '@/components/ZooHelpHeader';
 import { Post, POST_TYPE_CONFIG, PostType } from '@/constants/data';
+import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { createZooHelpApi, getStaticMapUrl, mapPost } from '@/services/zoohelpApi';
 
@@ -50,18 +52,43 @@ const FILTER_OPTIONS: Array<{ label: string; value: FilterValue; icon: MCIcon }>
   { label: 'Urgente',     value: 'urgent',    icon: 'lightning-bolt' },
 ];
 
-const PIN_POSITIONS = [
-  { top: 22, left: 44,  type: 'emergency' as PostType },
-  { top: 55, left: 130, type: 'adoption'  as PostType },
-  { top: 18, left: 200, type: 'lost'      as PostType },
-  { top: 70, left: 260, type: 'found'     as PostType },
-  { top: 38, left: 320, type: 'campaign'  as PostType },
-];
-
 const DEFAULT_MAP_COORDS = {
   lat: -23.5505,
   lng: -46.6333,
 };
+
+function distanceKmBetween(from: { lat: number; lng: number }, to: { lat: number; lng: number }) {
+  const earthRadiusKm = 6371;
+  const dLat = ((to.lat - from.lat) * Math.PI) / 180;
+  const dLng = ((to.lng - from.lng) * Math.PI) / 180;
+  const lat1 = (from.lat * Math.PI) / 180;
+  const lat2 = (to.lat * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function sortByDistance(posts: Post[], center: { lat: number; lng: number }) {
+  return [...posts]
+    .map((post) => {
+      if (post.latitude == null || post.longitude == null) return post;
+      return {
+        ...post,
+        distanceKm: post.distanceKm ?? distanceKmBetween(center, { lat: post.latitude, lng: post.longitude }),
+      };
+    })
+    .sort((a, b) => (a.distanceKm ?? Number.MAX_SAFE_INTEGER) - (b.distanceKm ?? Number.MAX_SAFE_INTEGER));
+}
+
+function mergePosts(primary: Post[], secondary: Post[]) {
+  const seen = new Set<string>();
+  return [...primary, ...secondary].filter((post) => {
+    if (seen.has(post.id)) return false;
+    seen.add(post.id);
+    return true;
+  });
+}
 
 function PulsingPin({ type, top, left, urgent }: { type: PostType; top: number; left: number; urgent?: boolean }) {
   const cfg = POST_TYPE_CONFIG[type];
@@ -117,7 +144,7 @@ function CaseCard({ item, index }: { item: Post; index: number }) {
 
   return (
     <TouchableOpacity
-      style={[styles.caseCard, { backgroundColor: colors.card }]}
+      style={[styles.caseCard, { backgroundColor: colors.card, borderColor: colors.border }]}
       onPress={() => router.push(`/post/${item.id}`)}
       activeOpacity={0.92}
     >
@@ -176,14 +203,14 @@ function CaseCard({ item, index }: { item: Post; index: number }) {
 export default function MapScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { posts } = useApp();
   const [activeFilter, setActiveFilter] = useState<FilterValue>('all');
-  const [nearbyPosts, setNearbyPosts] = useState<Post[]>([]);
+  const [apiNearbyPosts, setApiNearbyPosts] = useState<Post[]>([]);
   const [locationLabel, setLocationLabel] = useState('Sao Paulo, SP');
   const [mapImageUrl, setMapImageUrl] = useState<string | null>(null);
   const [mapCoords, setMapCoords] = useState(DEFAULT_MAP_COORDS);
   const [expandedMap, setExpandedMap] = useState(false);
-
-  const topPad = (Platform.OS === 'web' ? 0 : insets.top) + 16;
 
   useEffect(() => {
     let mounted = true;
@@ -218,7 +245,7 @@ export default function MapScreen() {
           radiusKm: 30,
         });
         if (nearby && mounted) {
-          setNearbyPosts(nearby.map((item) => ({
+          setApiNearbyPosts(nearby.map((item) => ({
             ...mapPost(item.post),
             distanceKm: item.distanceKm,
           })));
@@ -233,6 +260,17 @@ export default function MapScreen() {
     };
   }, []);
 
+  const feedNearbyPosts = useMemo(() => {
+    const withDistances = sortByDistance(posts, mapCoords);
+    const close = withDistances.filter((post) => post.distanceKm == null || post.distanceKm <= 30);
+    return close.length > 0 ? close : withDistances;
+  }, [posts, mapCoords]);
+
+  const nearbyPosts = useMemo(
+    () => mergePosts(sortByDistance(apiNearbyPosts, mapCoords), feedNearbyPosts),
+    [apiNearbyPosts, feedNearbyPosts, mapCoords]
+  );
+
   const filteredPosts = nearbyPosts.filter((p) => {
     if (activeFilter === 'all') return true;
     if (activeFilter === 'urgent') return p.urgent;
@@ -242,6 +280,7 @@ export default function MapScreen() {
 
   const urgentCount = nearbyPosts.filter((p) => p.urgent).length;
   const nearbyCount = filteredPosts.length;
+  const mapPosts = filteredPosts.filter((post) => post.latitude != null && post.longitude != null).slice(0, 7);
 
   const renderCase = useCallback(
     ({ item, index }: { item: Post; index: number }) => (
@@ -251,9 +290,11 @@ export default function MapScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: '#F8FAF8' }]}>
+    <View style={[styles.container, { backgroundColor: '#F5F7F2' }]}>
       {/* ── Header ── */}
-      <View style={[styles.header, { paddingTop: topPad }]}>
+      <ZooHelpHeader />
+
+      <View style={styles.mapIntro}>
         <View style={styles.headerLeft}>
           <Text style={[styles.title, { color: colors.foreground }]}>Próximo a você</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
@@ -272,7 +313,7 @@ export default function MapScreen() {
       </View>
 
       {/* ── Map Placeholder ── */}
-      <View style={[styles.mapContainer, { shadowColor: '#2F80ED' }]}>
+      <View style={[styles.mapContainer, { shadowColor: '#244C35' }]}>
         <LinearGradient
           colors={['#E8F5E9', '#E3F2FD', '#F3E5F5']}
           start={{ x: 0, y: 0 }}
@@ -304,8 +345,14 @@ export default function MapScreen() {
           ))}
 
           {/* Map pins */}
-          {PIN_POSITIONS.map((p, i) => (
-            <PulsingPin key={i} {...p} urgent={p.type === 'emergency'} />
+          {mapPosts.map((post, i) => (
+            <PulsingPin
+              key={post.id}
+              type={post.type}
+              urgent={post.urgent || post.type === 'emergency'}
+              top={18 + ((i * 29) % 92)}
+              left={32 + ((i * 61) % 302)}
+            />
           ))}
 
           {/* Center marker — "você" */}
@@ -361,6 +408,13 @@ export default function MapScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.listContent, { paddingBottom: Platform.OS === 'web' ? 110 : insets.bottom + 75 }]}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <MaterialCommunityIcons name="map-search-outline" size={26} color="#7C867C" />
+            <Text style={styles.emptyTitle}>Nenhum caso próximo</Text>
+            <Text style={styles.emptyText}>Quando o feed tiver casos com localização nesta região, eles aparecem aqui.</Text>
+          </View>
+        }
         ListHeaderComponent={
           <ScrollView
             horizontal
@@ -409,38 +463,82 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
 
   header: {
+    position: 'relative',
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 10,
+    borderBottomWidth: 1,
+    minHeight: 60,
+  },
+  backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerSideSpacer: { width: 44, height: 44 },
+  logoCenter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 13,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 0,
+  },
+  logoIcon: {
+    width: 31.5,
+    height: 31.5,
+    borderRadius: 8,
+  },
+  logoText: {
+    marginLeft: 2,
+    top: 2,
+    fontSize: 25,
+    fontFamily: 'Montserrat_700Bold',
+    letterSpacing: -1,
+    lineHeight: 31,
+    textShadowColor: 'rgba(46,125,50,0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  mapIntro: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingTop: 10,
     paddingBottom: 12,
     gap: 12,
   },
   headerLeft: { flex: 1, gap: 2 },
-  title: { fontSize: 22, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
-  subtitle: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  title: { fontSize: 15, fontFamily: 'Montserrat_700Bold' },
+  subtitle: { fontSize: 11, fontFamily: 'Montserrat_500Medium', marginTop: 1 },
   locationBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 17,
     borderWidth: 1,
-    maxWidth: 150,
-    minHeight: 36,
+    maxWidth: 122,
+    minHeight: 34,
     flexShrink: 0,
   },
-  locationLabel: { flexShrink: 1, fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  locationLabel: { flexShrink: 1, fontSize: 10, fontFamily: 'Montserrat_700Bold' },
 
   mapContainer: {
     marginHorizontal: 16,
-    borderRadius: 22,
+    borderRadius: 24,
     overflow: 'hidden',
     marginBottom: 10,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 14,
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
     elevation: 6,
   },
   mapGradient: {
@@ -552,20 +650,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginHorizontal: 16,
     marginBottom: 10,
-    borderRadius: 16,
+    borderRadius: 22,
     borderWidth: 1,
     paddingVertical: 10,
     paddingHorizontal: 4,
-    shadowColor: '#000',
+    shadowColor: '#244C35',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 4,
   },
   statItem: { flex: 1, alignItems: 'center', gap: 2 },
   statsDivider: { width: 1, marginVertical: 4 },
-  statVal: { fontSize: 15, fontFamily: 'Inter_700Bold', letterSpacing: -0.3 },
-  statLbl: { fontSize: 9, fontFamily: 'Inter_400Regular', textAlign: 'center' },
+  statVal: { fontSize: 15, fontFamily: 'Montserrat_700Bold', letterSpacing: -0.3 },
+  statLbl: { fontSize: 9, fontFamily: 'Montserrat_500Medium', textAlign: 'center' },
 
   filterRow: {
     paddingHorizontal: 16,
@@ -579,15 +677,15 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 22,
+    borderRadius: 18,
     borderWidth: 1.5,
-    shadowColor: '#000',
+    shadowColor: '#244C35',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 5,
     elevation: 2,
   },
-  filterText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  filterText: { fontSize: 13, fontFamily: 'Montserrat_700Bold' },
 
   listContent: { paddingTop: 2, gap: 0 },
 
@@ -599,10 +697,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderRadius: 18,
     padding: 14,
-    shadowColor: '#000',
+    borderWidth: 1,
+    shadowColor: '#244C35',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
     elevation: 3,
   },
   typeIconWrap: {
@@ -616,7 +715,7 @@ const styles = StyleSheet.create({
   },
   caseInfo: { flex: 1, gap: 3 },
   caseTopRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  caseName: { fontSize: 15, fontFamily: 'Inter_600SemiBold', flex: 1 },
+  caseName: { fontSize: 15, fontFamily: 'Montserrat_700Bold', flex: 1 },
   urgentPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -626,13 +725,25 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 7,
   },
-  urgentText: { fontSize: 9, fontFamily: 'Inter_700Bold', color: '#FFFFFF' },
-  caseBreed: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  urgentText: { fontSize: 9, fontFamily: 'Montserrat_700Bold', color: '#FFFFFF' },
+  caseBreed: { fontSize: 12, fontFamily: 'Montserrat_500Medium' },
   caseMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
   metaDot: { width: 3, height: 3, borderRadius: 1.5 },
   distanceChip: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   distanceText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
   caseLocationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  locationText: { fontSize: 11, fontFamily: 'Inter_400Regular', flex: 1 },
+  locationText: { fontSize: 11, fontFamily: 'Montserrat_500Medium', flex: 1 },
   caseRight: { alignItems: 'center', gap: 8, flexShrink: 0 },
+  emptyState: {
+    marginHorizontal: 16,
+    marginTop: 18,
+    padding: 22,
+    borderRadius: 22,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E4EAE5',
+  },
+  emptyTitle: { marginTop: 8, fontSize: 14, fontFamily: 'Montserrat_700Bold', color: '#172018' },
+  emptyText: { marginTop: 4, fontSize: 11, fontFamily: 'Montserrat_500Medium', color: '#7C867C', textAlign: 'center', lineHeight: 16 },
 });
