@@ -352,6 +352,7 @@ export default function FeedScreen() {
     try {
       let coords = quickCoords;
       let location = quickLocation;
+      let webAddressOnlyPost = false;
       const manualLocation = getManualLocationLabel();
       const manualComplete = hasCompleteManualLocation();
       const manualAddress = manualLocation || addressQuery.trim();
@@ -363,17 +364,24 @@ export default function FeedScreen() {
       if (manualComplete) {
         const geocoded = await resolveManualAddress(manualLocation);
         if (!geocoded) {
-          const message = 'Nao consegui encontrar coordenadas para esse endereco completo. Confira rua, numero, bairro, cidade e UF.';
-          setAddressLookupFailed(true);
-          setAddressManualFallbackVisible(true);
-          setQuickError(message);
-          Alert.alert('Endereco nao localizado', message);
-          return;
+          if (Platform.OS === 'web') {
+            webAddressOnlyPost = true;
+            location = manualLocation;
+            setQuickLocation(location);
+          } else {
+            const message = 'Nao consegui encontrar coordenadas para esse endereco completo. Confira rua, numero, bairro, cidade e UF.';
+            setAddressLookupFailed(true);
+            setAddressManualFallbackVisible(true);
+            setQuickError(message);
+            Alert.alert('Endereco nao localizado', message);
+            return;
+          }
+        } else {
+          coords = { latitude: geocoded.latitude, longitude: geocoded.longitude };
+          location = manualLocation;
+          setQuickCoords(coords);
+          setQuickLocation(location);
         }
-        coords = { latitude: geocoded.latitude, longitude: geocoded.longitude };
-        location = manualLocation;
-        setQuickCoords(coords);
-        setQuickLocation(location);
       } else if (hasManualFallbackAddress) {
         const message = 'Preencha rua, numero, bairro, cidade e UF para publicar com coordenada correta.';
         setAddressLookupFailed(true);
@@ -427,18 +435,20 @@ export default function FeedScreen() {
         setQuickLocation(location);
       }
 
-      const geoResolved = await resolveRequiredQuickCoords(coords, location);
-      if (!geoResolved) {
-        setQuickError('Nao consegui validar a localizacao. Confira o endereco ou use o GPS atual.');
-        return;
+      if (!webAddressOnlyPost) {
+        const geoResolved = await resolveRequiredQuickCoords(coords, location);
+        if (!geoResolved) {
+          setQuickError('Nao consegui validar a localizacao. Confira o endereco ou use o GPS atual.');
+          return;
+        }
+        coords = geoResolved.coords;
+        location = geoResolved.location;
       }
-      coords = geoResolved.coords;
-      location = geoResolved.location;
 
       location = location || 'Localizacao atual';
       const post: Post = {
       id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
-      type: 'emergency',
+      type: webAddressOnlyPost ? 'post' : 'emergency',
       animalType: 'other',
       name: description.split(' ').slice(0, 3).join(' ') || 'Pedido de ajuda',
       breed: '',
@@ -455,13 +465,13 @@ export default function FeedScreen() {
       likes: 0,
       comments: 0,
       shares: 0,
-      urgent: quickUrgent,
+      urgent: webAddressOnlyPost ? false : quickUrgent,
       createdAt: 'agora',
       contact: '',
       tags: quickUrgent ? ['ajuda', 'urgente'] : ['ajuda'],
       latitude: coords?.latitude,
       longitude: coords?.longitude,
-      locationAddress: manualComplete ? getManualLocationParts() : undefined,
+      locationAddress: manualComplete && !webAddressOnlyPost ? getManualLocationParts() : undefined,
       };
 
       const savedPost = await addPost(post);
@@ -483,7 +493,11 @@ export default function FeedScreen() {
       setLocationPickerOpen(false);
       setQuickUrgent(true);
       setActiveFilter('all');
-      router.push(`/rescue/status?postId=${encodeURIComponent(savedPost.id)}` as any);
+      if (webAddressOnlyPost) {
+        router.push(`/post/${savedPost.id}` as any);
+      } else {
+        router.push(`/rescue/status?postId=${encodeURIComponent(savedPost.id)}` as any);
+      }
     } catch (error) {
       console.error('Quick post failed', error);
       const backendMessage =
