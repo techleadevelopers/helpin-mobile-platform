@@ -2,7 +2,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -23,17 +22,15 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OperationalStatus } from '@/components/OperationalStatus';
-import { MOCK_POSTS } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
-import { useColors } from '@/hooks/useColors';
 import { shareZooHelpItem } from '@/services/share';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-const MENU_ITEMS: Array<{ icon: MCIcon; label: string; badge?: string; color: string; route?: string }> = [
+const MENU_ITEMS: Array<{ icon: MCIcon; label: string; color: string; route?: string }> = [
   { icon: 'account-circle-outline', label: 'Meu perfil', color: '#2D6A4F' },
   { icon: 'lightning-bolt-outline', label: 'Minha atividade', color: '#2D6A4F', route: '/activity' },
-  { icon: 'bell-badge-outline', label: 'Notificacoes', badge: '3', color: '#FF5A7A', route: '/notifications' },
+  { icon: 'bell-badge-outline', label: 'Notificacoes', color: '#FF5A7A', route: '/notifications' },
   { icon: 'heart-outline', label: 'Meus favoritos', color: '#E84D6A', route: '/favorites' },
   { icon: 'certificate-outline', label: 'Verificacao de conta', color: '#7357D6', route: '/verification' },
   { icon: 'account-multiple-outline', label: 'Convidar amigos', color: '#1E8A9E' },
@@ -43,21 +40,30 @@ const MENU_ITEMS: Array<{ icon: MCIcon; label: string; badge?: string; color: st
 ];
 
 export default function ProfileScreen() {
-  const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { isAuthenticated, isLoading, user, logout, deleteAccount, updateUserAvatar } = useApp();
+  const {
+    isAuthenticated,
+    isLoading,
+    user,
+    posts,
+    chatUnreadCount,
+    chatMessageNotifications,
+    logout,
+    deleteAccount,
+    updateUserAvatar,
+  } = useApp();
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
-  const [locationLabel, setLocationLabel] = useState('Sao Paulo, SP');
+  const [locationLabel, setLocationLabel] = useState('Localizacao nao definida');
   const [detectingLocation, setDetectingLocation] = useState(false);
-  const [isAlertOverlayVisible, setIsAlertOverlayVisible] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const topPad = Platform.OS === 'web' ? 16 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
   const displayName = user?.name || '';
   const accountLabel = user?.type === 'ong' ? 'ONG verificada' : user?.type === 'vet' ? 'Veterinario' : 'Protetor animal';
-  const myPosts = MOCK_POSTS.slice(0, 3);
+  const myPosts = user?.id ? posts.filter((post) => post.author.id === user.id).slice(0, 3) : [];
+  const unreadNotifications = chatUnreadCount + chatMessageNotifications.filter((item) => !item.isRead).length;
 
   const logoutScale = useSharedValue(1);
 
@@ -96,7 +102,6 @@ export default function ProfileScreen() {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
     try {
-      setIsAlertOverlayVisible(false);
       await logout();
       router.dismissAll();
       router.replace('/login');
@@ -117,11 +122,6 @@ export default function ProfileScreen() {
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Excluir', style: 'destructive', onPress: () => deleteAccount() },
     ]);
-  }
-
-  function openRescueComposer() {
-    setIsAlertOverlayVisible(false);
-    router.push('/compose?intent=help&type=emergency&rescue=1');
   }
 
   async function pickProfilePhoto() {
@@ -161,7 +161,7 @@ export default function ProfileScreen() {
 
         <TouchableOpacity style={styles.profileIconBtn} activeOpacity={0.78} onPress={() => router.push('/notifications')}>
           <MaterialCommunityIcons name="bell-outline" size={18} color="#2D6A4F" />
-          <View style={styles.profileNotifDot} />
+          {unreadNotifications > 0 && <View style={styles.profileNotifDot} />}
         </TouchableOpacity>
       </View>
 
@@ -210,30 +210,37 @@ export default function ProfileScreen() {
             <Text style={styles.seeAllText}>Ver todos</Text>
           </TouchableOpacity>
         </View>
-        {myPosts.map((post) => (
-          <TouchableOpacity
-            key={post.id}
-            style={styles.caseRow}
-            onPress={() => router.push(`/post/${post.id}`)}
-            activeOpacity={0.9}
-          >
-            <View style={[styles.caseIcon, { backgroundColor: post.urgent ? '#FFE9ED' : '#EAF7EF' }]}>
-              <MaterialCommunityIcons
-                name={post.urgent ? 'alert-circle' : 'paw'}
-                size={16}
-                color={post.urgent ? '#f14a4a' : '#106b42'}
-              />
-            </View>
-            <View style={styles.caseInfo}>
-              <Text style={styles.caseName} numberOfLines={1}>{post.name}</Text>
-              <OperationalStatus post={post} variant="line" />
-            </View>
-            <View style={styles.caseStats}>
-              <MaterialCommunityIcons name="heart-outline" size={13} color="#8A928B" />
-              <Text style={styles.caseStatText}>{post.likes}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+        {myPosts.length > 0 ? (
+          myPosts.map((post) => (
+            <TouchableOpacity
+              key={post.id}
+              style={styles.caseRow}
+              onPress={() => router.push(`/post/${post.id}`)}
+              activeOpacity={0.9}
+            >
+              <View style={[styles.caseIcon, { backgroundColor: post.urgent ? '#FFE9ED' : '#EAF7EF' }]}>
+                <MaterialCommunityIcons
+                  name={post.urgent ? 'alert-circle' : 'paw'}
+                  size={16}
+                  color={post.urgent ? '#f14a4a' : '#106b42'}
+                />
+              </View>
+              <View style={styles.caseInfo}>
+                <Text style={styles.caseName} numberOfLines={1}>{post.name}</Text>
+                <OperationalStatus post={post} variant="line" />
+              </View>
+              <View style={styles.caseStats}>
+                <MaterialCommunityIcons name="heart-outline" size={13} color="#8A928B" />
+                <Text style={styles.caseStatText}>{post.likes}</Text>
+              </View>
+            </TouchableOpacity>
+          ))
+        ) : (
+          <View style={styles.emptyCases}>
+            <MaterialCommunityIcons name="clipboard-text-outline" size={22} color="#8A928B" />
+            <Text style={styles.emptyCasesText}>Nenhum caso publicado ainda.</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.menuCard}>
@@ -261,9 +268,9 @@ export default function ProfileScreen() {
                 <MaterialCommunityIcons name={menuIcon} size={18} color={item.color} />
               </View>
               <Text style={styles.menuLabel}>{menuLabel}</Text>
-              {item.badge && (
+              {item.label === 'Notificacoes' && unreadNotifications > 0 && (
                 <View style={styles.menuBadge}>
-                  <Text style={styles.menuBadgeText}>{item.badge}</Text>
+                  <Text style={styles.menuBadgeText}>{Math.min(unreadNotifications, 99)}</Text>
                 </View>
               )}
               <MaterialCommunityIcons name="chevron-right" size={16} color="#A4AAA4" />
@@ -314,65 +321,7 @@ export default function ProfileScreen() {
           </View>
         )}
       </View>
-
-        <Text style={styles.version}>ZooHelp v1.0</Text>
       </ScrollView>
-
-      {isAlertOverlayVisible && (
-        <View style={styles.alertOverlay}>
-          <TouchableOpacity
-            style={styles.alertScrim}
-            activeOpacity={1}
-            onPress={() => setIsAlertOverlayVisible(false)}
-          />
-          <View style={[styles.alertSheet, { paddingBottom: bottomPad + 14 }]}>
-            <View style={styles.alertHandle} />
-            <View style={styles.alertHeader}>
-              <LinearGradient colors={['#FF7A59', '#D94B3D']} style={styles.alertIcon}>
-                <MaterialCommunityIcons name="alert-circle" size={24} color="#FFFFFF" />
-              </LinearGradient>
-              <View style={styles.alertHeaderText}>
-                <Text style={styles.alertTitle}>Alertas perto de voce</Text>
-                <Text style={styles.alertSubtitle}>3 casos precisam de resposta rapida na sua area.</Text>
-              </View>
-              <TouchableOpacity style={styles.alertCloseBtn} onPress={() => setIsAlertOverlayVisible(false)}>
-                <MaterialCommunityIcons name="close" size={18} color="#667066" />
-              </TouchableOpacity>
-            </View>
-
-            {[
-              { title: 'Animal ferido', meta: '0.8 km - urgente', icon: 'medical-bag' as MCIcon },
-              { title: 'Pedido de transporte', meta: '1.4 km - voluntario', icon: 'car-emergency' as MCIcon },
-              { title: 'ONG solicitou apoio', meta: '2.1 km - doacao/lar temporario', icon: 'shield-heart' as MCIcon },
-            ].map((item) => (
-              <View key={item.title} style={styles.alertRow}>
-                <View style={styles.alertRowIcon}>
-                  <MaterialCommunityIcons name={item.icon} size={16} color="#D94B3D" />
-                </View>
-                <View style={styles.alertRowInfo}>
-                  <Text style={styles.alertRowTitle}>{item.title}</Text>
-                  <Text style={styles.alertRowMeta}>{item.meta}</Text>
-                </View>
-              </View>
-            ))}
-
-            <TouchableOpacity style={styles.alertPrimaryBtn} onPress={openRescueComposer} activeOpacity={0.88}>
-              <MaterialCommunityIcons name="send" size={17} color="#FFFFFF" />
-              <Text style={styles.alertPrimaryText}>Pedir ajuda agora</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.alertSecondaryBtn}
-              onPress={() => {
-                setIsAlertOverlayVisible(false);
-                router.push('/notifications');
-              }}
-              activeOpacity={0.82}
-            >
-              <Text style={styles.alertSecondaryText}>Ver todos os alertas</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
     </View>
   );
 }
@@ -503,9 +452,19 @@ const styles = StyleSheet.create({
   caseIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   caseInfo: { flex: 1, gap: 2 },
   caseName: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#1C251D' },
-  caseMeta: { fontSize: 10, fontFamily: 'Montserrat_500Medium', color: '#8E968E' },
   caseStats: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   caseStatText: { fontSize: 10, fontFamily: 'Montserrat_600SemiBold', color: '#8A928B' },
+  emptyCases: {
+    minHeight: 74,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#E8EDE8',
+  },
+  emptyCasesText: { fontSize: 12, fontFamily: 'Montserrat_600SemiBold', color: '#8A928B' },
   menuCard: {
     marginHorizontal: 18,
     borderRadius: 24,
@@ -551,99 +510,4 @@ const styles = StyleSheet.create({
     borderColor: '#F3C4CC',
   },
   deleteBtnText: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#B84D5F' },
-  version: { fontSize: 10, fontFamily: 'Montserrat_500Medium', textAlign: 'center', color: '#A0A8A0', marginTop: 2 },
-  alertOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'flex-end',
-    zIndex: 20,
-  },
-  alertScrim: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(18, 27, 20, 0.34)',
-  },
-  alertSheet: {
-    marginHorizontal: 12,
-    marginBottom: 12,
-    borderRadius: 28,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    shadowColor: '#1C251D',
-    shadowOpacity: 0.22,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 12,
-  },
-  alertHandle: {
-    alignSelf: 'center',
-    width: 38,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#DCE4DA',
-    marginBottom: 12,
-  },
-  alertHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
-    marginBottom: 12,
-  },
-  alertIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  alertHeaderText: { flex: 1, gap: 2 },
-  alertTitle: { fontSize: 16, fontFamily: 'Montserrat_700Bold', color: '#1C251D' },
-  alertSubtitle: { fontSize: 11, fontFamily: 'Montserrat_500Medium', color: '#7C867C', lineHeight: 16 },
-  alertCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F0F4EF',
-  },
-  alertRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F2EE',
-  },
-  alertRowIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFF0EC',
-  },
-  alertRowInfo: { flex: 1, gap: 2 },
-  alertRowTitle: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#253026' },
-  alertRowMeta: { fontSize: 10, fontFamily: 'Montserrat_500Medium', color: '#8E968E' },
-  alertPrimaryBtn: {
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 18,
-    backgroundColor: '#2D6A4F',
-    shadowColor: '#2D6A4F',
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 5,
-  },
-  alertPrimaryText: { fontSize: 14, fontFamily: 'Montserrat_700Bold', color: '#FFFFFF' },
-  alertSecondaryBtn: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  alertSecondaryText: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#2D6A4F' },
 });
