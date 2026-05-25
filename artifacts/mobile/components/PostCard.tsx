@@ -110,17 +110,19 @@ function limitText(value: string, maxChars: number) {
 export function PostCard({ post, index = 0 }: PostCardProps) {
   const colors = useColors();
   const router = useRouter();
-  const { likedPosts, toggleLike, user, followedUsers, toggleFollowUser, deletePost } = useApp();
+  const { likedPosts, likedPostCounts, toggleLike, user, followedUsers, toggleFollowUser, deletePost } = useApp();
   const isLiked = likedPosts.includes(post.id);
   const isFollowingAuthor = followedUsers.includes(post.author.id);
   const isPostOwner = user?.id === post.author.id;
   const viewCount = 6 + (index % 4);
   const [localLikes, setLocalLikes] = useState(post.likes);
+  const displayLikes = Math.max(0, localLikes, likedPostCounts[post.id] ?? 0, isLiked ? 1 : 0);
   const [localComments, setLocalComments] = useState(post.comments);
   const [saved, setSaved] = useState(false);
   const [commentOpen, setCommentOpen] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [localCommentBodies, setLocalCommentBodies] = useState<string[]>([]);
+  const [likedComments, setLikedComments] = useState<string[]>([]);
   const [remoteComments, setRemoteComments] = useState<PostCommentContract[]>([]);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
   const [commentsLoading, setCommentsLoading] = useState(false);
@@ -153,7 +155,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   function handleLike() {
     const wasLiked = isLiked;
     toggleLike(post.id);
-    setLocalLikes((prev) => (wasLiked ? prev - 1 : prev + 1));
+    setLocalLikes((prev) => Math.max(0, wasLiked ? prev - 1 : prev + 1));
     heartScale.value = withSpring(1.4, { damping: 10, stiffness: 400 }, () => {
       heartScale.value = withSpring(1, { damping: 15, stiffness: 300 });
     });
@@ -167,6 +169,25 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
 
   function handlePress() {
     router.push(`/post/${post.id}`);
+  }
+
+  function openAuthorProfile(author: {
+    id: string;
+    name: string;
+    avatar: string | null;
+    verified: boolean;
+    type: 'person' | 'ong' | 'vet';
+  }) {
+    router.push({
+      pathname: '/(tabs)/user/[id]',
+      params: {
+        id: author.id,
+        profileName: author.name,
+        profileAvatar: author.avatar ?? '',
+        profileVerified: String(author.verified),
+        profileType: author.type,
+      },
+    });
   }
 
   async function loadComments() {
@@ -215,6 +236,15 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   function removeLocalComment(index: number) {
     setLocalCommentBodies((prev) => prev.filter((_, itemIndex) => itemIndex !== index));
     setLocalComments((prev) => Math.max(0, prev - 1));
+  }
+
+  function toggleCommentLike(commentId: string) {
+    setLikedComments((prev) => (
+      prev.includes(commentId)
+        ? prev.filter((id) => id !== commentId)
+        : [...prev, commentId]
+    ));
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
   function handleShare() {
@@ -346,16 +376,22 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
       ...remoteComments.map((comment) => ({
         id: comment.id,
         body: comment.body,
+        authorId: comment.author.id,
         authorName: comment.author.name,
         authorAvatar: comment.author.avatar ?? null,
+        authorVerified: comment.author.verified,
+        authorType: comment.author.type,
         canDelete: false,
         localIndex: null as number | null,
       })),
       ...localCommentBodies.map((body, localIndex) => ({
         id: `local-${localIndex}-${body}`,
         body,
+        authorId: user?.id ?? null,
         authorName: user?.name?.split(' ')[0] ?? 'Você',
         authorAvatar: user?.avatar ?? null,
+        authorVerified: user?.verified ?? false,
+        authorType: user?.type ?? 'person',
         canDelete: true,
         localIndex,
       })),
@@ -382,33 +418,72 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
             {!commentsLoading && !commentsError && visibleComments.length === 0 && (
               <Text style={[styles.commentHint, { color: colors.mutedForeground }]}>Nenhum comentário ainda.</Text>
             )}
-            {!commentsLoading && !commentsError && visibleComments.map((comment) => (
-              <View key={comment.id} style={styles.commentItem}>
-                <Avatar
-                  name={comment.authorName}
-                  size={18}
-                  imageUrl={comment.authorAvatar}
-                />
-                <Text style={[styles.commentAuthor, { color: colors.foreground }]} numberOfLines={1}>
-                  {comment.authorName}
-                </Text>
-                <Text style={[styles.commentBody, { color: colors.mutedForeground }]}>{comment.body}</Text>
-                {comment.canDelete && comment.localIndex != null && (
+            {!commentsLoading && !commentsError && visibleComments.map((comment) => {
+              const isCommentLiked = likedComments.includes(comment.id);
+              return (
+                <View key={comment.id} style={styles.commentItem}>
                   <TouchableOpacity
-                    style={styles.commentDelete}
+                    style={styles.commentAuthorLink}
+                    disabled={!comment.authorId}
                     onPress={(event) => {
                       event.stopPropagation();
-                      removeLocalComment(comment.localIndex as number);
+                      if (comment.authorId) {
+                        openAuthorProfile({
+                          id: comment.authorId,
+                          name: comment.authorName,
+                          avatar: comment.authorAvatar,
+                          verified: comment.authorVerified,
+                          type: comment.authorType,
+                        });
+                      }
+                    }}
+                    activeOpacity={0.74}
+                    accessibilityRole={comment.authorId ? 'button' : undefined}
+                    accessibilityLabel={comment.authorId ? `Abrir perfil de ${comment.authorName}` : undefined}
+                  >
+                    <Avatar
+                      name={comment.authorName}
+                      size={18}
+                      imageUrl={comment.authorAvatar}
+                    />
+                    <Text style={[styles.commentAuthor, { color: colors.foreground }]} numberOfLines={1}>
+                      {comment.authorName}
+                    </Text>
+                  </TouchableOpacity>
+                  <Text style={[styles.commentBody, { color: colors.mutedForeground }]}>{comment.body}</Text>
+                  <TouchableOpacity
+                    style={styles.commentLike}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      toggleCommentLike(comment.id);
                     }}
                     activeOpacity={0.75}
                     accessibilityRole="button"
-                    accessibilityLabel="Excluir comentário"
+                    accessibilityLabel={isCommentLiked ? 'Remover curtida do comentário' : 'Curtir comentário'}
                   >
-                    <MaterialCommunityIcons name="trash-can-outline" size={13} color={colors.mutedForeground} />
+                    <MaterialCommunityIcons
+                      name={isCommentLiked ? 'heart' : 'heart-outline'}
+                      size={14}
+                      color={isCommentLiked ? '#C95A5A' : colors.mutedForeground}
+                    />
                   </TouchableOpacity>
-                )}
-              </View>
-            ))}
+                  {comment.canDelete && comment.localIndex != null && (
+                    <TouchableOpacity
+                      style={styles.commentDelete}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        removeLocalComment(comment.localIndex as number);
+                      }}
+                      activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityLabel="Excluir comentário"
+                    >
+                      <MaterialCommunityIcons name="trash-can-outline" size={13} color={colors.mutedForeground} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })}
           </View>
         )}
         {commentOpen && (
@@ -675,7 +750,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                   />
                 </Animated.View>
                 <Text style={[styles.actionCount, { color: isLiked ? '#FF3B30' : colors.mutedForeground }]}>
-                  {localLikes}
+                  {displayLikes}
                 </Text>
               </TouchableOpacity>
 
@@ -834,7 +909,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                 />
               </Animated.View>
               <Text style={[styles.actionCount, { color: isLiked ? '#FF3B30' : colors.mutedForeground }]}>
-                {localLikes}
+                {displayLikes}
               </Text>
             </TouchableOpacity>
 
@@ -1059,7 +1134,7 @@ const styles = StyleSheet.create({
   authorInfo: { flex: 1 },
   authorNameRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   authorName: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: 'Montserrat_600SemiBold',
     flexShrink: 1,
     textShadowColor: 'rgba(0,0,0,0.1)',
@@ -1187,6 +1262,11 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingHorizontal: 2,
   },
+  commentAuthorLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
   commentAuthor: {
     fontSize: 11,
     fontFamily: 'Montserrat_700Bold',
@@ -1196,6 +1276,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'Montserrat_400Regular',
     lineHeight: 15,
+  },
+  commentLike: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -3,
   },
   commentDelete: {
     width: 22,
