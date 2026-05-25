@@ -522,8 +522,7 @@ export const fetchAdminProvidersPage = async (params: {
 
     if (
         params.verificationStatus &&
-        params.verificationStatus !== VerificationStatus.APPROVED &&
-        params.verificationStatus !== VerificationStatus.PENDING_MANUAL_REVIEW
+        params.verificationStatus !== VerificationStatus.APPROVED
     ) {
         return {
             items: [],
