@@ -60,7 +60,7 @@ export default function FeedScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { posts, refreshPosts, user, addPost, syncPendingOperations } = useApp();
+  const { posts, refreshPosts, user, addPost, syncPendingOperations, chatUnreadCount, chatMessageNotifications } = useApp();
   const [activeFilter, setActiveFilter] = useState<FeedFilter>('all');
   const [filterMenuVisible, setFilterMenuVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -144,6 +144,8 @@ export default function FeedScreen() {
   })();
 
   const displayName = user?.name?.split(' ')[0] ?? 'Conta';
+  const unreadChatNotifications = chatMessageNotifications.filter((item) => !item.isRead).length;
+  const notificationBadgeCount = Math.max(chatUnreadCount, unreadChatNotifications);
 
   useEffect(() => {
     const query = addressQuery.trim();
@@ -554,7 +556,11 @@ export default function FeedScreen() {
               activeOpacity={0.75}
             >
               <MaterialCommunityIcons name="bell-outline" size={18} color={colors.foreground} />
-              <View style={[styles.notifDot, { backgroundColor: '#FF3B30' }]} />
+              {notificationBadgeCount > 0 && (
+                <View style={styles.notifBadge}>
+                  <Text style={styles.notifBadgeText}>{notificationBadgeCount > 9 ? '9+' : notificationBadgeCount}</Text>
+                </View>
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {
@@ -978,6 +984,26 @@ const styles = StyleSheet.create({
     borderRadius: 3.5,
     borderWidth: 1.5,
     borderColor: '#F8FAF8',
+  },
+  notifBadge: {
+    position: 'absolute',
+    right: 5,
+    bottom: 4,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 8.5,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#606864',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  notifBadgeText: {
+    fontSize: 9,
+    lineHeight: 11,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#FFFFFF',
   },
   quickPostCard: {
     borderRadius: 22,
