@@ -1,475 +1,500 @@
-﻿import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import {
+  Activity,
+  ArrowRight,
+  Ban,
+  Building2,
+  CheckCircle2,
+  Clock3,
+  Eye,
+  FileText,
+  Search,
+  ShieldCheck,
+} from "lucide-react";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Clock, FileText, Eye, AlertCircle } from "lucide-react";
-import { motion } from "framer-motion";
 import VerificationModal from "@/components/verification/verification-modal";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchVerificationQueue, updateProviderStatus as apiUpdateProviderStatus } from "@/lib/api";
-import { Provider, VerificationStatus } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { fetchVerificationQueue, updateProviderStatus } from "@/lib/api";
+import { Provider, VerificationStatus } from "@/lib/types";
 
-function formatRelativeTime(date: Date): string {
-  const now = new Date();
-  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-  
-  if (diffInMinutes < 1) {
-    return "Just now";
-  }
-  if (diffInMinutes < 60) {
-    return `${diffInMinutes} minutes ago`;
-  }
-  
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) {
-    return `${diffInHours} hours ago`;
-  }
-  
-  const diffInDays = Math.floor(diffInHours / 24);
-  return `${diffInDays} days ago`;
+type QueueFilter = "all" | VerificationStatus;
+
+const statusPresentation: Partial<Record<VerificationStatus, {
+  label: string;
+  priority: string;
+  badge: string;
+  icon: typeof Clock3;
+  gradient: string;
+}>> = {
+  [VerificationStatus.PENDING_DOCUMENTS_UPLOAD]: {
+    label: "Documentos pendentes",
+    priority: "Media",
+    badge: "border-amber-200 bg-amber-50 text-amber-700",
+    icon: FileText,
+    gradient: "from-amber-400 to-orange-500",
+  },
+  [VerificationStatus.PENDING_MANUAL_REVIEW]: {
+    label: "Revisao manual",
+    priority: "Alta",
+    badge: "border-orange-200 bg-orange-50 text-orange-700",
+    icon: Eye,
+    gradient: "from-orange-500 to-red-500",
+  },
+  [VerificationStatus.PENDING_INITIAL_REVIEW]: {
+    label: "Triagem inicial",
+    priority: "Media",
+    badge: "border-blue-200 bg-blue-50 text-blue-700",
+    icon: Clock3,
+    gradient: "from-blue-500 to-indigo-600",
+  },
+  [VerificationStatus.PENDING_BACKGROUND_CHECK]: {
+    label: "Analise cadastral",
+    priority: "Media",
+    badge: "border-violet-200 bg-violet-50 text-violet-700",
+    icon: ShieldCheck,
+    gradient: "from-violet-500 to-purple-600",
+  },
+};
+
+const fallbackStatus = {
+  label: "Verificacao pendente",
+  priority: "Baixa",
+  badge: "border-slate-200 bg-slate-50 text-slate-700",
+  icon: Clock3,
+  gradient: "from-slate-600 to-slate-800",
+};
+
+const getStatus = (provider: Provider) => statusPresentation[provider.verificationStatus] ?? fallbackStatus;
+const getProviderName = (provider?: Provider | null) => provider?.fullName || provider?.name || "Sem nome";
+const getProviderInitials = (provider: Provider) =>
+  getProviderName(provider)
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((value) => value[0])
+    .join("")
+    .toUpperCase();
+
+const formatValue = (value?: string | number | null) => String(value ?? "").trim() || "Nao informado";
+const formatElapsed = (value: string) => {
+  const elapsedMinutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000));
+  if (elapsedMinutes < 1) return "Agora";
+  if (elapsedMinutes < 60) return `${elapsedMinutes} min`;
+  if (elapsedMinutes < 1440) return `${Math.floor(elapsedMinutes / 60)} h`;
+  return `${Math.floor(elapsedMinutes / 1440)} d`;
+};
+const formatAddress = (provider: Provider) => {
+  const location = [provider.city, provider.state].filter(Boolean).join(" / ");
+  return location || "Localizacao nao informada";
+};
+
+function StatusBadge({ provider }: { provider: Provider }) {
+  const status = getStatus(provider);
+  return (
+    <Badge className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${status.badge}`}>
+      {status.label}
+    </Badge>
+  );
 }
 
-function getStatusInfo(status: string) {
-  switch (status) {
-    case VerificationStatus.PENDING_DOCUMENTS_UPLOAD:
-      return {
-        badge: "bg-yellow-100 text-yellow-700 border-yellow-200",
-        icon: FileText,
-        iconBg: "bg-yellow-100 text-yellow-600",
-        text: "Documentos enviados",
-        priority: "MÃ©dia",
-      };
-    case VerificationStatus.PENDING_MANUAL_REVIEW:
-      return {
-        badge: "bg-orange-100 text-orange-700 border-orange-200",
-        icon: Eye,
-        iconBg: "bg-orange-100 text-orange-600",
-        text: "Revisão manual necessária",
-        priority: "Alta",
-      };
-    default:
-      return {
-        badge: "bg-blue-100 text-blue-700 border-blue-200",
-        icon: AlertCircle,
-        iconBg: "bg-blue-100 text-blue-600",
-        text: "Verificação pendente",
-        priority: "Baixa",
-      };
-  }
+type MetricCardProps = {
+  title: string;
+  value: string;
+  detail: string;
+  icon: typeof Clock3;
+  gradient: string;
+  delay: number;
+};
+
+function MetricCard({ title, value, detail, icon: Icon, gradient, delay }: MetricCardProps) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay }}>
+      <Card className="border border-gray-100 bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</p>
+            <p className="mt-1 text-2xl font-semibold tracking-tight text-gray-950">{value}</p>
+            <p className="mt-1.5 flex items-center text-xs font-medium text-gray-500">
+              <Activity size={12} className="mr-1 text-emerald-600" />
+              {detail}
+            </p>
+          </div>
+          <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${gradient}`}>
+            <Icon className="text-white" size={18} />
+          </div>
+        </div>
+      </Card>
+    </motion.div>
+  );
 }
 
-const getProviderFullName = (provider?: Provider | null) =>
-  provider?.fullName || provider?.name || "Sem nome";
-
-
-const getProviderInitials = (provider?: Provider | null) => {
-  const name = getProviderFullName(provider);
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return (parts[0]?.[0] ?? "O") + (parts[1]?.[0] ?? "");
+type ProviderReviewPanelProps = {
+  provider: Provider | null;
+  isUpdating: boolean;
+  onApprove: (id: string) => void;
+  onBlock: (id: string) => void;
+  onOpenDossier: () => void;
 };
 
-const getProviderAvatarUrl = (provider: Provider) =>
-  provider.avatarUrl?.trim() || null;
+function ProviderReviewPanel({ provider, isUpdating, onApprove, onBlock, onOpenDossier }: ProviderReviewPanelProps) {
+  if (!provider) {
+    return (
+      <div className="flex min-h-[490px] flex-col items-center justify-center p-8 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
+          <ShieldCheck size={24} className="text-slate-400" />
+        </div>
+        <p className="mt-4 text-sm font-semibold text-gray-900">Selecione uma ONG</p>
+        <p className="mt-1 max-w-xs text-sm text-gray-500">Consulte o cadastro e tome uma decisao de verificacao.</p>
+      </div>
+    );
+  }
 
-const formatValue = (value?: string | number | null) => {
-  const normalized = String(value ?? "").trim();
-  return normalized || "Nao informado";
-};
+  const status = getStatus(provider);
+  return (
+    <div className="space-y-5 p-5">
+      <div className="rounded-2xl bg-gradient-to-br from-slate-950 to-slate-800 p-5 text-white shadow-md">
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/10">
+            {provider.avatarUrl ? (
+              <img src={provider.avatarUrl} alt={getProviderName(provider)} className="h-full w-full object-cover" />
+            ) : (
+              <span className="font-semibold text-emerald-200">{getProviderInitials(provider)}</span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">Em analise</p>
+            <p className="mt-1 truncate text-lg font-semibold">{getProviderName(provider)}</p>
+            <p className="truncate text-sm text-slate-300">{provider.email}</p>
+          </div>
+        </div>
+        <div className="mt-5 flex items-center justify-between gap-3">
+          <StatusBadge provider={provider} />
+          <p className="text-xs text-slate-300">{formatElapsed(provider.createdAt)} na fila</p>
+        </div>
+      </div>
 
-const formatOngAge = (foundationYear?: number | null) => {
-  if (!foundationYear) return "Nao informado";
-  const currentYear = new Date().getFullYear();
-  const age = currentYear - foundationYear;
-  if (age <= 0) return `Fundada em ${foundationYear}`;
-  return `${age} anos (${foundationYear})`;
-};
+      <div className="rounded-2xl border border-gray-100 bg-white p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Dados cadastrais</p>
+        <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-xs text-gray-400">Nome juridico</p>
+            <p className="mt-1 font-semibold text-gray-900">{formatValue(provider.legalName || provider.fullName)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">CNPJ</p>
+            <p className="mt-1 font-semibold text-gray-900">{formatValue(provider.cnpj)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Tipo</p>
+            <p className="mt-1 font-semibold text-gray-900">{formatValue(provider.ongType)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Contato</p>
+            <p className="mt-1 font-semibold text-gray-900">{formatValue(provider.phone || provider.userPhone)}</p>
+          </div>
+          <div className="col-span-2">
+            <p className="text-xs text-gray-400">Localizacao</p>
+            <p className="mt-1 font-semibold text-gray-900">{formatAddress(provider)}</p>
+          </div>
+        </div>
+      </div>
 
-const formatAddressLine = (provider: Provider) => {
-  const street = provider.street?.trim();
-  const number = provider.number?.trim();
-  const neighborhood = provider.neighborhood?.trim();
-  const cityState = [provider.city, provider.state].map((v) => v?.trim()).filter(Boolean).join(" / ");
-  const firstLine = [street, number].filter(Boolean).join(", ");
-  const secondLine = [neighborhood, cityState].filter(Boolean).join(" - ");
-  return [firstLine, secondLine].filter(Boolean).join(" | ") || "Nao informado";
-};
+      <div className="rounded-2xl border border-gray-100 bg-white p-4">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Prioridade da revisao</p>
+          <span className="text-xs font-semibold text-orange-600">{status.priority}</span>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-gray-600">
+          Abra o dossie para conferir documentos, OCR, prova de vivacidade, vitrine e localizacao antes da decisao final.
+        </p>
+        <Button onClick={onOpenDossier} className="mt-4 h-11 w-full rounded-xl bg-medium-blue text-white hover:bg-blue-700">
+          <Eye size={16} />
+          Abrir dossie completo
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Button
+          onClick={() => onApprove(provider.id)}
+          disabled={isUpdating}
+          className="h-11 rounded-xl bg-emerald-700 text-white hover:bg-emerald-800"
+        >
+          <CheckCircle2 size={16} />
+          Aprovar
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => onBlock(provider.id)}
+          disabled={isUpdating}
+          className="h-11 rounded-xl border-rose-200 text-rose-700 hover:bg-rose-50"
+        >
+          <Ban size={16} />
+          Bloquear
+        </Button>
+      </div>
+      <p className="text-center text-[11px] text-gray-400">Atalhos: A aprovar, R abrir dossie, B bloquear</p>
+    </div>
+  );
+}
 
 export default function VerificationQueue() {
-  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<QueueFilter>("all");
 
-  const { data: queue, isLoading, isError, error } = useQuery<Provider[], Error>({
-    queryKey: ['/verification/pending-queue'],
-    queryFn: () => fetchVerificationQueue(),
+  const { data: queue = [], isLoading, isError, error } = useQuery<Provider[], Error>({
+    queryKey: ["/verification/pending-queue"],
+    queryFn: fetchVerificationQueue,
     staleTime: 60_000,
     refetchInterval: 60_000,
     refetchOnWindowFocus: false,
   });
 
-  const updateProviderStatusMutation = useMutation({
+  const filteredQueue = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
+    return queue.filter((provider) => {
+      const matchesStatus = statusFilter === "all" || provider.verificationStatus === statusFilter;
+      const matchesSearch =
+        !search ||
+        getProviderName(provider).toLowerCase().includes(search) ||
+        provider.email.toLowerCase().includes(search) ||
+        (provider.cnpj ?? "").toLowerCase().includes(search) ||
+        (provider.city ?? "").toLowerCase().includes(search);
+      return matchesStatus && matchesSearch;
+    });
+  }, [queue, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    if (!filteredQueue.length) {
+      setSelectedProviderId(null);
+      return;
+    }
+    if (!selectedProviderId || !filteredQueue.some((provider) => provider.id === selectedProviderId)) {
+      setSelectedProviderId(filteredQueue[0].id);
+    }
+  }, [filteredQueue, selectedProviderId]);
+
+  const selectedProvider = queue.find((provider) => provider.id === selectedProviderId) ?? null;
+
+  const updateStatus = useMutation({
     mutationFn: ({ id, status, rejectionReason }: { id: string; status: VerificationStatus; rejectionReason?: string }) =>
-      apiUpdateProviderStatus(id, status, rejectionReason),
-    onSuccess: (updatedProvider: Provider) => {
-      queryClient.invalidateQueries({ queryKey: ['/verification/pending-queue'] });
-      queryClient.invalidateQueries({ queryKey: ['/providers'] });
+      updateProviderStatus(id, status, rejectionReason),
+    onSuccess: (updatedProvider) => {
+      queryClient.invalidateQueries({ queryKey: ["/verification/pending-queue"] });
+      queryClient.invalidateQueries({ queryKey: ["/providers"] });
       toast({
-        title: "Status do ONG/Clínica Atualizado",
-        description: `${getProviderFullName(updatedProvider)} agora está ${updatedProvider.verificationStatus}.`,
+        title: "Status atualizado",
+        description: `${getProviderName(updatedProvider)} foi atualizado com sucesso.`,
       });
-      setIsModalOpen(false);
-      setSelectedProvider(null);
     },
-    onError: (err: any) => {
-      toast({
-        title: "Erro ao Atualizar Status",
-        description: err.message || "Ocorreu um erro ao atualizar o status do ONG ou clínica.",
-        variant: "destructive",
-      });
+    onError: (mutationError: Error) => {
+      toast({ title: "Erro ao atualizar status", description: mutationError.message, variant: "destructive" });
     },
   });
 
-  const handleProviderClick = (provider: Provider) => {
-    setSelectedProvider(provider);
-    if (window.innerWidth < 768) {
-      setIsModalOpen(true);
+  const handleApprove = (id: string) => updateStatus.mutate({ id, status: VerificationStatus.APPROVED });
+  const handleReject = (id: string, reason: string) =>
+    updateStatus.mutate({ id, status: VerificationStatus.REJECTED, rejectionReason: reason });
+  const handleBlock = (id: string) => {
+    if (window.confirm("Tem certeza que deseja bloquear esta ONG ou clinica?")) {
+      updateStatus.mutate({ id, status: VerificationStatus.BLOCKED });
     }
   };
 
-  const handleApproveProvider = (providerId: string) => {
-    updateProviderStatusMutation.mutate({ id: providerId, status: VerificationStatus.APPROVED });
-  };
-
-  const handleRejectProvider = (providerId: string, reason: string) => {
-    updateProviderStatusMutation.mutate({ id: providerId, status: VerificationStatus.REJECTED, rejectionReason: reason });
-  };
-
-  const handleBlockProvider = (providerId: string) => {
-    if (confirm("Tem certeza que deseja bloquear este ONG ou clínica?")) {
-      updateProviderStatusMutation.mutate({ id: providerId, status: VerificationStatus.BLOCKED });
-    }
-  };
-
-  // Atalhos de teclado quando há um ONG ou clínica selecionado (somente desktop)
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (!selectedProvider || isModalOpen) return;
-      const k = e.key.toLowerCase();
-      if (k === 'a') {
-        e.preventDefault();
-        handleApproveProvider(selectedProvider.id);
-      } else if (k === 'r') {
-        e.preventDefault();
-        const reason = prompt('Motivo da rejeição?') || '';
-        handleRejectProvider(selectedProvider.id, reason);
-      } else if (k === 'b') {
-        e.preventDefault();
-        handleBlockProvider(selectedProvider.id);
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        !selectedProvider ||
+        isModalOpen ||
+        target?.tagName === "INPUT" ||
+        target?.getAttribute("role") === "combobox"
+      ) {
+        return;
+      }
+      if (event.key.toLowerCase() === "a") {
+        event.preventDefault();
+        handleApprove(selectedProvider.id);
+      }
+      if (event.key.toLowerCase() === "r") {
+        event.preventDefault();
+        setIsModalOpen(true);
+      }
+      if (event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        handleBlock(selectedProvider.id);
       }
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedProvider, isModalOpen]);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isModalOpen, selectedProvider]);
 
-  const pendingDocuments = queue?.filter((p: Provider) => p.verificationStatus === VerificationStatus.PENDING_DOCUMENTS_UPLOAD) || [];
-  const pendingReview = queue?.filter((p: Provider) => p.verificationStatus === VerificationStatus.PENDING_MANUAL_REVIEW) || [];
-  const selectedProviderStatusInfo = selectedProvider ? getStatusInfo(selectedProvider.verificationStatus || "") : null;
+  const documentsCount = queue.filter((provider) => provider.verificationStatus === VerificationStatus.PENDING_DOCUMENTS_UPLOAD).length;
+  const reviewCount = queue.filter((provider) => provider.verificationStatus === VerificationStatus.PENDING_MANUAL_REVIEW).length;
+  const oldestItem = queue.reduce<Provider | null>(
+    (oldest, provider) => (!oldest || new Date(provider.createdAt) < new Date(oldest.createdAt) ? provider : oldest),
+    null,
+  );
+
+  const selectProvider = (provider: Provider) => {
+    setSelectedProviderId(provider.id);
+    if (window.innerWidth < 1280) setIsModalOpen(true);
+  };
 
   return (
     <div className="flex h-screen bg-admin-bg">
       <Sidebar />
-      
-      <div className="flex-1 ml-72 overflow-hidden">
-        <Header 
-          title="Fila de Verificação"
-          subtitle={`${queue?.length || 0} ONGs e clínicas aguardando revisão de verificação.`}
+      <div className="ml-72 flex-1 overflow-hidden">
+        <Header
+          title="Verificacao de ONGs"
+          subtitle="Central operacional para validar cadastro, documentos e confianca da rede."
         />
-        
-        <main className="flex-1 overflow-y-auto p-8 scrollbar-premium">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="glass-card shadow-floating border-0">
-              <CardContent className="pt-6">
-                <div className="flex items-center">
-                  <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-                    <Clock className="text-orange-600" size={20} />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Pendente</p>
-                    <p className="text-2xl font-bold text-gray-900">{queue?.length || 0}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
-            <Card className="glass-card shadow-floating border-0">
-              <CardContent className="pt-6">
-                <div className="flex items-center">
-                  <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                    <FileText className="text-yellow-600" size={20} />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Upload de Documentos</p>
-                    <p className="text-2xl font-bold text-gray-900">{pendingDocuments.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="glass-card shadow-floating border-0">
-              <CardContent className="pt-6">
-                <div className="flex items-center">
-                  <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
-                    <Eye className="text-red-600" size={20} />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Revisão Manual</p>
-                    <p className="text-2xl font-bold text-gray-900">{pendingReview.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        <main className="scrollbar-premium flex-1 overflow-y-auto bg-slate-50/70 p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Trust onboarding</p>
+              <h2 className="mt-1 text-sm font-semibold text-gray-900">Fila de verificacao em tempo real</h2>
+            </div>
+            <div className="flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-3 py-1.5 text-xs font-medium text-emerald-700 shadow-sm">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]" />
+              Revisao ativa
+            </div>
           </div>
 
-          <section className="md:flex md:gap-6">
-            <div className="flex-1">
-              <div className="rounded-[32px] border border-white/70 bg-white shadow-floating shadow-slate-200/70">
-                <div className="px-6 py-6">
-                  <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between mb-5 border-b border-gray-100 pb-4">
-                    <div>
-                      <p className="text-[0.6rem] font-semibold uppercase tracking-[0.4em] text-gray-400">Fila de Verificacao</p>
-                      <h2 className="text-2xl font-semibold text-gray-900">ONGs aguardando</h2>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-gray-500">
-                      <div className="flex items-center gap-1">
-                        <span className="h-2 w-2 rounded-full bg-yellow-500/80" />
-                        Documentos
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="h-2 w-2 rounded-full bg-orange-500/80" />
-                        Revisão
-                      </div>
-                    </div>
-                  </div>
+          <div className="mb-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard title="Na fila" value={String(queue.length)} detail="Aguardando decisao" icon={Building2} gradient="from-slate-700 to-slate-950" delay={0} />
+            <MetricCard title="Documentos" value={String(documentsCount)} detail="Pendencia documental" icon={FileText} gradient="from-amber-400 to-orange-500" delay={0.05} />
+            <MetricCard title="Revisao manual" value={String(reviewCount)} detail="Prioridade elevada" icon={Eye} gradient="from-orange-500 to-red-500" delay={0.1} />
+            <MetricCard title="Mais antigo" value={oldestItem ? formatElapsed(oldestItem.createdAt) : "-"} detail="Tempo maximo em fila" icon={Clock3} gradient="from-emerald-500 to-emerald-600" delay={0.15} />
+          </div>
 
-                  {isLoading ? (
-                    <div className="space-y-4">
-                      {[...Array(5)].map((_, i) => (
-                        <div key={i} className="flex items-center justify-between gap-4 rounded-2xl border border-gray-100 bg-gray-50/70 px-4 py-5 animate-pulse">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-gray-200" />
-                            <div className="space-y-2">
-                              <div className="h-4 w-28 rounded bg-gray-200" />
-                              <div className="h-3 w-20 rounded bg-gray-200" />
-                            </div>
-                          </div>
-                          <div className="space-y-2 text-right">
-                            <div className="h-6 w-24 rounded-full bg-gray-200" />
-                            <div className="h-3 w-16 rounded bg-gray-200" />
-                          </div>
-                        </div>
+          <div className="grid grid-cols-12 gap-4">
+            <Card className="col-span-12 overflow-hidden border border-gray-100 bg-white shadow-sm xl:col-span-7">
+              <div className="border-b border-gray-100 p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Fila de avaliacao</p>
+                    <p className="mt-1 text-sm text-gray-500">{filteredQueue.length} cadastros na visao atual</p>
+                  </div>
+                  <Select value={statusFilter} onValueChange={(value: QueueFilter) => setStatusFilter(value)}>
+                    <SelectTrigger className="h-10 w-48 rounded-xl border-gray-200 bg-slate-50">
+                      <SelectValue placeholder="Etapa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as etapas</SelectItem>
+                      {Object.entries(statusPresentation).map(([value, status]) => (
+                        <SelectItem key={value} value={value}>{status?.label}</SelectItem>
                       ))}
-                    </div>
-                  ) : isError ? (
-                    <div className="text-center py-12 text-red-600 text-sm">
-                      <p>Erro ao carregar a fila de verificacao: {error?.message}</p>
-                    </div>
-                  ) : queue?.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Clock className="w-8 h-8 text-gray-400" />
-                      </div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma verificacao pendente</h3>
-                      <p className="text-gray-500">Todos os ONGs foram verificadas. Otimo trabalho</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {queue?.map((provider: Provider, index: number) => {
-                        const providerFullName = getProviderFullName(provider);
-                        const avatarUrl = getProviderAvatarUrl(provider);
-                        const statusInfo = getStatusInfo(provider.verificationStatus || "");
-                        const StatusIcon = statusInfo.icon;
-                        const isActive = selectedProvider?.id === provider.id;
-                        return (
-                          <motion.div
-                            key={provider.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.3, delay: index * 0.1 }}
-                            className={`flex w-full items-center gap-4 rounded-[26px] border px-4 py-5 transition-all duration-200 cursor-pointer ${isActive ? "border-light-blue/60 bg-light-blue/10 shadow-lg" : "border-transparent bg-slate-50/70 hover:border-gray-200 hover:bg-white hover:shadow-lg"}`}
-                            onClick={() => handleProviderClick(provider)}
-                          >
-                            <div className={`w-12 h-12 ${statusInfo.iconBg} rounded-2xl flex items-center justify-center`}>
-                              <StatusIcon size={20} />
-                            </div>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="relative mt-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <Input
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="Buscar ONG, email, CNPJ ou cidade..."
+                    className="h-11 rounded-xl border-gray-200 bg-slate-50 pl-10"
+                  />
+                </div>
+              </div>
 
-                            <div className="flex-1 min-w-0 flex items-center gap-3">
-                              <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-full border border-white bg-gray-200 shadow-sm">
-                                {avatarUrl ? (
-                                  <img
-                                    src={avatarUrl}
-                                    alt={`Logo de ${providerFullName}`}
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center bg-emerald-50 text-sm font-bold text-emerald-700">
-                                    {getProviderInitials(provider)}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-3">
-                                  <h3 className="truncate text-lg font-semibold text-gray-900">{providerFullName}</h3>
-                                  <Badge className={`text-xs px-2 py-1 border ${statusInfo.badge}`}>
-                                    {statusInfo.priority} Prioridade
-                                  </Badge>
-                                </div>
-                                <p className="text-sm text-gray-600">{provider.email}</p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {[provider.cnpj ? `CNPJ ${provider.cnpj}` : null, [provider.city, provider.state].filter(Boolean).join(" / ")]
-                                    .filter(Boolean)
-                                    .join(" • ") || statusInfo.text}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-col items-end gap-2 text-right">
-                              <Badge className={`border ${statusInfo.badge} bg-white/80 text-xs font-semibold`}>
-                                {provider.verificationStatus === VerificationStatus.PENDING_DOCUMENTS_UPLOAD ? "Documentos" : "Revisão"}
+              <div className="scrollbar-premium max-h-[650px] space-y-3 overflow-y-auto p-4">
+                {isLoading ? (
+                  [...Array(4)].map((_, index) => <Skeleton key={index} className="h-28 rounded-2xl" />)
+                ) : isError ? (
+                  <div className="rounded-2xl border border-red-100 bg-red-50 p-5 text-sm text-red-600">
+                    Erro ao carregar a fila: {error?.message}
+                  </div>
+                ) : filteredQueue.length === 0 ? (
+                  <div className="flex flex-col items-center rounded-2xl border border-dashed border-gray-200 p-10 text-center">
+                    <ShieldCheck size={32} className="text-gray-300" />
+                    <p className="mt-3 text-sm font-semibold text-gray-900">Fila sem pendencias</p>
+                    <p className="mt-1 text-sm text-gray-500">Nenhuma ONG corresponde aos filtros atuais.</p>
+                  </div>
+                ) : (
+                  filteredQueue.map((provider, index) => {
+                    const status = getStatus(provider);
+                    const StatusIcon = status.icon;
+                    const selected = selectedProviderId === provider.id;
+                    return (
+                      <motion.button
+                        key={provider.id}
+                        type="button"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.25, delay: Math.min(index * 0.035, 0.18) }}
+                        onClick={() => selectProvider(provider)}
+                        className={`w-full rounded-2xl border p-4 text-left transition-all duration-300 ${
+                          selected
+                            ? "border-emerald-200 bg-emerald-50/60 shadow-sm"
+                            : "border-gray-100 bg-white hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-md"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${status.gradient}`}>
+                            <StatusIcon size={18} className="text-white" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate text-sm font-semibold text-gray-950">{getProviderName(provider)}</p>
+                              <Badge className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${status.badge}`}>
+                                {status.priority}
                               </Badge>
-                              <p className="text-xs text-gray-500">
-                                {formatRelativeTime(new Date(provider.createdAt))}
-                              </p>
-                              <Button size="sm" className="bg-medium-blue hover:bg-blue-700 text-white">
-                                Revisar
-                              </Button>
                             </div>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                            <p className="mt-1 truncate text-sm text-gray-600">{provider.email}</p>
+                            <div className="mt-2 flex flex-wrap gap-x-4 text-xs text-gray-500">
+                              <span>{provider.cnpj ? `CNPJ ${provider.cnpj}` : formatAddress(provider)}</span>
+                              <span>{formatElapsed(provider.createdAt)} na fila</span>
+                            </div>
+                          </div>
+                          <ArrowRight size={16} className={selected ? "text-emerald-600" : "text-gray-300"} />
+                        </div>
+                      </motion.button>
+                    );
+                  })
+                )}
               </div>
-            </div>
+            </Card>
 
-            {selectedProvider && (
-              <div className="mt-6 md:mt-0 md:w-1/2">
-                <div className="rounded-[32px] border border-white/70 bg-white shadow-floating shadow-slate-200/70 p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="h-12 w-12 rounded-xl bg-light-blue/30 flex items-center justify-center">
-                      <Eye className="text-medium-blue" size={20} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Selecionado</p>
-                      <h3 className="text-lg font-semibold text-gray-900">{getProviderFullName(selectedProvider)}</h3>
-                      <p className="text-sm text-gray-600">{selectedProvider.email || selectedProvider.phone || "Contato nao informado"}</p>
-                    </div>
-                  </div>
-
-                  {selectedProviderStatusInfo && (
-                    <p className="text-sm text-gray-500 mb-4">{selectedProviderStatusInfo.text}</p>
-                  )}
-
-                  <div className="mb-5 rounded-3xl border border-gray-100 bg-slate-50/70 p-4">
-                    <p className="mb-3 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-gray-400">
-                      Dados do cadastro
-                    </p>
-                    <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
-                      <div>
-                        <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">Nome juridico</p>
-                        <p className="font-semibold text-gray-900">{formatValue(selectedProvider.legalName || selectedProvider.fullName)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">CNPJ</p>
-                        <p className="font-semibold text-gray-900">{formatValue(selectedProvider.cnpj)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">Idade da ONG</p>
-                        <p className="font-semibold text-gray-900">{formatOngAge(selectedProvider.foundationYear)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">Tipo</p>
-                        <p className="font-semibold text-gray-900">{formatValue(selectedProvider.ongType)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">Telefone</p>
-                        <p className="font-semibold text-gray-900">{formatValue(selectedProvider.phone || selectedProvider.userPhone)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">CEP</p>
-                        <p className="font-semibold text-gray-900">{formatValue(selectedProvider.cep)}</p>
-                      </div>
-                      <div className="md:col-span-2">
-                        <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">Endereco</p>
-                        <p className="font-semibold text-gray-900">{formatAddressLine(selectedProvider)}</p>
-                        {selectedProvider.complement && (
-                          <p className="mt-1 text-xs text-gray-500">Complemento: {selectedProvider.complement}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 mb-5 text-xs uppercase tracking-wide text-gray-500">
-                    <div>
-                      <p className="text-[0.65rem]">Status atual</p>
-                      <p className="text-base font-semibold text-gray-900">{selectedProvider.verificationStatus}</p>
-                    </div>
-                    <div>
-                      <p className="text-[0.65rem]">Tempo na fila</p>
-                      <p className="text-base font-semibold text-gray-900">{formatRelativeTime(new Date(selectedProvider.createdAt || Date.now()))}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <Button
-                      onClick={() => handleApproveProvider(selectedProvider.id)}
-                      className="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white sm:w-auto"
-                    >
-                      Aprovar (A)
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        const reason = prompt("Motivo da rejeicao?") || "";
-                        handleRejectProvider(selectedProvider.id, reason);
-                      }}
-                      className="w-full rounded-2xl sm:w-auto"
-                    >
-                      Rejeitar (R)
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => handleBlockProvider(selectedProvider.id)}
-                      className="w-full rounded-2xl sm:w-auto"
-                    >
-                      Bloquear (B)
-                    </Button>
-                  </div>
-
-                  <p className="text-xs text-gray-500 mt-3">Atalhos: A aprovar, R rejeitar, B bloquear</p>
-                </div>
+            <Card className="col-span-5 hidden overflow-hidden border border-gray-100 bg-white shadow-sm xl:block">
+              <div className="border-b border-gray-100 px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Mesa de aprovacao</p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">Cadastro e decisao operacional</p>
               </div>
-            )}
-          </section>
+              <ProviderReviewPanel
+                provider={selectedProvider}
+                isUpdating={updateStatus.isPending}
+                onApprove={handleApprove}
+                onBlock={handleBlock}
+                onOpenDossier={() => setIsModalOpen(true)}
+              />
+            </Card>
+          </div>
         </main>
       </div>
 
       <VerificationModal
         provider={selectedProvider}
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedProvider(null);
-        }}
-        onApprove={handleApproveProvider}
-        onReject={handleRejectProvider}
-        onBlock={handleBlockProvider}
+        onClose={() => setIsModalOpen(false)}
+        onApprove={handleApprove}
+        onReject={handleReject}
+        onBlock={handleBlock}
+        onProviderUpdated={(provider) => setSelectedProviderId(provider.id)}
       />
     </div>
   );
 }
-
