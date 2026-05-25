@@ -11,9 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-// Importa a função de API corrigida
+// Importa a funÃ§Ã£o de API corrigida
 import { updateProviderProfile, updateProviderStatus, updateProviderVisibility } from "@/lib/api";
-// CORREÇÃO: Importa Provider e VerificationStatus
+// CORREÃ‡ÃƒO: Importa Provider e VerificationStatus
 import { Provider, ProviderVisibilityStatus, VerificationStatus } from "@/lib/types";
 import RejectionModal from "./rejection-modal";
 import VisibilityReasonModal from "./visibility-reason-modal";
@@ -34,13 +34,13 @@ function formatRelativeTime(date: Date): string {
   const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
 
   if (diffInMinutes < 1) return "Agora mesmo";
-  if (diffInMinutes < 60) return `${diffInMinutes} minutos atrás`;
+  if (diffInMinutes < 60) return `${diffInMinutes} minutos atrÃ¡s`;
 
   const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `${diffInHours} horas atrás`;
+  if (diffInHours < 24) return `${diffInHours} horas atrÃ¡s`;
 
   const diffInDays = Math.floor(diffInHours / 24);
-  return `${diffInDays} dias atrás`;
+  return `${diffInDays} dias atrÃ¡s`;
 }
 const VISIBILITY_BADGE_CLASSES: Record<ProviderVisibilityStatus, string> = {
   [ProviderVisibilityStatus.VISIBLE]: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -49,7 +49,7 @@ const VISIBILITY_BADGE_CLASSES: Record<ProviderVisibilityStatus, string> = {
 };
 
 
-export default function VerificationModal({ provider, isOpen, onClose }: VerificationModalProps) {
+export default function VerificationModal({ provider, isOpen, onClose, onProviderUpdated }: VerificationModalProps) {
   const [isRejectionModalOpen, setIsRejectionModalOpen] = useState(false);
   const [latitudeInput, setLatitudeInput] = useState("");
   const [longitudeInput, setLongitudeInput] = useState("");
@@ -69,18 +69,18 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
     }
   }, [provider]);
 
-  // Mova as declarações de useMutation para o topo do componente
+  // Mova as declaraÃ§Ãµes de useMutation para o topo do componente
   const approveMutation = useMutation({
     mutationFn: (providerId: string) => updateProviderStatus(providerId, VerificationStatus.APPROVED),
     onSuccess: (updatedProvider) => {
-      toast({ title: "Sucesso!", description: "ONG/Cl�nica aprovado com sucesso.", variant: "success" });
+      toast({ title: "Sucesso!", description: "ONG/Clínica aprovado com sucesso.", variant: "success" });
       queryClient.invalidateQueries({ queryKey: ["/verification/pending-queue"] });
       queryClient.invalidateQueries({ queryKey: ["/providers"] });
       onProviderUpdated?.(updatedProvider);
       onClose();
     },
     onError: (error: any) => {
-      toast({ title: "Erro na Aprovação", description: error.message, variant: "destructive" });
+      toast({ title: "Erro na AprovaÃ§Ã£o", description: error.message, variant: "destructive" });
     },
   });
 
@@ -88,7 +88,7 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
     mutationFn: ({ providerId, reason }: { providerId: string; reason: string }) =>
       updateProviderStatus(providerId, VerificationStatus.REJECTED, reason),
     onSuccess: (updatedProvider) => {
-      toast({ title: "Sucesso!", description: "ONG/Cl�nica rejeitado com sucesso.", variant: "success" });
+      toast({ title: "Sucesso!", description: "ONG/Clínica rejeitado com sucesso.", variant: "success" });
       queryClient.invalidateQueries({ queryKey: ["/verification/pending-queue"] });
       queryClient.invalidateQueries({ queryKey: ["/providers"] });
       onProviderUpdated?.(updatedProvider);
@@ -96,24 +96,18 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
       setIsRejectionModalOpen(false);
     },
     onError: (error: any) => {
-      toast({ title: "Erro na Rejeição", description: error.message, variant: "destructive" });
+      toast({ title: "Erro na RejeiÃ§Ã£o", description: error.message, variant: "destructive" });
     },
   });
 
   const updateLocationMutation = useMutation({
     mutationFn: async ({ latitude, longitude }: { latitude: number; longitude: number }) => {
       if (!provider?.address) {
-        throw new Error("Endereço não disponível para edição.");
+        throw new Error("EndereÃ§o nÃ£o disponÃ­vel para ediÃ§Ã£o.");
       }
       const addr = provider.address;
       const payload = {
-        cep: addr.cep,
-        street: addr.street,
-        number: addr.number,
-        complement: addr.complement ?? undefined,
-        neighborhood: addr.neighborhood,
-        city: addr.city,
-        state: addr.state,
+        ...addr,
         latitude,
         longitude,
       };
@@ -121,8 +115,8 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
     },
     onSuccess: () => {
       toast({
-        title: "Localização atualizada",
-        description: "Latitude e longitude salvas no cadastro do ONG ou cl�nica.",
+        title: "LocalizaÃ§Ã£o atualizada",
+        description: "Latitude e longitude salvas no cadastro do ONG ou clínica.",
         variant: "success",
       });
       queryClient.invalidateQueries({ queryKey: ["/verification/pending-queue"] });
@@ -130,8 +124,8 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
     },
     onError: (error: any) => {
       toast({
-        title: "Erro ao salvar localização",
-        description: error?.message || "Não foi possível atualizar as coordenadas.",
+        title: "Erro ao salvar localizaÃ§Ã£o",
+        description: error?.message || "NÃ£o foi possÃ­vel atualizar as coordenadas.",
         variant: "destructive",
       });
     },
@@ -140,7 +134,7 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
   const updateVisibilityMutation = useMutation({
     mutationFn: ({ status, reason }: { status: ProviderVisibilityStatus; reason?: string | null }) => {
       if (!provider) {
-        return Promise.reject(new Error("ONG/Cl�nica indisponível"));
+        return Promise.reject(new Error("ONG/Clínica indisponÃ­vel"));
       }
       return updateProviderVisibility(provider.id, status, reason);
     },
@@ -158,7 +152,7 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
     onError: (error: any) => {
       toast({
         title: "Erro ao atualizar vitrine",
-        description: error?.message || "Não foi possível alterar o status da vitrine.",
+        description: error?.message || "NÃ£o foi possÃ­vel alterar o status da vitrine.",
         variant: "destructive",
       });
     },
@@ -171,7 +165,7 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
   const visibilityReasonText = provider.visibilityReason?.trim() || "Nenhum motivo registrado";
   const visibilityUpdatedText = provider.visibilityUpdatedAt
     ? formatRelativeTime(new Date(provider.visibilityUpdatedAt))
-    : "Sem atualizações recentes";
+    : "Sem atualizaÃ§Ãµes recentes";
   const visibilityBadgeClass = VISIBILITY_BADGE_CLASSES[providerVisibilityStatus];
 
   const handleSetVisibilityStatus = (status: ProviderVisibilityStatus, reason?: string | null) => {
@@ -193,11 +187,11 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
   };
 
   const handleBlock = () => {
-    // A lógica de bloqueio ainda precisa ser implementada
-    // Se houver um endpoint para isso, você criaria uma nova mutation aqui
+    // A lÃ³gica de bloqueio ainda precisa ser implementada
+    // Se houver um endpoint para isso, vocÃª criaria uma nova mutation aqui
     toast({
       title: "Funcionalidade em desenvolvimento",
-      description: "A lógica de bloqueio ainda não foi implementada.",
+      description: "A lÃ³gica de bloqueio ainda nÃ£o foi implementada.",
       variant: "warning",
     });
   };
@@ -205,8 +199,8 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
   const handleUpdateLocation = () => {
     if (!provider?.address) {
       toast({
-        title: "Endereço indisponível",
-        description: "Não há endereço cadastrado para ajustar a localização.",
+        title: "EndereÃ§o indisponÃ­vel",
+        description: "NÃ£o hÃ¡ endereÃ§o cadastrado para ajustar a localizaÃ§Ã£o.",
         variant: "destructive",
       });
       return;
@@ -215,8 +209,8 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
     const lon = parseFloat(longitudeInput.replace(",", "."));
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
       toast({
-        title: "Coordenadas inválidas",
-        description: "Digite valores numéricos para latitude e longitude.",
+        title: "Coordenadas invÃ¡lidas",
+        description: "Digite valores numÃ©ricos para latitude e longitude.",
         variant: "destructive",
       });
       return;
@@ -237,8 +231,8 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-gray-900">Verificação de ONG/Cl�nica</DialogTitle>
-            <p className="text-gray-600">Revise documentos e status de verificação</p>
+            <DialogTitle className="text-xl font-bold text-gray-900">VerificaÃ§Ã£o de ONG/Clínica</DialogTitle>
+            <p className="text-gray-600">Revise documentos e status de verificaÃ§Ã£o</p>
           </DialogHeader>
 
           <motion.div
@@ -300,7 +294,7 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
                         className="w-full h-full object-cover rounded-lg"
                       />
                     ) : (
-                      <span className="text-gray-400">Nenhuma imagem disponível</span>
+                      <span className="text-gray-400">Nenhuma imagem disponÃ­vel</span>
                     )}
                   </div>
 
@@ -313,7 +307,7 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
                           <strong>Nome:</strong> {provider.ocrResult.fullName || resolvedName}
                         </p>
                         <p>
-                          <strong>Número do Documento:</strong> {provider.ocrResult.documentNumber || "N/A"}
+                          <strong>NÃºmero do Documento:</strong> {provider.ocrResult.documentNumber || "N/A"}
                         </p>
                         <p>
                           <strong>Data de Nascimento:</strong> {provider.ocrResult.birthDate || "N/A"}
@@ -323,10 +317,10 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
                         </p>
                       </div>
                     ) : (
-                      <p className="text-xs text-blue-800">Nenhum resultado de OCR disponível.</p>
+                      <p className="text-xs text-blue-800">Nenhum resultado de OCR disponÃ­vel.</p>
                     )}
                     <Badge className="bg-green-100 text-green-700 border-0 mt-2 text-xs">
-                      OCR Confiança:{" "}
+                      OCR ConfianÃ§a:{" "}
                       {provider.ocrResult?.confidence
                         ? `${(provider.ocrResult.confidence * 100).toFixed(1)}%`
                         : "N/A"}
@@ -347,29 +341,29 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
                         className="w-full h-full object-cover rounded-lg"
                       />
                     ) : (
-                      <span className="text-gray-400">Nenhuma imagem disponível</span>
+                      <span className="text-gray-400">Nenhuma imagem disponÃ­vel</span>
                     )}
                   </div>
 
                   {/* Liveness Check Results */}
                   <div className="bg-green-50 rounded-lg p-3">
-                    <h5 className="text-sm font-medium text-green-900 mb-2">Verificação de Vivacidade</h5>
+                    <h5 className="text-sm font-medium text-green-900 mb-2">VerificaÃ§Ã£o de Vivacidade</h5>
                     {provider.livenessResult ? (
                       <div className="text-xs text-green-800 space-y-1">
                         <p>
-                          <strong>Correspondência Facial:</strong>{" "}
+                          <strong>CorrespondÃªncia Facial:</strong>{" "}
                           {provider.livenessResult.faceMatch
                             ? `${(provider.livenessResult.faceMatch * 100).toFixed(1)}%`
                             : "N/A"}
                         </p>
                         <p>
-                          <strong>Pontuação de Vivacidade:</strong>{" "}
+                          <strong>PontuaÃ§Ã£o de Vivacidade:</strong>{" "}
                           {provider.livenessResult.livenessScore
                             ? `${(provider.livenessResult.livenessScore * 100).toFixed(1)}%`
                             : "N/A"}
                         </p>
                         <p>
-                          <strong>Pontuação de Qualidade:</strong>{" "}
+                          <strong>PontuaÃ§Ã£o de Qualidade:</strong>{" "}
                           {provider.livenessResult.qualityScore
                             ? `${(provider.livenessResult.qualityScore * 100).toFixed(1)}%`
                             : "N/A"}
@@ -377,11 +371,11 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
                       </div>
                     ) : (
                       <p className="text-xs text-green-800">
-                        Nenhum resultado de verificação de vivacidade disponível.
+                        Nenhum resultado de verificaÃ§Ã£o de vivacidade disponÃ­vel.
                       </p>
                     )}
                     <Badge className="bg-green-100 text-green-700 border-0 mt-2 text-xs">
-                      {provider.livenessResult?.isLive ? "Pessoa Real Detectada" : "Não Detectada"}
+                      {provider.livenessResult?.isLive ? "Pessoa Real Detectada" : "NÃ£o Detectada"}
                     </Badge>
                   </div>
                 </div>
@@ -390,7 +384,7 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
 
             {/* Provider Details */}
             <div className="space-y-4">
-              <h4 className="text-md font-semibold text-gray-900">Informações do ONG/Cl�nica</h4>
+              <h4 className="text-md font-semibold text-gray-900">InformaÃ§Ãµes do ONG/Clínica</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <div className="flex justify-between">
@@ -408,15 +402,15 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Serviços:</span>
+                    <span className="text-sm text-gray-600">ServiÃ§os:</span>
                     <span className="text-sm text-gray-900">{provider.specialties?.join(", ") || "Apoio animal geral"}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Experiência:</span>
+                    <span className="text-sm text-gray-600">ExperiÃªncia:</span>
                     <span className="text-sm text-gray-900">3+ anos</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Verificação de Antecedentes:</span>
+                    <span className="text-sm text-gray-600">VerificaÃ§Ã£o de Antecedentes:</span>
                     <Badge className="bg-green-100 text-green-700 border-0 text-xs">Aprovado</Badge>
                   </div>
                 </div>
@@ -470,9 +464,9 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
                 <div>
                   <h4 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-medium-blue" />
-                    Ajustar Localização
+                    Ajustar LocalizaÃ§Ã£o
                   </h4>
-                  <p className="text-xs text-gray-600">Edite latitude/longitude se o endereço estiver incorreto.</p>
+                  <p className="text-xs text-gray-600">Edite latitude/longitude se o endereÃ§o estiver incorreto.</p>
                 </div>
                 <Button
                   size="sm"
@@ -485,7 +479,7 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
                   ) : (
                     <MapPin className="w-4 h-4 mr-2" />
                   )}
-                  Salvar localização
+                  Salvar localizaÃ§Ã£o
                 </Button>
               </div>
               {provider.address ? (
@@ -508,7 +502,7 @@ export default function VerificationModal({ provider, isOpen, onClose }: Verific
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-gray-600">Sem endereço cadastrado para este ONG ou cl�nica.</p>
+                <p className="text-sm text-gray-600">Sem endereÃ§o cadastrado para este ONG ou clínica.</p>
               )}
             </div>
 
