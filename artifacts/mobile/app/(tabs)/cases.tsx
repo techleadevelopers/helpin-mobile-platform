@@ -492,7 +492,7 @@ export default function OngCasesScreen() {
         </View>
         <TouchableOpacity 
           style={[styles.addBtn, { backgroundColor: colors.primary }]}
-          onPress={() => router.push('/compose')}
+          onPress={() => router.push('/composer')}
           activeOpacity={0.85}
         >
           <Ionicons name="add" size={24} color="#FFFFFF" />
