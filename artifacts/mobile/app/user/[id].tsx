@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -46,6 +47,10 @@ function getAuthorLabel(type: Author['type']) {
   if (type === 'ong') return 'ONG';
   if (type === 'vet') return 'Veterinario';
   return 'Protetor';
+}
+
+function showsProtectorSince(type: Author['type']) {
+  return type !== 'ong' && type !== 'vet';
 }
 
 function isResolved(post: Post) {
@@ -202,9 +207,11 @@ export default function PublicUserProfileScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const chatPost = activePosts[0] ?? profilePosts[0];
-    const rooms = await createZooHelpApi()?.chatRooms(chatPost ? { postId: chatPost.id } : {}).catch(() => null);
+    const api = createZooHelpApi();
+    const openedRoom = chatPost ? await api?.openChatRoom(chatPost.id).catch(() => null) : null;
+    const rooms = !openedRoom ? await api?.chatRooms().catch(() => null) : null;
     const room =
-      (chatPost ? rooms?.find((item) => item.postId === chatPost.id) : null) ??
+      openedRoom ??
       rooms?.find((item) => item.participant.id === author.id);
 
     if (room) {
@@ -259,7 +266,7 @@ export default function PublicUserProfileScreen() {
               </View>
               <Text style={styles.role}>
                 {getAuthorLabel(author.type)}
-                {author.type === 'person' && <Text style={styles.roleSince}>: Desde 05/2026</Text>}
+                {showsProtectorSince(author.type) && <Text style={styles.roleSince}>: Desde 05/2026</Text>}
               </Text>
               <View style={styles.locationRow}>
                 <MaterialCommunityIcons name="map-marker-outline" size={13} color="#7C867C" />
@@ -409,7 +416,16 @@ export default function PublicUserProfileScreen() {
                 )}
                 <View style={styles.postInfo}>
                   <View style={styles.postTitleRow}>
-                    <Text style={styles.postTitle} numberOfLines={1}>{post.name}</Text>
+                    <View style={styles.postAuthorIdentity}>
+                      <Avatar
+                        name={post.author.name}
+                        size={18}
+                        verified={post.author.verified}
+                        type={post.author.type}
+                        imageUrl={post.author.avatar}
+                      />
+                      <Text style={styles.postAuthorName} numberOfLines={1}>{post.author.name}</Text>
+                    </View>
                     <StatusBadge type={post.type} urgent={post.urgent && !isResolved(post)} resolved={isResolved(post)} size="xs" hideType />
                   </View>
                   <Text style={styles.postDescription} numberOfLines={2}>{post.description}</Text>
@@ -438,7 +454,8 @@ export default function PublicUserProfileScreen() {
       <Modal transparent animationType="fade" visible={socialOverlay !== null} onRequestClose={() => setSocialOverlay(null)}>
         <View style={styles.socialOverlayRoot}>
           <TouchableOpacity style={styles.socialBackdrop} activeOpacity={1} onPress={() => setSocialOverlay(null)} />
-          <View style={[styles.socialSheet, { height: height * 0.95, paddingBottom: insets.bottom + 14 }]}>
+          <BlurView intensity={64} tint="default" style={[styles.socialSheet, { height: height * 0.95, paddingBottom: insets.bottom + 14 }]}>
+            <View pointerEvents="none" style={styles.socialSheetTint} />
             <View style={styles.socialHandle} />
             <View style={styles.socialHeader}>
               <View>
@@ -452,20 +469,23 @@ export default function PublicUserProfileScreen() {
 
             <ScrollView style={styles.socialList} contentContainerStyle={styles.socialListContent} showsVerticalScrollIndicator={false}>
               {socialUsers.map((item) => (
-                <TouchableOpacity key={item.id} style={styles.socialRow} onPress={() => openSocialProfile(item)} activeOpacity={0.84}>
-                  <Avatar name={item.name} size={34} verified={item.verified} type={item.type} imageUrl={item.avatar} />
-                  <View style={styles.socialInfo}>
-                    <Text style={styles.socialName} numberOfLines={1}>{item.name}</Text>
-                    <Text style={styles.socialRole}>{getAuthorLabel(item.type)}</Text>
-                  </View>
-                  <View style={styles.socialLocation}>
-                    <MaterialCommunityIcons name="map-marker-outline" size={12} color="#7C867C" />
-                    <Text style={styles.socialLocationText} numberOfLines={1}>{getSocialLocation(item)}</Text>
-                  </View>
+                <TouchableOpacity key={item.id} style={styles.socialRowTap} onPress={() => openSocialProfile(item)} activeOpacity={0.84}>
+                  <BlurView intensity={48} tint="light" style={styles.socialRow}>
+                    <View pointerEvents="none" style={styles.socialRowTint} />
+                    <Avatar name={item.name} size={34} verified={item.verified} type={item.type} imageUrl={item.avatar} />
+                    <View style={styles.socialInfo}>
+                      <Text style={styles.socialName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={styles.socialRole}>{getAuthorLabel(item.type)}</Text>
+                    </View>
+                    <View style={styles.socialLocation}>
+                      <MaterialCommunityIcons name="map-marker-outline" size={12} color="#7C867C" />
+                      <Text style={styles.socialLocationText} numberOfLines={1}>{getSocialLocation(item)}</Text>
+                    </View>
+                  </BlurView>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </View>
+          </BlurView>
         </View>
       </Modal>
     </View>
@@ -544,19 +564,22 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 9, fontFamily: 'Montserrat_500Medium', color: '#7C867C' },
   socialOverlayRoot: { flex: 1, justifyContent: 'flex-end' },
   socialBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(20,28,22,0.28)' },
-  socialSheet: { marginHorizontal: 10, marginBottom: 10, paddingTop: 8, paddingHorizontal: 14, borderRadius: 22, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E6ECE7' },
-  socialHandle: { alignSelf: 'center', width: 34, height: 4, borderRadius: 2, backgroundColor: '#DDE5DF', marginBottom: 12 },
+  socialSheet: { marginHorizontal: 10, marginBottom: 10, paddingTop: 8, paddingHorizontal: 14, borderRadius: 22, overflow: 'hidden', shadowColor: '#244C35', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.14, shadowRadius: 22, elevation: 8 },
+  socialSheetTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(42, 87, 58, 0.27)' },
+  socialHandle: { alignSelf: 'center', width: 34, height: 4, borderRadius: 2, backgroundColor: 'rgba(239,247,241,0.68)', marginBottom: 12 },
   socialHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  socialTitle: { fontSize: 16, fontFamily: 'Montserrat_700Bold', color: '#172018' },
-  socialSubtitle: { marginTop: 2, fontSize: 10, fontFamily: 'Montserrat_500Medium', color: '#7C867C' },
-  socialCloseButton: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F4F6F3' },
+  socialTitle: { fontSize: 16, fontFamily: 'Montserrat_700Bold', color: '#F3F7F4' },
+  socialSubtitle: { marginTop: 2, fontSize: 10, fontFamily: 'Montserrat_500Medium', color: 'rgba(243,247,244,0.78)' },
+  socialCloseButton: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(229,240,231,0.82)' },
   socialList: { flex: 1 },
   socialListContent: { gap: 6, paddingBottom: 8 },
-  socialRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 9, borderRadius: 16, backgroundColor: '#F8FAF7', borderWidth: 1, borderColor: '#EEF2EE' },
+  socialRowTap: { minHeight: 52, borderRadius: 16, overflow: 'hidden' },
+  socialRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 9, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' },
+  socialRowTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(229,240,231,0.38)' },
   socialInfo: { flex: 1 },
   socialName: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#18231B' },
   socialRole: { marginTop: 1, fontSize: 9, fontFamily: 'Montserrat_600SemiBold', color: '#2D6A4F' },
-  socialLocation: { maxWidth: 106, minHeight: 24, paddingHorizontal: 7, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#EEF3EF' },
+  socialLocation: { maxWidth: 106, minHeight: 24, paddingHorizontal: 7, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#D7E9DA' },
   socialLocationText: { flex: 1, fontSize: 9, fontFamily: 'Montserrat_600SemiBold', color: '#7C867C' },
   bio: { marginTop: 10, fontSize: 12, fontFamily: 'Montserrat_500Medium', color: '#3D473F', lineHeight: 17 },
   tabs: {
@@ -606,7 +629,8 @@ const styles = StyleSheet.create({
   postThumbFallback: { width: '85%', aspectRatio: 1, alignSelf: 'center', borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#182018' },
   postInfo: { flex: 1, gap: 5 },
   postTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  postTitle: { flex: 1, fontSize: 14, fontFamily: 'Montserrat_700Bold', color: '#172018' },
+  postAuthorIdentity: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  postAuthorName: { flex: 1, fontSize: 10, fontFamily: 'Montserrat_700Bold', color: '#172018' },
   postDescription: { fontSize: 11, fontFamily: 'Montserrat_500Medium', color: '#626C65', lineHeight: 15 },
   postMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 },
   postEngagement: { flexDirection: 'row', alignItems: 'center', gap: 3 },
