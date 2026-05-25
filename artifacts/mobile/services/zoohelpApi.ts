@@ -78,6 +78,99 @@ async function geocodeAddressWithWebSdk(address: string) {
   });
 }
 
+async function geocodeAddressWithOpenStreetMap(address: string) {
+  try {
+    const params = new URLSearchParams({
+      q: `${address}, Brasil`,
+      format: 'json',
+      limit: '1',
+      countrycodes: 'br',
+      addressdetails: '1',
+    });
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+      headers: { 'Accept-Language': 'pt-BR,pt;q=0.9' },
+    });
+    if (!response.ok) return null;
+
+    const payload = (await response.json()) as Array<{
+      display_name?: string;
+      lat?: string;
+      lon?: string;
+    }>;
+    const result = payload[0];
+    const latitude = Number(result?.lat);
+    const longitude = Number(result?.lon);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+
+    return {
+      latitude,
+      longitude,
+      label: result.display_name || address,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function geocodeStructuredAddress(input: {
+  street: string;
+  number: string;
+  neighborhood?: string;
+  city: string;
+  state: string;
+}) {
+  const street = [input.number.trim(), input.street.trim()].filter(Boolean).join(' ');
+  const state = input.state.trim().toUpperCase();
+  const attempts = [
+    new URLSearchParams({
+      street,
+      city: input.city.trim(),
+      state,
+      country: 'Brazil',
+      format: 'json',
+      limit: '1',
+      countrycodes: 'br',
+      addressdetails: '1',
+    }),
+    new URLSearchParams({
+      q: [input.street.trim(), input.number.trim(), input.neighborhood?.trim(), input.city.trim(), state, 'Brasil']
+        .filter(Boolean)
+        .join(', '),
+      format: 'json',
+      limit: '1',
+      countrycodes: 'br',
+      addressdetails: '1',
+    }),
+  ];
+
+  for (const params of attempts) {
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+        headers: { 'Accept-Language': 'pt-BR,pt;q=0.9' },
+      });
+      if (!response.ok) {
+        console.warn('Structured OpenStreetMap geocode HTTP error', response.status);
+        continue;
+      }
+      const payload = (await response.json()) as Array<{ display_name?: string; lat?: string; lon?: string }>;
+      const result = payload[0];
+      const latitude = Number(result?.lat);
+      const longitude = Number(result?.lon);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
+      return {
+        latitude,
+        longitude,
+        label: result.display_name || [input.street, input.number, input.neighborhood, input.city, state].filter(Boolean).join(', '),
+      };
+    } catch (error) {
+      console.warn('Structured OpenStreetMap geocode failed', error);
+      // Try the next structured query shape.
+    }
+  }
+
+  return null;
+}
+
 async function placeDetailsWithWebSdk(placeId: string) {
   const google = await loadGoogleMapsForWeb()?.catch(() => null);
   if (!google?.maps?.Geocoder) return null;
@@ -170,6 +263,7 @@ export async function geocodeAddress(address: string) {
     .toLowerCase()
     // Corrige "doutro" → "doutor"
     .replace(/\bdoutro\b/gi, 'Doutor')
+    .replace(/\bqurino\b/gi, 'Quirino')
     .replace(/\bdr\s+(\w+)\b/gi, 'Doutor $1')
     // Corrige outras variações comuns
     .replace(/\bav\b/gi, 'Avenida')
@@ -182,7 +276,8 @@ export async function geocodeAddress(address: string) {
     .join(' ');
 
   if (Platform.OS === 'web') {
-    return geocodeAddressWithWebSdk(sanitized);
+    const webResult = await geocodeAddressWithWebSdk(sanitized);
+    if (webResult) return webResult;
   }
 
   try {
@@ -199,10 +294,12 @@ export async function geocodeAddress(address: string) {
       }
     }
   } catch {
-    // Browser CORS blocks direct Google geocoding; keep web quiet.
+    // Keep geocoding resilient while the backend maps proxy is unavailable.
   }
 
-  if (!GOOGLE_MAPS_API_KEY) return null;
+  if (!GOOGLE_MAPS_API_KEY) {
+    return geocodeAddressWithOpenStreetMap(sanitized);
+  }
 
   try {
     const params = new URLSearchParams({
@@ -211,26 +308,30 @@ export async function geocodeAddress(address: string) {
       key: GOOGLE_MAPS_API_KEY,
     });
     const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`);
-    if (!response.ok) return null;
-    const payload = (await response.json()) as {
-      results?: Array<{
-        formatted_address?: string;
-        geometry?: { location?: { lat?: number; lng?: number } };
-      }>;
-      status?: string;
-    };
-    const result = payload.results?.[0];
-    const lat = result?.geometry?.location?.lat;
-    const lng = result?.geometry?.location?.lng;
-    if (typeof lat !== 'number' || typeof lng !== 'number') return null;
-    return {
-      latitude: lat,
-      longitude: lng,
-      label: result?.formatted_address ?? sanitized, // retorna o corrigido se a API achou
-    };
+    if (response.ok) {
+      const payload = (await response.json()) as {
+        results?: Array<{
+          formatted_address?: string;
+          geometry?: { location?: { lat?: number; lng?: number } };
+        }>;
+        status?: string;
+      };
+      const result = payload.results?.[0];
+      const lat = result?.geometry?.location?.lat;
+      const lng = result?.geometry?.location?.lng;
+      if (typeof lat === 'number' && typeof lng === 'number') {
+        return {
+          latitude: lat,
+          longitude: lng,
+          label: result?.formatted_address ?? sanitized, // retorna o corrigido se a API achou
+        };
+      }
+    }
   } catch {
-    return null;
+    // Keep the public-address fallback below available if direct Google is blocked.
   }
+
+  return geocodeAddressWithOpenStreetMap(sanitized);
 }
 
 export async function searchAddressSuggestions(input: string) {
@@ -348,6 +449,11 @@ export function mapAuthor(author: PostContract['author']): Author {
 }
 
 export function mapPost(post: PostContract): Post {
+  const imageUrls = Array.from(new Set([
+    ...(post.images?.map((image) => image.url).filter(Boolean) ?? []),
+    ...(post.image ? [post.image] : []),
+  ]));
+
   return {
     id: post.id,
     type: post.type,
@@ -359,7 +465,7 @@ export function mapPost(post: PostContract): Post {
     location: post.location,
     neighborhood: post.neighborhood,
     image: post.image,
-    images: post.images?.map((image) => image.url) ?? [],
+    images: imageUrls,
     textOnly: post.textOnly,
     author: mapAuthor(post.author),
     likes: post.likes,
@@ -367,6 +473,7 @@ export function mapPost(post: PostContract): Post {
     shares: post.shares,
     urgent: post.urgent,
     rescueStatus: post.rescueStatus,
+    rescueOperational: post.rescueOperational,
     resolvedAt: post.resolvedAt,
     createdAt: post.createdAt,
     contact: post.contact,
