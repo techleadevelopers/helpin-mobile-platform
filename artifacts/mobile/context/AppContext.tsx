@@ -102,6 +102,15 @@ interface User {
   postsCount: number;
   helpedCount: number;
   adoptionsCount: number;
+  profileAddress?: {
+    cep?: string;
+    street?: string;
+    number?: string;
+    complement?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+  };
 }
 
 interface AppContextType {
@@ -155,6 +164,16 @@ interface AppContextType {
   refreshPosts: () => Promise<void>;
   donateToOng: (ongId: string, amountCents?: number) => Promise<void>;
   updateUserAvatar: (avatarUri: string) => Promise<void>;
+  updateUserProfile: (input: {
+    name: string;
+    cep?: string;
+    street?: string;
+    number?: string;
+    complement?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+  }) => Promise<void>;
   refreshUser: () => Promise<void>;
   refreshChatState: () => Promise<void>;
   pendingOutboxCount: number;
@@ -479,6 +498,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       postsCount: response.user.postsCount,
       helpedCount: response.user.helpedCount,
       adoptionsCount: response.user.adoptionsCount,
+      profileAddress: response.user.profileAddress
+        ? {
+            cep: response.user.profileAddress.cep ?? undefined,
+            street: response.user.profileAddress.street ?? undefined,
+            number: response.user.profileAddress.number ?? undefined,
+            complement: response.user.profileAddress.complement ?? undefined,
+            neighborhood: response.user.profileAddress.neighborhood ?? undefined,
+            city: response.user.profileAddress.city ?? undefined,
+            state: response.user.profileAddress.state ?? undefined,
+          }
+        : response.ongProfile
+        ? {
+            cep: response.ongProfile.cep ?? undefined,
+            street: response.ongProfile.street ?? undefined,
+            number: response.ongProfile.number ?? undefined,
+            complement: response.ongProfile.complement ?? undefined,
+            neighborhood: response.ongProfile.neighborhood ?? undefined,
+            city: response.ongProfile.city ?? undefined,
+            state: response.ongProfile.state ?? undefined,
+          }
+        : user?.profileAddress,
     };
   }
 
@@ -845,6 +885,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await persistUser(nextUser);
   }
 
+  async function updateUserProfile(input: {
+    name: string;
+    cep?: string;
+    street?: string;
+    number?: string;
+    complement?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+  }) {
+    if (!user) return;
+
+    const cleanName = input.name.trim();
+    if (!cleanName) throw new Error('Nome obrigatorio');
+
+    const response = api ? await api.updateProfile({ ...input, name: cleanName }) : null;
+    const backendUser = response ? mapAuthUser(response) : null;
+    const nextUser = {
+      ...(backendUser ?? user),
+      name: backendUser?.name ?? cleanName,
+      profileAddress: backendUser?.profileAddress ?? {
+        cep: input.cep,
+        street: input.street,
+        number: input.number,
+        complement: input.complement,
+        neighborhood: input.neighborhood,
+        city: input.city,
+        state: input.state,
+      },
+    };
+
+    await persistUser(nextUser);
+  }
+
   return (
     <AppContext.Provider
       value={{
@@ -871,6 +945,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         refreshPosts,
         donateToOng,
         updateUserAvatar,
+        updateUserProfile,
         refreshUser,
         refreshChatState,
         pendingOutboxCount,
