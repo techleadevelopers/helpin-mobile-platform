@@ -56,8 +56,22 @@ function isActive(post: Post) {
   return !isResolved(post) && (post.urgent || post.type === 'emergency' || post.type === 'lost' || post.type === 'found');
 }
 
+function formatCityState(city: string, state: string) {
+  const cleanCity = city.trim().replace(/\s*-\s*$/g, '');
+  const cleanState = state.trim().toUpperCase();
+  if (!cleanCity || !/^[A-Z]{2}$/.test(cleanState)) return null;
+  return `${cleanCity}-${cleanState}`;
+}
+
+function getStructuredCityState(post: Post) {
+  if (!post.locationAddress) return null;
+  return formatCityState(post.locationAddress.city, post.locationAddress.state);
+}
+
 function getAuthorLocation(posts: Post[]) {
-  const firstWithLocation = posts.find((post) => post.location || post.neighborhood);
+  const firstWithLocation = posts.find((post) => post.locationAddress || post.location || post.neighborhood);
+  const structuredLocation = firstWithLocation ? getStructuredCityState(firstWithLocation) : null;
+  if (structuredLocation) return structuredLocation;
   // Usa apenas neighborhood se existir, senão usa location
   const locationText = firstWithLocation?.location || firstWithLocation?.neighborhood;
   if (!locationText) return 'Brasil';
@@ -71,10 +85,16 @@ function getAuthorLocation(posts: Post[]) {
   const state = stateIndex >= 0 ? parts[stateIndex].toUpperCase() : null;
   if (city && state) return `${city}-${state}`;
 
-  const cityState = parts.find((part) => /-\s*[A-Z]{2}$/i.test(part));
-  if (cityState) return cityState.replace(/\s*-\s*/g, '-');
+  const cityStatePart = parts.find((part) => /-\s*[A-Z]{2}$/i.test(part));
+  if (cityStatePart) {
+    const cityStateParts = cityStatePart.split('-').map((part) => part.trim()).filter(Boolean);
+    const state = cityStateParts[cityStateParts.length - 1]?.toUpperCase();
+    const city = cityStateParts[cityStateParts.length - 2];
+    const formatted = city && state ? formatCityState(city, state) : null;
+    if (formatted) return formatted;
+  }
 
-  return locationText;
+  return 'Brasil';
 }
 
 function getAuthorBio(author: Author, posts: Post[]) {
@@ -202,8 +222,7 @@ export default function PublicUserProfileScreen() {
   }
 
   function getSocialLocation(item: Author) {
-    const post = allPosts.find((candidate) => candidate.author.id === item.id);
-    return post?.neighborhood || post?.location || 'Brasil';
+    return getAuthorLocation(allPosts.filter((candidate) => candidate.author.id === item.id));
   }
 
   function openSocialProfile(item: Author) {
