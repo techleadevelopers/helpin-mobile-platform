@@ -1,879 +1,549 @@
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  Image,
-  Animated,
-  Dimensions,
-  Modal,
-  Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
 
-import { Post } from '@/constants/data';
+import { OperationalStatus } from '@/components/OperationalStatus';
+import { StatusBadge } from '@/components/StatusBadge';
+import { ZooHelpHeader } from '@/components/ZooHelpHeader';
+import type { Post } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
-import { useColors } from '@/hooks/useColors';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+type CaseStatus = 'Novo' | 'Em triagem' | 'Lar temporario' | 'Em tratamento' | 'Disponivel' | 'Adotado' | 'Encerrado';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const PRIMARY = '#2D6A4F';
+const INK = '#18231B';
+const TEXT = '#3D473F';
+const MUTED = '#7C867C';
+const MUTED_2 = '#8A928B';
+const BG = '#F7F8F4';
+const CARD = '#FFFFFF';
+const CHIP = '#F4F6F3';
+const GREEN_SOFT = '#EAF7EF';
+const BORDER = '#E4EAE5';
+const BORDER_SOFT = '#E8EDE8';
+const DANGER = '#C95A5A';
 
-const STATUSES = [
-  'Novo',
-  'Em triagem',
-  'Lar temporario',
-  'Em tratamento',
-  'Disponivel',
-  'Adotado',
-  'Encerrado',
-] as const;
+const STATUSES: Array<{ value: CaseStatus; icon: MCIcon; color: string }> = [
+  { value: 'Novo', icon: 'plus-circle-outline', color: '#3B82F6' },
+  { value: 'Em triagem', icon: 'clipboard-search-outline', color: '#D4A259' },
+  { value: 'Lar temporario', icon: 'home-clock-outline', color: '#8B5CF6' },
+  { value: 'Em tratamento', icon: 'medical-bag', color: DANGER },
+  { value: 'Disponivel', icon: 'home-heart', color: PRIMARY },
+  { value: 'Adotado', icon: 'check-circle-outline', color: '#6D766F' },
+  { value: 'Encerrado', icon: 'archive-check-outline', color: '#6D766F' },
+];
 
-const STATUS_COLORS: Record<string, string> = {
-  'Novo': '#3B82F6',
-  'Em triagem': '#F59E0B',
-  'Lar temporario': '#8B5CF6',
-  'Em tratamento': '#EF4444',
-  'Disponivel': '#10B981',
-  'Adotado': '#6B7280',
-  'Encerrado': '#6B7280',
-};
+function isResolved(post: Post) {
+  return post.rescueStatus === 'resolved';
+}
 
-function statusForPost(post: Post, index: number) {
-  if (post.type === 'emergency' || post.urgent) return index % 2 === 0 ? 'Novo' : 'Em triagem';
+function statusForPost(post: Post, index: number): CaseStatus {
+  if (isResolved(post)) return 'Encerrado';
   if (post.type === 'adoption') return 'Disponivel';
   if (post.type === 'found') return 'Lar temporario';
   if (post.type === 'campaign') return 'Em tratamento';
+  if (post.type === 'emergency' || post.urgent) return 'Novo';
   return 'Novo';
 }
 
-function statusIcon(status: string): MCIcon {
-  const icons: Record<string, MCIcon> = {
-    'Novo': 'plus-circle-outline',
-    'Em triagem': 'clipboard-search-outline',
-    'Lar temporario': 'home-clock-outline',
-    'Em tratamento': 'medical-bag',
-    'Disponivel': 'home-heart',
-    'Adotado': 'check-circle-outline',
-    'Encerrado': 'archive-check-outline',
+function progressForStatus(status: CaseStatus): `${number}%` {
+  const values: Record<CaseStatus, `${number}%`> = {
+    Novo: '20%',
+    'Em triagem': '38%',
+    'Lar temporario': '56%',
+    'Em tratamento': '74%',
+    Disponivel: '82%',
+    Adotado: '100%',
+    Encerrado: '100%',
   };
-  return icons[status] || 'help-circle-outline';
+  return values[status];
 }
 
-// COMPONENTE DE STATUS TAB COM EFEITO ANIMADO IGUAL COMPOSESCREEN
-const AnimatedStatusTab: React.FC<{
-  status: string;
+function statusConfig(status: CaseStatus) {
+  return STATUSES.find((item) => item.value === status) ?? STATUSES[0];
+}
+
+function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <View style={styles.titleBlock}>
+      <Text style={styles.eyebrow}>{subtitle}</Text>
+      <Text style={styles.title}>{title}</Text>
+    </View>
+  );
+}
+
+function StatusTab({
+  status,
+  count,
+  active,
+  onPress,
+}: {
+  status: CaseStatus;
   count: number;
-  isActive: boolean;
-  colors: any;
+  active: boolean;
   onPress: () => void;
-}> = ({ status, count, isActive, colors, onPress }) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const statusColor = STATUS_COLORS[status] || colors.primary;
-
-  const handlePressIn = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // MESMO EFEITO do ComposeScreen: scale 0.92 com spring
-    Animated.spring(scaleAnim, {
-      toValue: 0.92,
-      useNativeDriver: true,
-      friction: 6,
-      tension: 400,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    // MESMO EFEITO do ComposeScreen: volta com spring
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      friction: 6,
-      tension: 400,
-    }).start();
-  };
-
-  const handlePress = () => {
-    // Feedback tátil igual ComposeScreen
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onPress();
-  };
+}) {
+  const config = statusConfig(status);
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity
-        style={[
-          styles.statusTab,
-          {
-            backgroundColor: isActive ? statusColor : colors.card,
-            borderColor: isActive ? statusColor : colors.border,
-            ...Platform.select({
-              ios: {
-                shadowColor: isActive ? statusColor : '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: isActive ? 0.2 : 0.05,
-                shadowRadius: 4,
-              },
-              android: { elevation: isActive ? 2 : 0 },
-            }),
-          },
-        ]}
-        onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        activeOpacity={1}
-      >
-        <MaterialCommunityIcons 
-          name={statusIcon(status)} 
-          size={14} 
-          color={isActive ? '#FFFFFF' : statusColor} 
-        />
-        <Text style={[styles.statusLabel, { color: isActive ? '#FFFFFF' : colors.foreground }]}>
-          {status}
-        </Text>
-        <View style={[
-          styles.statusCountBadge,
-          { backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : statusColor + '15' }
-        ]}>
-          <Text style={[styles.statusCount, { color: isActive ? '#FFFFFF' : statusColor }]}>
-            {count}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-};
-
-// BADGE DE STATUS NO CARD (também com animação igual ComposeScreen)
-const AnimatedStatusBadge: React.FC<{
-  status: string;
-  colors: any;
-}> = ({ status, colors }) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const statusColor = STATUS_COLORS[status] || colors.primary;
-
-  const handlePressIn = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Animated.spring(scaleAnim, {
-      toValue: 0.92,
-      useNativeDriver: true,
-      friction: 6,
-      tension: 400,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      friction: 6,
-      tension: 400,
-    }).start();
-  };
-
-  return (
-    <Animated.View
-      style={[
-        styles.animatedStatusBadge,
-        {
-          backgroundColor: statusColor + '15',
-          borderColor: statusColor + '30',
-          transform: [{ scale: scaleAnim }],
-        },
-      ]}
-      onTouchStart={handlePressIn}
-      onTouchEnd={handlePressOut}
+    <TouchableOpacity
+      style={[styles.statusTab, active && styles.statusTabActive]}
+      onPress={onPress}
+      activeOpacity={0.84}
     >
-      <MaterialCommunityIcons name={statusIcon(status)} size={11} color={statusColor} />
-      <Text style={[styles.animatedStatusText, { color: statusColor }]}>{status}</Text>
-    </Animated.View>
+      <MaterialCommunityIcons name={config.icon} size={11} color={active ? PRIMARY : config.color} />
+      <Text style={[styles.statusLabel, active && styles.statusLabelActive]}>{status.toUpperCase()}</Text>
+      <View style={[styles.statusCount, active && styles.statusCountActive]}>
+        <Text style={[styles.statusCountText, active && styles.statusCountTextActive]}>{count}</Text>
+      </View>
+    </TouchableOpacity>
   );
-};
+}
 
-// BADGE URGENTE COM EFEITO DE PULSO (igual ComposeScreen)
-const AnimatedUrgentBadge: React.FC = () => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  React.useEffect(() => {
-    // Loop de pulso igual ao urgentPulse do ComposeScreen
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.12,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, []);
-
-  const handlePressIn = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    Animated.spring(scaleAnim, {
-      toValue: 0.88,
-      useNativeDriver: true,
-      friction: 5,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      friction: 5,
-    }).start();
-  };
-
-  return (
-    <Animated.View
-      style={[
-        styles.animatedUrgentBadge,
-        {
-          transform: [{ scale: Animated.multiply(scaleAnim, pulseAnim) }],
-        },
-      ]}
-      onTouchStart={handlePressIn}
-      onTouchEnd={handlePressOut}
-    >
-      <Ionicons name="flash" size={10} color="#FFFFFF" />
-      <Text style={styles.animatedUrgentText}>Urgente</Text>
-    </Animated.View>
-  );
-};
-
-// Componente de caso com microfoto
-const CaseCard: React.FC<{
+function CaseCard({
+  post,
+  status,
+  index,
+  onOpen,
+  onChat,
+  onMap,
+  onMore,
+}: {
   post: Post;
-  status: string;
-  colors: any;
-  onPress: () => void;
+  status: CaseStatus;
   index: number;
-}> = ({ post, status, colors, onPress, index }) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const [showOverlay, setShowOverlay] = useState(false);
-
-  const handlePressIn = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Animated.spring(scaleAnim, {
-      toValue: 0.98,
-      useNativeDriver: true,
-      friction: 5,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      friction: 5,
-    }).start();
-  };
-
-  const handleLongPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setShowOverlay(true);
-  };
-
-  const imageUrl = post.image || `https://picsum.photos/id/${100 + index}/200/200`;
+  onOpen: () => void;
+  onChat: () => void;
+  onMap: () => void;
+  onMore: () => void;
+}) {
+  const config = statusConfig(status);
+  const imageUrl = post.image || `https://picsum.photos/id/${112 + index}/240/240`;
+  const urgent = post.urgent || post.type === 'emergency';
 
   return (
-    <>
-      <Animated.View
-        style={[
-          styles.caseCardWrapper,
-          {
-            transform: [{ scale: scaleAnim }],
-          },
-        ]}
-      >
-        <TouchableOpacity
-          activeOpacity={0.92}
-          onPress={onPress}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          onLongPress={handleLongPress}
-          delayLongPress={300}
-        >
-          <View style={[styles.caseCard, { backgroundColor: colors.card }]}>
-            <Image source={{ uri: imageUrl }} style={styles.microPhoto} />
-            
-            <View style={styles.caseBody}>
-              <View style={styles.caseTop}>
-                <Text style={[styles.caseTitle, { color: colors.foreground }]} numberOfLines={1}>
-                  {post.name || 'Sem nome'}
-                </Text>
-                <View style={styles.badgeRow}>
-                  <AnimatedStatusBadge status={status} colors={colors} />
-                  {post.urgent && <AnimatedUrgentBadge />}
-                </View>
-              </View>
-
-              <Text style={[styles.caseDescription, { color: colors.mutedForeground }]} numberOfLines={2}>
-                {post.description || 'Nenhuma descrição fornecida.'}
-              </Text>
-
-              <View style={styles.caseMetaRow}>
-                <View style={styles.metaItem}>
-                  <Ionicons name="location-outline" size={12} color={colors.mutedForeground} />
-                  <Text style={[styles.caseMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
-                    {post.location || 'Local não informado'}
-                  </Text>
-                </View>
-                <View style={styles.metaDivider} />
-                <View style={styles.metaItem}>
-                  <Ionicons name="time-outline" size={12} color={colors.mutedForeground} />
-                  <Text style={[styles.caseMeta, { color: colors.mutedForeground }]}>
-                    {post.createdAt || 'Hoje'}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.progressBar}>
-                <Animated.View 
-                  style={[
-                    styles.progressFill, 
-                    { 
-                      width: status === 'Novo' ? '20%' : 
-                             status === 'Em triagem' ? '40%' : 
-                             status === 'Lar temporario' ? '60%' : 
-                             status === 'Em tratamento' ? '80%' : '100%',
-                      backgroundColor: STATUS_COLORS[status] || colors.primary
-                    }
-                  ]} 
-                />
-              </View>
+    <TouchableOpacity style={styles.caseCard} onPress={onOpen} onLongPress={onMore} activeOpacity={0.9}>
+      <View style={styles.caseTop}>
+        <Image source={{ uri: imageUrl }} style={styles.caseImage} contentFit="cover" />
+        <View style={styles.caseMain}>
+          <View style={styles.caseTitleRow}>
+            <Text style={styles.caseTitle} numberOfLines={1}>{post.name || 'Caso sem nome'}</Text>
+            <View style={[styles.caseStatusPill, { backgroundColor: `${config.color}14`, borderColor: `${config.color}30` }]}>
+              <MaterialCommunityIcons name={config.icon} size={11} color={config.color} />
+              <Text style={[styles.caseStatusText, { color: config.color }]}>{status}</Text>
             </View>
           </View>
-        </TouchableOpacity>
-      </Animated.View>
+          <Text style={styles.caseDescription} numberOfLines={2}>
+            {post.description || 'Caso aguardando atualizacao da ONG.'}
+          </Text>
+          <View style={styles.caseMetaRow}>
+            <MaterialCommunityIcons name="map-marker-outline" size={12} color={MUTED} />
+            <Text style={styles.caseMeta} numberOfLines={1}>{post.neighborhood || post.location || 'Local nao informado'}</Text>
+          </View>
+        </View>
+      </View>
 
-      <Modal
-        visible={showOverlay}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowOverlay(false)}
-      >
-        <Pressable style={styles.overlay} onPress={() => setShowOverlay(false)}>
-          <Animated.View style={[styles.overlayCard, { backgroundColor: colors.card }]}>
-            <View style={styles.overlayHeader}>
-              <Image source={{ uri: imageUrl }} style={styles.overlayImage} />
-              <Text style={[styles.overlayTitle, { color: colors.foreground }]}>
-                {post.name || 'Caso'}
-              </Text>
+      <OperationalStatus post={post} variant="compact" />
+
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: progressForStatus(status), backgroundColor: config.color }]} />
+      </View>
+
+      <View style={styles.caseFooter}>
+        <View style={styles.footerBadges}>
+          <StatusBadge type={post.type} urgent={urgent && !isResolved(post)} resolved={isResolved(post)} size="xs" hideType />
+          {urgent && !isResolved(post) && (
+            <View style={styles.urgentPill}>
+              <MaterialCommunityIcons name="flash-outline" size={11} color="#FFFFFF" />
+              <Text style={styles.urgentText}>Urgente</Text>
             </View>
-            <View style={styles.overlayActions}>
-              <TouchableOpacity 
-                style={[styles.overlayAction, { backgroundColor: colors.primary + '10' }]}
-                onPress={() => {
-                  setShowOverlay(false);
-                  onPress();
-                }}
-              >
-                <Ionicons name="eye-outline" size={20} color={colors.primary} />
-                <Text style={[styles.overlayActionText, { color: colors.primary }]}>Ver detalhes</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.overlayAction, { backgroundColor: '#3B82F610' }]}
-                onPress={() => setShowOverlay(false)}
-              >
-                <Ionicons name="chatbubble-outline" size={20} color="#3B82F6" />
-                <Text style={[styles.overlayActionText, { color: '#3B82F6' }]}>Conversar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.overlayAction, { backgroundColor: '#EF444410' }]}
-                onPress={() => setShowOverlay(false)}
-              >
-                <Ionicons name="share-outline" size={20} color="#EF4444" />
-                <Text style={[styles.overlayActionText, { color: '#EF4444' }]}>Compartilhar</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity 
-              style={styles.overlayClose}
-              onPress={() => setShowOverlay(false)}
-            >
-              <Text style={[styles.overlayCloseText, { color: colors.mutedForeground }]}>Fechar</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </Pressable>
-      </Modal>
-    </>
+          )}
+        </View>
+        <View style={styles.caseActions}>
+          <TouchableOpacity style={styles.caseAction} onPress={onChat} activeOpacity={0.82}>
+            <MaterialCommunityIcons name="chat-outline" size={14} color={PRIMARY} />
+            <Text style={styles.caseActionText}>Chat</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.caseAction} onPress={onMap} activeOpacity={0.82}>
+            <MaterialCommunityIcons name="map-outline" size={14} color={PRIMARY} />
+            <Text style={styles.caseActionText}>Mapa</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </TouchableOpacity>
   );
-};
+}
 
-// Dica do dia
-const TipOfDay: React.FC<{ colors: any }> = ({ colors }) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, friction: 5 }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, friction: 5 }).start();
-  };
-
+function TipCard() {
   return (
-    <Animated.View style={[styles.tipCard, { transform: [{ scale: scaleAnim }], backgroundColor: colors.card }]}>
-      <TouchableOpacity 
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        activeOpacity={0.9}
-      >
-        <View style={styles.tipHeader}>
-          <View style={[styles.tipIcon, { backgroundColor: colors.primary + '15' }]}>
-            <Ionicons name="bulb-outline" size={22} color={colors.primary} />
-          </View>
-          <Text style={[styles.tipTitle, { color: colors.foreground }]}>Dica de hoje</Text>
+    <View style={styles.tipCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIcon}>
+          <MaterialCommunityIcons name="lightbulb-outline" size={22} color={PRIMARY} />
         </View>
-        <Text style={[styles.tipText, { color: colors.foreground }]}>
-          Cães precisam de água fresca disponível o dia todo. Troque a água pelo menos 3 vezes ao dia.
-        </Text>
-        <View style={styles.tipMeta}>
-          <Ionicons name="location-outline" size={12} color={colors.mutedForeground} />
-          <Text style={[styles.tipLocation, { color: colors.mutedForeground }]}>São Paulo, SP</Text>
-          <Text style={[styles.tipTime, { color: colors.mutedForeground }]}>· 1h atrás</Text>
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
+        <Text style={styles.tipTitle}>Dica de hoje</Text>
+      </View>
+      <Text style={styles.tipText}>Caes precisam de agua fresca disponivel o dia todo. Troque a agua pelo menos 3 vezes ao dia.</Text>
+      <View style={styles.tipMeta}>
+        <MaterialCommunityIcons name="map-marker-outline" size={12} color={MUTED} />
+        <Text style={styles.tipMetaText}>Sao Paulo, SP · 1h atras</Text>
+      </View>
+    </View>
   );
-};
+}
+
+function EmptyState({ activeStatus }: { activeStatus: CaseStatus }) {
+  return (
+    <View style={styles.emptyCard}>
+      <View style={styles.emptyIcon}>
+        <MaterialCommunityIcons name="clipboard-text-outline" size={32} color={PRIMARY} />
+      </View>
+      <Text style={styles.emptyTitle}>Nenhum caso aqui</Text>
+      <Text style={styles.emptyText}>Quando um caso entrar em "{activeStatus}", ele aparece nesta lista.</Text>
+    </View>
+  );
+}
 
 export default function OngCasesScreen() {
-  const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { posts } = useApp();
-  const [activeStatus, setActiveStatus] = useState<(typeof STATUSES)[number]>('Novo');
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [1, 0.95],
-    extrapolate: 'clamp',
-  });
-
-  const topPad = Platform.OS === 'web' ? 67 : insets.top;
-  const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
+  const { posts, user } = useApp();
+  const [activeStatus, setActiveStatus] = useState<CaseStatus>('Novo');
+  const [selectedCase, setSelectedCase] = useState<{ post: Post; status: CaseStatus } | null>(null);
 
   const cases = useMemo(
     () => posts.map((post, index) => ({ post, status: statusForPost(post, index) })),
     [posts],
   );
-  
-  const filteredCases = cases.filter((item) => item.status === activeStatus);
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    STATUSES.forEach(s => { counts[s] = 0; });
-    cases.forEach(({ status }) => { counts[status] = (counts[status] || 0) + 1; });
-    return counts;
-  }, [cases]);
 
-  const handleStatusChange = (status: typeof STATUSES[number]) => {
-    setActiveStatus(status);
-  };
+  const ownCases = useMemo(
+    () => user?.type === 'ong' ? cases.filter(({ post }) => post.author.id === user.id || post.type === 'emergency' || post.urgent) : cases,
+    [cases, user?.id, user?.type],
+  );
+
+  const statusCounts = useMemo(() => {
+    const counts = Object.fromEntries(STATUSES.map((item) => [item.value, 0])) as Record<CaseStatus, number>;
+    ownCases.forEach(({ status }) => {
+      counts[status] += 1;
+    });
+    return counts;
+  }, [ownCases]);
+
+  const filteredCases = ownCases.filter((item) => item.status === activeStatus);
+  const activeCount = ownCases.filter(({ post }) => !isResolved(post)).length;
+  const urgentCount = ownCases.filter(({ post }) => post.urgent || post.type === 'emergency').length;
+
+  function push(route: string) {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push(route as any);
+  }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Animated.View style={[styles.header, { paddingTop: topPad + 12, opacity: headerOpacity }]}>
-        <View>
-          <Text style={[styles.eyebrow, { color: colors.mutedForeground }]}>Gestão de casos</Text>
-          <Text style={[styles.title, { color: colors.foreground }]}>Casos da ONG</Text>
+    <View style={styles.container}>
+      <ZooHelpHeader />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 92 }]}>
+        <View style={styles.headerBlock}>
+          <SectionTitle title="Casos da ONG" subtitle="Gestao de casos" />
+          <TouchableOpacity style={styles.addButton} onPress={() => push('/composer')} activeOpacity={0.84}>
+            <MaterialCommunityIcons name="plus" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity 
-          style={[styles.addBtn, { backgroundColor: colors.primary }]}
-          onPress={() => router.push('/composer')}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="add" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      </Animated.View>
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
-        scrollEventThrottle={16}
-      >
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          contentContainerStyle={styles.statusTabs}
-          decelerationRate="fast"
-        >
-          {STATUSES.map((status) => {
-            const count = statusCounts[status] || 0;
-            const isActive = activeStatus === status;
-            
-            return (
-              <AnimatedStatusTab
-                key={status}
-                status={status}
-                count={count}
-                isActive={isActive}
-                colors={colors}
-                onPress={() => handleStatusChange(status)}
-              />
-            );
-          })}
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryValue}>{ownCases.length}</Text>
+            <Text style={styles.summaryLabel}>total</Text>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryItem}>
+            <Text style={[styles.summaryValue, { color: DANGER }]}>{urgentCount}</Text>
+            <Text style={styles.summaryLabel}>urgentes</Text>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryItem}>
+            <Text style={[styles.summaryValue, { color: PRIMARY }]}>{activeCount}</Text>
+            <Text style={styles.summaryLabel}>ativos</Text>
+          </View>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statusTabs}>
+          {STATUSES.map((item) => (
+            <StatusTab
+              key={item.value}
+              status={item.value}
+              count={statusCounts[item.value]}
+              active={activeStatus === item.value}
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setActiveStatus(item.value);
+              }}
+            />
+          ))}
         </ScrollView>
 
-        <View style={[styles.list, { paddingBottom: bottomPad + 84 }]}>
-          {filteredCases.length === 0 ? (
-            <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={[styles.emptyIcon, { backgroundColor: colors.primary + '10' }]}>
-                <MaterialCommunityIcons name="clipboard-text-outline" size={42} color={colors.primary} />
-              </View>
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Nenhum caso aqui</Text>
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                Quando um caso entrar no status "{activeStatus}", ele aparecerá nesta lista.
-              </Text>
-            </View>
+        <View style={styles.list}>
+          {filteredCases.length > 0 ? (
+            filteredCases.map(({ post, status }, index) => (
+              <CaseCard
+                key={post.id}
+                post={post}
+                status={status}
+                index={index}
+                onOpen={() => push(`/post/${post.id}`)}
+                onChat={() => push('/(tabs)/chat')}
+                onMap={() => push('/(tabs)/map')}
+                onMore={() => setSelectedCase({ post, status })}
+              />
+            ))
           ) : (
-            <>
-              {filteredCases.map(({ post, status }, idx) => (
-                <CaseCard
-                  key={post.id}
-                  post={post}
-                  status={status}
-                  colors={colors}
-                  index={idx}
-                  onPress={() => router.push(`/post/${post.id}`)}
-                />
-              ))}
-              <TipOfDay colors={colors} />
-            </>
+            <EmptyState activeStatus={activeStatus} />
           )}
+          <TipCard />
         </View>
       </ScrollView>
+
+      <Modal transparent visible={selectedCase !== null} animationType="fade" onRequestClose={() => setSelectedCase(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setSelectedCase(null)} />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle} numberOfLines={1}>{selectedCase?.post.name || 'Caso'}</Text>
+            <Text style={styles.sheetSubtitle} numberOfLines={2}>{selectedCase?.post.description}</Text>
+            <TouchableOpacity
+              style={styles.sheetAction}
+              onPress={() => {
+                const id = selectedCase?.post.id;
+                setSelectedCase(null);
+                if (id) push(`/post/${id}`);
+              }}
+              activeOpacity={0.84}
+            >
+              <MaterialCommunityIcons name="eye-outline" size={18} color={PRIMARY} />
+              <Text style={styles.sheetActionText}>Ver detalhes</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.sheetAction}
+              onPress={() => {
+                setSelectedCase(null);
+                push('/(tabs)/chat');
+              }}
+              activeOpacity={0.84}
+            >
+              <MaterialCommunityIcons name="chat-outline" size={18} color={PRIMARY} />
+              <Text style={styles.sheetActionText}>Abrir chat</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.sheetClose} onPress={() => setSelectedCase(null)} activeOpacity={0.82}>
+              <Text style={styles.sheetCloseText}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  eyebrow: {
-    fontSize: 13,
-    fontWeight: '500',
-    letterSpacing: 0.3,
-    marginBottom: 2,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    letterSpacing: -0.8,
-  },
-  addBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  container: { flex: 1, backgroundColor: BG },
+  content: { padding: 18, gap: 14 },
+  headerBlock: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  titleBlock: { gap: 3 },
+  eyebrow: { fontSize: 12, fontFamily: 'Montserrat_500Medium', color: MUTED },
+  title: { fontSize: 25, fontFamily: 'Montserrat_700Bold', color: '#1C251D', letterSpacing: -0.5 },
+  addButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-      },
-      android: { elevation: 4 },
-    }),
+    backgroundColor: '#586158',
+    shadowColor: '#172018',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  
+  summaryCard: {
+    minHeight: 74,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 22,
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: BORDER_SOFT,
+    shadowColor: '#172018',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  summaryItem: { flex: 1, alignItems: 'center', gap: 2 },
+  summaryValue: { fontSize: 18, fontFamily: 'Montserrat_700Bold', color: INK },
+  summaryLabel: { fontSize: 10, fontFamily: 'Montserrat_500Medium', color: MUTED },
+  summaryDivider: { width: 1, height: 34, backgroundColor: BORDER },
   statusTabs: {
-    paddingHorizontal: 20,
-    gap: 10,
-    paddingBottom: 20,
+    flexDirection: 'row',
+    gap: 7,
+    paddingRight: 18,
   },
   statusTab: {
+    minHeight: 24,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 100,
+    gap: 5,
+    paddingHorizontal: 9,
+    borderRadius: 12,
     borderWidth: 1,
+    borderColor: '#D8E6DB',
+    backgroundColor: GREEN_SOFT,
   },
-  statusLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+  statusTabActive: {
+    backgroundColor: '#D7E9DA',
+    borderColor: '#BBD5C2',
   },
-  statusCountBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 20,
-    minWidth: 28,
-    alignItems: 'center',
-  },
+  statusLabel: { fontSize: 9, fontFamily: 'Montserrat_700Bold', color: PRIMARY },
+  statusLabelActive: { color: PRIMARY },
   statusCount: {
-    fontSize: 12,
-    fontWeight: '700',
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    backgroundColor: '#FFFFFF',
   },
-  
-  list: {
-    paddingHorizontal: 20,
-    gap: 12,
-  },
-  
-  caseCardWrapper: {
-    marginBottom: 0,
-  },
+  statusCountActive: { backgroundColor: '#F4F8F5' },
+  statusCountText: { fontSize: 9, fontFamily: 'Montserrat_700Bold', color: MUTED },
+  statusCountTextActive: { color: PRIMARY },
+  list: { gap: 12 },
   caseCard: {
-    flexDirection: 'row',
-    gap: 14,
-    borderRadius: 20,
-    padding: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: { elevation: 3 },
-    }),
-  },
-  microPhoto: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    backgroundColor: '#F0F2F5',
-  },
-  caseBody: {
-    flex: 1,
-    gap: 8,
-  },
-  caseTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  caseTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    flex: 1,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  animatedStatusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
+    padding: 14,
+    gap: 10,
+    borderRadius: 22,
+    backgroundColor: CARD,
     borderWidth: 1,
+    borderColor: BORDER_SOFT,
+    shadowColor: '#172018',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  animatedStatusText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  animatedUrgentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#EF4444',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  animatedUrgentText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  caseDescription: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  caseMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  metaItem: {
+  caseTop: { flexDirection: 'row', gap: 12 },
+  caseImage: { width: 64, height: 64, borderRadius: 16, backgroundColor: '#E8ECF0' },
+  caseMain: { flex: 1, minWidth: 0, gap: 5 },
+  caseTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  caseTitle: { flex: 1, fontSize: 15, fontFamily: 'Montserrat_700Bold', color: INK },
+  caseStatusPill: {
+    minHeight: 25,
+    borderRadius: 13,
+    borderWidth: 1,
+    paddingHorizontal: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  metaDivider: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: '#9CA3AF',
+  caseStatusText: { fontSize: 10, fontFamily: 'Montserrat_700Bold' },
+  caseDescription: { fontSize: 12, fontFamily: 'Montserrat_500Medium', color: TEXT, lineHeight: 17 },
+  caseMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  caseMeta: { flex: 1, fontSize: 10.5, fontFamily: 'Montserrat_500Medium', color: MUTED },
+  progressTrack: { height: 3, borderRadius: 2, backgroundColor: '#E5EAE6', overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 2 },
+  caseFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  footerBadges: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  urgentPill: {
+    minHeight: 22,
+    borderRadius: 11,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: DANGER,
   },
-  caseMeta: {
-    fontSize: 11,
-    fontWeight: '500',
+  urgentText: { fontSize: 10, fontFamily: 'Montserrat_700Bold', color: '#FFFFFF' },
+  caseActions: { flexDirection: 'row', gap: 6 },
+  caseAction: {
+    minHeight: 30,
+    borderRadius: 15,
+    paddingHorizontal: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: CHIP,
+    borderWidth: 1,
+    borderColor: BORDER,
   },
-  progressBar: {
-    height: 3,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginTop: 4,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  
+  caseActionText: { fontSize: 10.5, fontFamily: 'Montserrat_700Bold', color: TEXT },
   tipCard: {
-    borderRadius: 20,
+    borderRadius: 22,
     padding: 16,
-    marginTop: 8,
-    marginBottom: 20,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-      },
-      android: { elevation: 2 },
-    }),
-  },
-  tipHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  tipIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tipTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  tipText: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  tipMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  tipLocation: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  tipTime: {
-    fontSize: 11,
-  },
-  
-  emptyCard: {
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: 24,
+    gap: 11,
+    backgroundColor: CARD,
     borderWidth: 1,
-    padding: 40,
-    marginTop: 40,
+    borderColor: BORDER_SOFT,
+    shadowColor: '#172018',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  tipHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  tipIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: GREEN_SOFT },
+  tipTitle: { fontSize: 15, fontFamily: 'Montserrat_700Bold', color: INK },
+  tipText: { fontSize: 13, fontFamily: 'Montserrat_500Medium', color: TEXT, lineHeight: 19 },
+  tipMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  tipMetaText: { fontSize: 11, fontFamily: 'Montserrat_500Medium', color: MUTED },
+  emptyCard: {
+    minHeight: 176,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    gap: 9,
+    padding: 24,
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: BORDER_SOFT,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  emptyText: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-    maxWidth: 240,
-  },
-  
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  overlayCard: {
-    width: SCREEN_WIDTH - 48,
-    borderRadius: 28,
-    padding: 20,
-    gap: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 20 },
-        shadowOpacity: 0.25,
-        shadowRadius: 30,
-      },
-      android: { elevation: 12 },
-    }),
-  },
-  overlayHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  overlayImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-  },
-  overlayTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    flex: 1,
-  },
-  overlayActions: {
+  emptyIcon: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center', backgroundColor: GREEN_SOFT },
+  emptyTitle: { fontSize: 16, fontFamily: 'Montserrat_700Bold', color: INK },
+  emptyText: { maxWidth: 250, textAlign: 'center', fontSize: 12, fontFamily: 'Montserrat_500Medium', color: MUTED, lineHeight: 18 },
+  modalRoot: { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(20,28,22,0.28)' },
+  sheet: {
+    margin: 10,
+    padding: 16,
+    borderRadius: 24,
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: '#E6ECE7',
     gap: 10,
   },
-  overlayAction: {
+  sheetHandle: { alignSelf: 'center', width: 34, height: 4, borderRadius: 2, backgroundColor: '#DDE5DF', marginBottom: 4 },
+  sheetTitle: { fontSize: 16, fontFamily: 'Montserrat_700Bold', color: INK },
+  sheetSubtitle: { fontSize: 12, fontFamily: 'Montserrat_500Medium', color: MUTED, lineHeight: 18 },
+  sheetAction: {
+    minHeight: 44,
+    borderRadius: 16,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 16,
+    gap: 9,
+    backgroundColor: CHIP,
   },
-  overlayActionText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  overlayClose: {
-    alignItems: 'center',
-    paddingVertical: 12,
-    marginTop: 8,
-  },
-  overlayCloseText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
+  sheetActionText: { fontSize: 13, fontFamily: 'Montserrat_700Bold', color: TEXT },
+  sheetClose: { alignItems: 'center', justifyContent: 'center', minHeight: 40 },
+  sheetCloseText: { fontSize: 13, fontFamily: 'Montserrat_700Bold', color: MUTED_2 },
 });
