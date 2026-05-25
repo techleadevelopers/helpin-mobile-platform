@@ -30,7 +30,7 @@ import { Avatar } from '@/components/Avatar';
 import { Post, PostType, POST_TYPE_CONFIG } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
-import { geocodeAddress, getPlaceAddressDetails, getStaticMapUrl, searchAddressSuggestions } from '@/services/zoohelpApi';
+import { geocodeAddress, geocodeStructuredAddress, getPlaceAddressDetails, getStaticMapUrl, searchAddressSuggestions } from '@/services/zoohelpApi';
 import { ZooHelpApiError } from '@/services/zoohelpEngine';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -393,6 +393,16 @@ export default function ComposeScreen() {
     ]);
   }
 
+  function geocodeManualAddressWithQuickTimeout() {
+    const parts = getManualLocationParts();
+    return Promise.race([
+      geocodeStructuredAddress(parts)
+        .then((result) => result ?? geocodeAddress(buildAddressLabel()))
+        .catch(() => null),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+    ]);
+  }
+
   async function handlePublish() {
     if (!canPost) {
       Alert.alert('Publicação vazia', 'Escreva algo ou adicione uma foto.');
@@ -410,9 +420,12 @@ export default function ComposeScreen() {
     let nextCoords = coords;
     let nextPrecision = locationPrecision;
     let nextLocation = manualAddress || location;
+    let webAddressOnlyPost = false;
 
     if (manualComplete || (manualAddress && nextPrecision !== 'gps')) {
-      const geocoded = await geocodeWithQuickTimeout(manualAddress);
+      const geocoded = manualComplete
+        ? await geocodeManualAddressWithQuickTimeout()
+        : await geocodeWithQuickTimeout(manualAddress);
       if (geocoded) {
         nextCoords = { latitude: geocoded.latitude, longitude: geocoded.longitude };
         nextPrecision = 'address';
@@ -428,6 +441,13 @@ export default function ComposeScreen() {
           height: 320,
         });
         if (staticMap) setMapImageUrl(staticMap);
+      } else if (Platform.OS === 'web' && manualComplete) {
+        webAddressOnlyPost = true;
+        nextCoords = null;
+        nextPrecision = 'address';
+        nextLocation = manualAddress;
+        setLocation(nextLocation);
+        setLocationPrecision(nextPrecision);
       } else {
         setAddressLookupFailed(true);
         setAddressManualFallbackVisible(true);
@@ -463,10 +483,12 @@ export default function ComposeScreen() {
     setSubmitting(true);
     if (Platform.OS !== 'web')
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const publishAsAddressOnly = webAddressOnlyPost && needsRescue;
+    const effectiveNeedsRescue = needsRescue && !publishAsAddressOnly;
 
     const newPost: Post = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-      type: selectedType,
+      type: publishAsAddressOnly ? 'post' : selectedType,
       animalType,
       name: text.trim().split(' ').slice(0, 2).join(' ') || 'Publicação',
       breed: '',
@@ -478,7 +500,7 @@ export default function ComposeScreen() {
       images,
       latitude: shouldAttachCoords ? nextCoords?.latitude : undefined,
       longitude: shouldAttachCoords ? nextCoords?.longitude : undefined,
-      locationAddress: manualComplete ? getManualLocationParts() : undefined,
+      locationAddress: manualComplete && !webAddressOnlyPost ? getManualLocationParts() : undefined,
       textOnly: images.length === 0,
       author: {
         id: currentUser.id,
@@ -490,7 +512,7 @@ export default function ComposeScreen() {
       likes: 0,
       comments: 0,
       shares: 0,
-      urgent,
+      urgent: publishAsAddressOnly ? false : urgent,
       createdAt: 'agora',
       contact: contact.trim(),
       tags: [],
@@ -498,10 +520,10 @@ export default function ComposeScreen() {
 
     try {
       const savedPost = await addPost(newPost);
-      if (needsRescue && shouldAttachCoords) {
+      if (effectiveNeedsRescue && shouldAttachCoords) {
         const addressParam = encodeURIComponent(newPost.location);
         router.replace(`/rescue/status?postId=${encodeURIComponent(savedPost.id)}&address=${addressParam}` as any);
-      } else if (needsRescue) {
+      } else if (effectiveNeedsRescue) {
         Alert.alert(
           'Publicado como urgente',
           'O post foi criado com o endereço informado. Para disparo operacional em raio preciso, use GPS do app ou um endereço geocodificado.'
