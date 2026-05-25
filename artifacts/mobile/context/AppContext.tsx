@@ -13,7 +13,80 @@ import { AUTH_TOKEN_KEY, createZooHelpApi, mapPost, supportPaymentsEnabled, uplo
 import { ZooHelpApiError } from '@/services/zoohelpEngine';
 
 const DELETED_POST_IDS_KEY = 'zoohelp:deletedPostIds:v1';
+const POST_IMAGES_CACHE_KEY = 'zoohelp:postImages:v1';
 const MAX_LOCAL_DELETED_POST_IDS = 200;
+const MAX_POST_IMAGES_CACHE_ITEMS = 500;
+
+function postSortTime(post: Post) {
+  if (post.createdAt === 'agora' || post.createdAt === 'pendente') return Number.MAX_SAFE_INTEGER;
+  const parsed = Date.parse(post.createdAt);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function sortPostsNewestFirst(posts: Post[]) {
+  return [...posts].sort((a, b) => {
+    const byTime = postSortTime(b) - postSortTime(a);
+    if (byTime !== 0) return byTime;
+    return b.id.localeCompare(a.id);
+  });
+}
+
+function isPersistablePostImage(uri: string) {
+  return Platform.OS !== 'web' || !uri.startsWith('blob:');
+}
+
+function uniquePostImages(images: Array<string | null | undefined>) {
+  return Array.from(new Set(images.filter((uri): uri is string => Boolean(uri)))).filter(isPersistablePostImage);
+}
+
+function postImageList(post: Post) {
+  return uniquePostImages([...(post.images ?? []), post.image]);
+}
+
+function mergePostImages(post: Post, fallback?: Post | string[]) {
+  const currentImages = postImageList(post);
+  const fallbackImages = Array.isArray(fallback) ? uniquePostImages(fallback) : fallback ? postImageList(fallback) : [];
+  const bestImages = currentImages.length >= fallbackImages.length ? currentImages : fallbackImages;
+
+  if (bestImages.length === 0) return post;
+
+  return {
+    ...post,
+    image: bestImages[0],
+    images: bestImages,
+  };
+}
+
+async function loadPostImagesCache() {
+  const raw = await AsyncStorage.getItem(POST_IMAGES_CACHE_KEY).catch(() => null);
+  if (!raw) return {};
+
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .map(([postId, images]) => [
+          postId,
+          Array.isArray(images) ? uniquePostImages(images as Array<string | null | undefined>) : [],
+        ] as const)
+        .filter(([, images]) => images.length > 0),
+    ) as Record<string, string[]>;
+  } catch {
+    return {};
+  }
+}
+
+async function rememberPostImages(post: Post) {
+  const images = postImageList(post);
+  if (images.length < 2) return;
+
+  const cache = await loadPostImagesCache();
+  if ((cache[post.id]?.length ?? 0) >= images.length) return;
+
+  cache[post.id] = images;
+  const trimmed = Object.fromEntries(Object.entries(cache).slice(-MAX_POST_IMAGES_CACHE_ITEMS));
+  await AsyncStorage.setItem(POST_IMAGES_CACHE_KEY, JSON.stringify(trimmed)).catch(() => {});
+}
 
 interface User {
   id: string;
@@ -223,8 +296,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       const cachedFeed = await loadCachedFeed();
-      const visibleCachedFeed = cachedFeed.filter((post) => !deletedPostIdsRef.current.has(post.id));
-      if (visibleCachedFeed.length) setPosts(visibleCachedFeed);
+      const imageCache = await loadPostImagesCache();
+      const visibleCachedFeed = cachedFeed
+        .map((post) => mergePostImages(post, imageCache[post.id]))
+        .filter((post) => !deletedPostIdsRef.current.has(post.id));
+      if (visibleCachedFeed.length) setPosts(sortPostsNewestFirst(visibleCachedFeed));
       await refreshOutboxCount();
       await refreshPostsFromBackend();
       await syncPendingOperations();
@@ -476,9 +552,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
         try {
           const synced = await publishPostToBackend(pending.post, pending.idempotencyKey);
+          const syncedWithImages = mergePostImages(synced, pending.post);
+          await rememberPostImages(syncedWithImages);
           await removePendingPost(pending.id);
-          setPosts((prev) => [synced, ...prev.filter((item) => item.id !== pending.post.id)]);
-          await maybeTriggerRescueForSyncedPost(synced);
+          setPosts((prev) => sortPostsNewestFirst([syncedWithImages, ...prev.filter((item) => item.id !== pending.post.id)]));
+          await maybeTriggerRescueForSyncedPost(syncedWithImages);
         } catch (error) {
           await markPendingPostAttempt(
             pending.id,
@@ -494,9 +572,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   async function addPost(post: Post) {
     try {
       const synced = await publishPostToBackend(post);
-      setPosts((prev) => [synced, ...prev]);
-      await maybeTriggerRescueForSyncedPost(synced);
-      return synced;
+      const syncedWithImages = mergePostImages(synced, post);
+      await rememberPostImages(syncedWithImages);
+      setPosts((prev) => sortPostsNewestFirst([syncedWithImages, ...prev]));
+      await maybeTriggerRescueForSyncedPost(syncedWithImages);
+      return syncedWithImages;
     } catch (error) {
       if (error instanceof ZooHelpApiError && error.status === 401) {
         await clearInvalidSession();
@@ -515,10 +595,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         tags: Array.from(new Set(['pendente', ...post.tags])),
         createdAt: 'pendente',
       };
-      setPosts((prev) => [
-        pendingPost,
-        ...prev,
-      ]);
+      setPosts((prev) => sortPostsNewestFirst([pendingPost, ...prev]));
       return pendingPost;
     }
   }
@@ -539,11 +616,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       );
       feedFailureCountRef.current = 0;
       feedRetryAfterRef.current = 0;
-      const mapped = feed.map(mapPost).filter((post) => !deletedPostIdsRef.current.has(post.id));
+      const imageCache = await loadPostImagesCache();
+      const mapped = feed
+        .map(mapPost)
+        .map((post) => mergePostImages(post, imageCache[post.id]))
+        .filter((post) => !deletedPostIdsRef.current.has(post.id));
       const backendIds = new Set(mapped.map((post) => post.id));
       let nextFeed = mapped;
       setPosts((prev) => {
         const now = Date.now();
+        const previousById = new Map(prev.map((post) => [post.id, post]));
+        const mergedMapped = mapped.map((post) => mergePostImages(post, previousById.get(post.id)));
         const stickyLocalPosts = prev.filter((post) => {
           if (deletedPostIdsRef.current.has(post.id)) return false;
           if (backendIds.has(post.id)) return false;
@@ -552,7 +635,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const createdAtMs = Date.parse(post.createdAt);
           return Number.isFinite(createdAtMs) && now - createdAtMs < 5 * 60 * 1000;
         });
-        nextFeed = [...stickyLocalPosts, ...mapped];
+        nextFeed = sortPostsNewestFirst([...stickyLocalPosts, ...mergedMapped]);
         return nextFeed;
       });
       await saveCachedFeed(nextFeed);
@@ -571,7 +654,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch {
       const cachedFeed = await loadCachedFeed();
       const visibleCachedFeed = cachedFeed.filter((post) => !deletedPostIdsRef.current.has(post.id));
-      if (visibleCachedFeed.length) setPosts(visibleCachedFeed);
+      if (visibleCachedFeed.length) setPosts(sortPostsNewestFirst(visibleCachedFeed));
     }
   }
 
