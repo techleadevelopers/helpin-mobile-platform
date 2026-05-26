@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -14,21 +14,30 @@ type ComposeDockProps = {
 };
 
 export function ComposeDock({ bottomPad, colors, currentType, canPost, submitting, onPublish }: ComposeDockProps) {
+  const disabled = !canPost || submitting;
+
   return (
-    <View style={[styles.dock, { borderTopColor: colors.border, paddingBottom: bottomPad + 6 }]}>
+    <View style={[styles.dock, { borderTopColor: colors.border, paddingBottom: bottomPad + 8 }]}>
       <TouchableOpacity
         style={[
           styles.publishBtn,
-          { backgroundColor: canPost ? currentType.color : colors.muted, shadowColor: canPost ? currentType.color : 'transparent' },
+          disabled && styles.publishBtnDisabled,
+          { shadowColor: canPost ? currentType.color : '#263129' },
         ]}
         onPress={onPublish}
-        disabled={!canPost || submitting}
-        activeOpacity={0.88}
+        disabled={disabled}
+        activeOpacity={0.9}
       >
-        {canPost && <MaterialCommunityIcons name="send" size={18} color="#FFFFFF" />}
-        <Text style={[styles.publishText, { color: canPost ? '#FFFFFF' : colors.mutedForeground }]}>
-          {submitting ? 'Publicando...' : currentType.cta}
-        </Text>
+        <LinearGradient
+          colors={disabled ? ['#EEF3EF', '#E7EEE8'] : ['#4E5A53', '#303B35']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.publishGradient}
+        >
+          <Text style={[styles.publishText, { color: disabled ? '#657168' : '#FFFFFF' }]}>
+            {submitting ? 'Publicando...' : currentType.cta}
+          </Text>
+        </LinearGradient>
       </TouchableOpacity>
     </View>
   );
@@ -37,29 +46,45 @@ export function ComposeDock({ bottomPad, colors, currentType, canPost, submittin
 const styles = StyleSheet.create({
   dock: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255,255,255,0.96)',
     borderTopWidth: 1,
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    paddingHorizontal: 16,
+    paddingTop: 9,
+    shadowColor: '#14261B',
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
     elevation: 10,
   },
   publishBtn: {
+    minHeight: 48,
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  publishBtnDisabled: {
+    shadowOpacity: 0.08,
+    elevation: 3,
+  },
+  publishGradient: {
+    minHeight: 48,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 15,
-    borderRadius: 18,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.34)',
   },
-  publishText: { fontSize: 16, fontFamily: 'Inter_700Bold', letterSpacing: 0.1 },
+  publishText: {
+    textAlign: 'center',
+    fontSize: 14.5,
+    fontFamily: 'Montserrat_700Bold',
+    letterSpacing: 0,
+  },
 });
-
