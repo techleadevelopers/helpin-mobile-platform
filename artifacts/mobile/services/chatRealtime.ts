@@ -1,4 +1,3 @@
-import { getStoredAccessToken } from '@/services/secureSession';
 import { createZooHelpApi } from '@/services/zoohelpApi';
 
 export type ChatRealtimeStatus = 'connecting' | 'connected' | 'reconnecting' | 'closed';
@@ -27,14 +26,15 @@ export function connectChatRoom(
 
   async function open() {
     const api = createZooHelpApi();
-    const token = await getStoredAccessToken();
-    if (!api || !token || closedByClient) {
+    if (!api || closedByClient) {
       setStatus('closed');
       return;
     }
 
     setStatus(attempts === 0 ? 'connecting' : 'reconnecting');
-    socket = new WebSocket(api.chatWebSocketUrl(roomId, token));
+    const { ticket } = await api.issueChatWebSocketTicket(roomId);
+    if (closedByClient) return;
+    socket = new WebSocket(api.chatWebSocketUrl(roomId, ticket));
 
     socket.onopen = () => {
       attempts = 0;
