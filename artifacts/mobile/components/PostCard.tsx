@@ -110,13 +110,12 @@ function limitText(value: string, maxChars: number) {
 export function PostCard({ post, index = 0 }: PostCardProps) {
   const colors = useColors();
   const router = useRouter();
-  const { likedPosts, likedPostCounts, toggleLike, user, followedUsers, toggleFollowUser, deletePost } = useApp();
-  const isLiked = likedPosts.includes(post.id);
+  const { likedPosts, toggleLike, user, followedUsers, toggleFollowUser, deletePost } = useApp();
+  const isLiked = post.likedByMe === true || likedPosts.includes(post.id);
   const isFollowingAuthor = followedUsers.includes(post.author.id);
   const isPostOwner = user?.id === post.author.id;
   const viewCount = 6 + (index % 4);
-  const [localLikes, setLocalLikes] = useState(post.likes);
-  const displayLikes = Math.max(0, localLikes, likedPostCounts[post.id] ?? 0, isLiked ? 1 : 0);
+  const displayLikes = Math.max(0, post.likes);
   const [localComments, setLocalComments] = useState(post.comments);
   const [saved, setSaved] = useState(false);
   const [commentOpen, setCommentOpen] = useState(false);
@@ -153,9 +152,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   }
 
   function handleLike() {
-    const wasLiked = isLiked;
     toggleLike(post.id);
-    setLocalLikes((prev) => Math.max(0, wasLiked ? prev - 1 : prev + 1));
     heartScale.value = withSpring(1.4, { damping: 10, stiffness: 400 }, () => {
       heartScale.value = withSpring(1, { damping: 15, stiffness: 300 });
     });
