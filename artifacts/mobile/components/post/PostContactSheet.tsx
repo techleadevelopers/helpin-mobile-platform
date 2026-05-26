@@ -48,8 +48,8 @@ export function PostContactSheet({
 }
 
 const styles = StyleSheet.create({
-  contactOverlayRoot: { flex: 1, justifyContent: 'flex-end' },
-  contactOverlayBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(20,28,22,0.28)' },
+  contactOverlayRoot: { flex: 1, justifyContent: 'flex-end', },
+  contactOverlayBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(20,28,22,0.28)',  },
   contactSheet: {
     marginHorizontal: 10,
     marginBottom: 10,
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     borderColor: '#E6ECE7',
   },
   contactSheetHandle: { alignSelf: 'center', width: 34, height: 4, borderRadius: 2, backgroundColor: '#DDE5DF', marginBottom: 14 },
-  contactSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  contactSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, },
   contactSheetIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EAF3EC' },
   contactSheetClose: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F4F6F3' },
   contactSheetTitle: { fontSize: 18, fontFamily: 'Montserrat_700Bold', color: '#172018' },
