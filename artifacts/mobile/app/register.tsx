@@ -35,14 +35,14 @@ const ONG_TYPES = [
 ];
 
 const KYB_DOCUMENTS: Array<{ type: KybDocumentType; label: string; icon: MCIcon }> = [
-  { type: 'document_front', label: 'Frente do documento', icon: 'card-account-details-outline' },
-  { type: 'document_back', label: 'Verso do documento', icon: 'card-account-details-star-outline' },
-  { type: 'selfie_with_document', label: 'Selfie com documento', icon: 'face-man-profile' },
+  { type: 'document_front', label: 'Frente do RG', icon: 'card-account-details-outline' },
+  { type: 'document_back', label: 'Verso do RG', icon: 'card-account-details-star-outline' },
+  { type: 'selfie_with_document', label: 'Foto com RG na mao', icon: 'face-man-profile' },
 ];
 
 function totalSteps(type: AccountType | null) {
   if (!type) return 1;
-  return type === 'person' ? 3 : 5;
+  return type === 'person' ? 3 : 6;
 }
 
 export default function RegisterScreen() {
@@ -183,12 +183,14 @@ export default function RegisterScreen() {
         if (ongState.trim().length !== 2) { Alert.alert('UF obrigatoria', 'Informe a UF com 2 letras.'); return; }
         goNext(4);
       } else if (step === 4) {
-        if (KYB_DOCUMENTS.some((doc) => !kybDocuments[doc.type])) {
-          Alert.alert('Verificacao obrigatoria', 'Envie frente, verso e selfie com documento para a pericia manual da ONG.');
-          return;
-        }
         if (ongPassword.length < 8) { Alert.alert('Senha fraca', 'A senha deve ter pelo menos 8 caracteres.'); return; }
         if (!acceptedTerms) { Alert.alert('Termos de Uso', 'Aceite os Termos de Uso e a Politica de Privacidade para continuar.'); return; }
+        goNext(5);
+      } else if (step === 5) {
+        if (KYB_DOCUMENTS.some((doc) => !kybDocuments[doc.type])) {
+          Alert.alert('Verificacao obrigatoria', 'Envie frente e verso do RG e uma foto com o documento na mao.');
+          return;
+        }
         handleSubmit();
       }
     }
@@ -196,20 +198,13 @@ export default function RegisterScreen() {
 
   async function handleSubmit() {
     setLoading(true);
+    let ongAccountCreated = false;
     try {
       if (accountType === 'person') {
         await register(name.trim(), email.trim(), password, 'person', { gender });
       } else {
-        let logoUrl: string | null = null;
-        if (ongLogoUri) {
-          const api = createZooHelpApi();
-          if (!api) throw new Error('Backend API unavailable for logo upload');
-          const uploadedLogo = await uploadLocalImageToCloudinary(api, ongLogoUri, 'ong-logo');
-          logoUrl = uploadedLogo.publicUrl;
-        }
         const cnpjDigits = ongCnpj.replace(/\D/g, '');
         await register(ongName.trim(), ongEmail.trim(), ongPassword, 'ong', {
-          avatar: logoUrl,
           ongType,
           ...(cnpjDigits.length === 14 ? { cnpj: ongCnpj } : {}),
           phone: ongPhone,
@@ -222,8 +217,13 @@ export default function RegisterScreen() {
           state: ongState,
           ...(ongFoundationYear.trim() ? { foundationYear: Number(ongFoundationYear) } : {}),
         });
+        ongAccountCreated = true;
         const api = createZooHelpApi();
-        if (!api) throw new Error('Backend API unavailable for KYB upload');
+        if (!api) throw new Error('Backend API unavailable for ONG media upload');
+        if (ongLogoUri) {
+          const uploadedLogo = await uploadLocalImageToCloudinary(api, ongLogoUri, 'ong-logo');
+          await api.updateAvatar({ avatarUrl: uploadedLogo.publicUrl });
+        }
         for (const doc of KYB_DOCUMENTS) {
           const uri = kybDocuments[doc.type];
           if (!uri) continue;
@@ -241,8 +241,16 @@ export default function RegisterScreen() {
       );
       router.replace('/(tabs)');
     } catch (error) {
-      console.error('[register] failed to create account', error);
-      Alert.alert('Erro', 'Nao foi possivel criar a conta. Tente novamente.');
+      console.error('[register] failed to complete registration flow', error);
+      if (ongAccountCreated) {
+        Alert.alert(
+          'Conta criada',
+          'Nao foi possivel concluir o envio dos arquivos agora. Reenvie os documentos na tela de verificacao.',
+        );
+        router.replace('/verification');
+      } else {
+        Alert.alert('Erro', 'Nao foi possivel criar a conta. Tente novamente.');
+      }
     } finally {
       setLoading(false);
     }
@@ -343,7 +351,7 @@ export default function RegisterScreen() {
     ? 'Tipo de conta'
     : accountType === 'person'
       ? (['', 'Seus dados', 'Sua senha'][step] ?? '')
-      : (['', 'Dados da ONG', 'Contato', 'Endereco', 'Acesso'][step] ?? '');
+      : (['', 'Dados da ONG', 'Contato', 'Endereco', 'Acesso', 'Verificacao'][step] ?? '');
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f1f2f1' }}>
@@ -543,32 +551,6 @@ export default function RegisterScreen() {
                 </View>
 
                 <View style={styles.fields}>
-                  <View style={styles.kybList}>
-                    {KYB_DOCUMENTS.map((doc) => {
-                      const selected = Boolean(kybDocuments[doc.type]);
-                      return (
-                        <TouchableOpacity
-                          key={doc.type}
-                          style={[styles.kybRow, selected && styles.kybRowComplete]}
-                          onPress={() => pickKybDocument(doc.type)}
-                          activeOpacity={0.82}
-                        >
-                          <View style={[styles.kybIconWrap, selected && styles.kybIconWrapComplete]}>
-                            <MaterialCommunityIcons
-                              name={selected ? 'check' : doc.icon}
-                              size={20}
-                              color={selected ? '#FFFFFF' : '#2D6A4F'}
-                            />
-                          </View>
-                          <View style={styles.logoPickerTextWrap}>
-                            <Text style={styles.logoPickerTitle}>{doc.label}</Text>
-                            <Text style={styles.logoPickerHint}>{selected ? 'Imagem anexada' : 'Tocar para fotografar'}</Text>
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Senha</Text>
                     <View style={[styles.inputRow, { borderColor: password.length >= 8 ? '#2D6A4F' : '#E2E8F0' }]}>
@@ -1025,6 +1007,59 @@ export default function RegisterScreen() {
                   activeOpacity={0.88}
                 >
                   <Text style={styles.primaryBtnText}>{loading ? 'Criando conta...' : 'Cadastrar ONG'}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {accountType === 'ong' && step === 5 && (
+              <View style={styles.section}>
+                <View style={styles.headingBlock}>
+                  <Text style={styles.title}>Validacao da ONG</Text>
+                  <Text style={styles.subtitle}>Envie os documentos do responsavel para analise da equipe ZooHelp</Text>
+                </View>
+
+                <View style={styles.fields}>
+                  <View style={[styles.ongBadge, { backgroundColor: 'rgba(45, 106, 79, 0.10)' }]}>
+                    <MaterialCommunityIcons name="shield-account-outline" size={18} color="#2D6A4F" />
+                    <Text style={[styles.ongBadgeText, { color: '#2D6A4F' }]}>
+                      Estes documentos sao solicitados apenas no cadastro de ONG e ficam sujeitos a revisao.
+                    </Text>
+                  </View>
+
+                  <View style={styles.kybList}>
+                    {KYB_DOCUMENTS.map((doc) => {
+                      const selected = Boolean(kybDocuments[doc.type]);
+                      return (
+                        <TouchableOpacity
+                          key={doc.type}
+                          style={[styles.kybRow, selected && styles.kybRowComplete]}
+                          onPress={() => pickKybDocument(doc.type)}
+                          activeOpacity={0.82}
+                        >
+                          <View style={[styles.kybIconWrap, selected && styles.kybIconWrapComplete]}>
+                            <MaterialCommunityIcons
+                              name={selected ? 'check' : doc.icon}
+                              size={20}
+                              color={selected ? '#FFFFFF' : '#2D6A4F'}
+                            />
+                          </View>
+                          <View style={styles.logoPickerTextWrap}>
+                            <Text style={styles.logoPickerTitle}>{doc.label}</Text>
+                            <Text style={styles.logoPickerHint}>{selected ? 'Imagem anexada' : 'Tocar para fotografar'}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.primaryBtn, loading && styles.buttonDisabled]}
+                  onPress={validateAndNext}
+                  disabled={loading}
+                  activeOpacity={0.88}
+                >
+                  <Text style={styles.primaryBtnText}>{loading ? 'Enviando documentos...' : 'Finalizar cadastro'}</Text>
                 </TouchableOpacity>
               </View>
             )}
