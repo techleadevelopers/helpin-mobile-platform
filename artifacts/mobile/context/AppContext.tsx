@@ -17,6 +17,7 @@ const POST_IMAGES_CACHE_KEY = 'zoohelp:postImages:v1';
 const LIKED_POST_USERS_KEY = 'zoohelp:likedPostUsers:v1';
 const MAX_LOCAL_DELETED_POST_IDS = 200;
 const MAX_POST_IMAGES_CACHE_ITEMS = 500;
+const JUST_PUBLISHED_PROMOTION_MS = 5 * 60 * 1000;
 
 function postSortTime(post: Post) {
   if (post.createdAt === 'agora' || post.createdAt === 'pendente') return Number.MAX_SAFE_INTEGER;
@@ -222,6 +223,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const feedFailureCountRef = useRef(0);
   const deletedPostIdsRef = useRef<Set<string>>(new Set());
   const pendingLikePostIdsRef = useRef<Set<string>>(new Set());
+  const justPublishedRef = useRef<{ postId: string; expiresAt: number } | null>(null);
 
   const api = useMemo(
     () => createZooHelpApi(() => getSecureItem(AUTH_TOKEN_KEY)),
@@ -770,6 +772,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const syncedWithImages = mergePostImages(synced, pending.post);
           await rememberPostImages(syncedWithImages);
           await removePendingPost(pending.id);
+          if (justPublishedRef.current?.postId === pending.post.id) {
+            justPublishedRef.current = {
+              postId: syncedWithImages.id,
+              expiresAt: Date.now() + JUST_PUBLISHED_PROMOTION_MS,
+            };
+          }
           setPosts((prev) => sortPostsNewestFirst([syncedWithImages, ...prev.filter((item) => item.id !== pending.post.id)]));
           await maybeTriggerRescueForSyncedPost(syncedWithImages);
         } catch (error) {
@@ -789,6 +797,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const synced = await publishPostToBackend(post);
       const syncedWithImages = mergePostImages(synced, post);
       await rememberPostImages(syncedWithImages);
+      justPublishedRef.current = {
+        postId: syncedWithImages.id,
+        expiresAt: Date.now() + JUST_PUBLISHED_PROMOTION_MS,
+      };
       setPosts((prev) => sortPostsNewestFirst([syncedWithImages, ...prev]));
       await maybeTriggerRescueForSyncedPost(syncedWithImages);
       return syncedWithImages;
@@ -809,6 +821,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...post,
         tags: Array.from(new Set(['pendente', ...post.tags])),
         createdAt: 'pendente',
+      };
+      justPublishedRef.current = {
+        postId: pendingPost.id,
+        expiresAt: Date.now() + JUST_PUBLISHED_PROMOTION_MS,
       };
       setPosts((prev) => sortPostsNewestFirst([pendingPost, ...prev]));
       return pendingPost;
@@ -852,6 +868,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return Number.isFinite(createdAtMs) && now - createdAtMs < 5 * 60 * 1000;
         });
         nextFeed = [...sortPostsNewestFirst(stickyLocalPosts), ...mergedMapped];
+        const promoted = justPublishedRef.current;
+        if (promoted && promoted.expiresAt > now) {
+          const promotedIndex = nextFeed.findIndex((post) => post.id === promoted.postId);
+          if (promotedIndex > 0) {
+            nextFeed = [nextFeed[promotedIndex], ...nextFeed.filter((_, index) => index !== promotedIndex)];
+          }
+        } else if (promoted) {
+          justPublishedRef.current = null;
+        }
         return nextFeed;
       });
       await saveCachedFeed(nextFeed);
