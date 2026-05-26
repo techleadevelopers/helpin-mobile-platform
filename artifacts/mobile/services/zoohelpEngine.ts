@@ -91,6 +91,9 @@ export interface PostContract {
   tags: string[];
   latitude?: number;
   longitude?: number;
+  geoStatus: "unavailable" | "pending" | "confirmed" | "failed" | string;
+  geoSource?: "gps_confirmed" | "address_geocoded" | string | null;
+  routePublic: boolean;
 }
 
 export interface PostMediaContract {
@@ -491,6 +494,8 @@ export class ZooHelpEngine {
     tags?: string[];
     latitude?: number;
     longitude?: number;
+    geoSource?: "gps_confirmed";
+    routePublic?: boolean;
     locationAddress?: {
       street: string;
       number: string;
