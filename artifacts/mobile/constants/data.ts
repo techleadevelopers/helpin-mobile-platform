@@ -30,6 +30,7 @@ export interface Post {
   textOnly: boolean;
   author: Author;
   likes: number;
+  likedByMe?: boolean;
   comments: number;
   shares: number;
   urgent: boolean;
