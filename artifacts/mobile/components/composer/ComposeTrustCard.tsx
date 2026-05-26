@@ -1,125 +1,396 @@
-import { Image } from 'expo-image';
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { ZOOHELP_HEADER_LOGO } from './types';
-
-const TRUST_ITEMS = [
-  { title: 'Identidade verificada', text: 'Perfil e histórico ajudam a reduzir interações suspeitas.' },
-  { title: 'Monitoramento ativo', text: 'Denúncias entram em análise para manter a comunidade segura.' },
-  { title: 'Rastreabilidade', text: 'Apoios e contatos preservam contexto para acompanhamento.' },
+const PROTECTION_BENEFITS = [
+  {
+    icon: 'shield-check-outline' as const,
+    title: 'Publicação mais protegida',
+    text: 'Sinais do perfil e do caso ajudam a reduzir contatos suspeitos.',
+  },
+  {
+    icon: 'map-marker-radius-outline' as const,
+    title: 'Ajuda perto do resgate',
+    text: 'A localização informa quem pode responder com mais agilidade na região.',
+  },
+  {
+    icon: 'account-group-outline' as const,
+    title: 'Rede conectada',
+    text: 'Usuários e ONGs próximas podem encontrar o chamado e organizar apoio.',
+  },
 ];
 
 export function ComposeTrustCard() {
+  const [isOverlayVisible, setIsOverlayVisible] = useState(false);
+
   return (
-    <View style={[styles.section, styles.trustCard]}>
-      <View style={styles.trustHeader}>
-        <View style={styles.trustIconBadge}>
-          <Image source={{ uri: ZOOHELP_HEADER_LOGO }} style={styles.trustLogo} contentFit="contain" />
-        </View>
-        <View style={styles.trustTitleBlock}>
-          <Text style={styles.trustTitle}>Sistema de confiança ZooHelp</Text>
-          <Text style={styles.trustSubtitle}>Camadas de segurança antes e depois da publicação</Text>
-        </View>
-      </View>
+    <>
+      <View style={styles.trustCard}>
+        <View style={styles.topGlow} />
 
-      <View style={styles.trustSignal}>
-        <View style={styles.trustSignalDot} />
-        <Text style={styles.trustSignalText}>Publicação protegida</Text>
-      </View>
-
-      <View style={styles.trustList}>
-        {TRUST_ITEMS.map((item) => (
-          <View key={item.title} style={styles.trustRow}>
-            <View style={styles.trustRowText}>
-              <Text style={styles.trustRowTitle}>{item.title}</Text>
-              <Text style={styles.trustText}>{item.text}</Text>
+        <View style={styles.trustHeader}>
+          <View style={styles.trustTitleBlock}>
+            <View style={styles.eyebrowRow}>
+              <MaterialCommunityIcons name="shield-check-outline" size={13} color="#1F7A53" />
+              <Text style={styles.eyebrow}>Proteção ativa</Text>
             </View>
+
+            <Text style={styles.trustTitle}>Sistema de confiança ZooHelp</Text>
+            <Text style={styles.trustSubtitle}>
+              Segurança antes, durante e depois da publicação.
+            </Text>
           </View>
-        ))}
+
+          <TouchableOpacity
+            style={styles.clickButton}
+            activeOpacity={0.75}
+            onPress={() => setIsOverlayVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Ver detalhes da proteção ativa"
+          >
+            <Text style={styles.clickButtonText}>CLICK</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+
+      <Modal
+        transparent
+        visible={isOverlayVisible}
+        animationType="fade"
+        onRequestClose={() => setIsOverlayVisible(false)}
+      >
+        <View style={styles.overlayRoot}>
+          <TouchableOpacity
+            style={styles.overlayBackdrop}
+            activeOpacity={1}
+            onPress={() => setIsOverlayVisible(false)}
+            accessibilityLabel="Fechar detalhes de proteção"
+          />
+
+          <View style={styles.overlaySheet}>
+            <View style={styles.overlayHandle} />
+
+            <View style={styles.overlayHeader}>
+              <View style={styles.overlayShield}>
+                <MaterialCommunityIcons name="shield-check-outline" size={22} color="#1F7A53" />
+              </View>
+              <View style={styles.overlayHeading}>
+                <Text style={styles.overlayEyebrow}>PROTEÇÃO ATIVA</Text>
+                <Text style={styles.overlayTitle}>Resgates mais seguros e eficientes</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.overlayClose}
+                onPress={() => setIsOverlayVisible(false)}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Fechar"
+              >
+                <MaterialCommunityIcons name="close" size={18} color="#657167" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.overlayIntro}>
+              Ao publicar um caso, a ZooHelp ajuda a aproximar o pedido de usuários e ONGs na região,
+              com contexto para uma resposta mais rápida e coordenada.
+            </Text>
+
+            <View style={styles.benefitList}>
+              {PROTECTION_BENEFITS.map((benefit, index) => (
+                <View
+                  key={benefit.title}
+                  style={[styles.benefitRow, index === PROTECTION_BENEFITS.length - 1 && styles.benefitRowLast]}
+                >
+                  <View style={styles.benefitIcon}>
+                    <MaterialCommunityIcons name={benefit.icon} size={18} color="#277A55" />
+                  </View>
+                  <View style={styles.benefitCopy}>
+                    <Text style={styles.benefitTitle}>{benefit.title}</Text>
+                    <Text style={styles.benefitText}>{benefit.text}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.overlaySignal}>
+              <MaterialCommunityIcons name="check-decagram-outline" size={16} color="#27845A" />
+              <Text style={styles.overlaySignalText}>
+                Endereço e informações claras aumentam a chance de ajuda próxima.
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.overlayButton}
+              onPress={() => setIsOverlayVisible(false)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              <Text style={styles.overlayButtonText}>Entendi</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  section: {
-    marginHorizontal: 12,
-    borderRadius: 16,
-    padding: 10,
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
   trustCard: {
-    marginHorizontal: 12,
-    borderRadius: 26,
+    marginHorizontal: 18,
+    borderRadius: 18,
     padding: 16,
-    borderWidth: 1,
-    borderColor: '#DCE8DF',
-    backgroundColor: '#F9FBF8',
-    gap: 12,
+    marginTop: 20,
+    borderWidth: 0,
+    borderColor: '#D8E8DD',
+    backgroundColor: '#FBFDF9',
+    gap: 14,
     overflow: 'hidden',
-    shadowColor: '#244C35',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.10,
-    shadowRadius: 24,
-    elevation: 6,
+    shadowColor: '#183F2A',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.11,
+    shadowRadius: 28,
+    elevation: 7,
   },
-  trustHeader: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  trustIconBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+
+  topGlow: {
+    position: 'absolute',
+    top: -70,
+    right: -50,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: '#E7F5EA',
+    opacity: 0.85,
+  },
+
+  trustHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingTop: 3,
+  },
+
+  trustTitleBlock: {
+    flex: 1,
+    gap: 2,
+  },
+
+  eyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 1,
+  },
+
+  eyebrow: {
+    fontSize: 8,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#1F7A53',
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
+  },
+
+  trustTitle: {
+    fontSize: 13.0,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#3c3d3c',
+    letterSpacing: -0.35,
+  },
+
+  trustSubtitle: {
+    fontSize: 10,
+    fontFamily: 'Montserrat_500Medium',
+    color: '#738076',
+    lineHeight: 16,
+  },
+
+  clickButton: {
+    paddingHorizontal: 10,
+    height: 27,
+    borderRadius: 14,
+    borderWidth: 0,
+    borderColor: '#D5E5D9',
+    backgroundColor: '#F2F7F3',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EAF3EC',
-    borderWidth: 1,
-    borderColor: '#CFE0D4',
   },
-  trustLogo: { width: 31.5, height: 31.5, borderRadius: 8 },
-  trustTitleBlock: { flex: 1, gap: 2 },
-  trustTitle: { fontSize: 15, fontFamily: 'Montserrat_700Bold', color: '#172018', letterSpacing: -0.2 },
-  trustSubtitle: { fontSize: 10.5, fontFamily: 'Montserrat_500Medium', color: '#7C867C', lineHeight: 15 },
-  trustSignal: {
-    alignSelf: 'flex-start',
-    minHeight: 28,
+
+  clickButtonText: {
+    fontSize: 9,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#51735E',
+    letterSpacing: 0.55,
+  },
+
+  overlayRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+
+  overlayBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(20,28,22,0.30)',
+  },
+
+  overlaySheet: {
+    marginHorizontal: 10,
+    marginBottom: 10,
+    borderRadius: 26,
+    paddingHorizontal: 18,
+    paddingTop: 9,
+    paddingBottom: 18,
+    backgroundColor: '#FBFDF9',
+    borderWidth: 1,
+    borderColor: '#D7E7DB',
+    shadowColor: '#183F2A',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 26,
+    elevation: 12,
+  },
+
+  overlayHandle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    marginBottom: 14,
+    backgroundColor: '#D8E4DB',
+  },
+
+  overlayHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    backgroundColor: '#EAF7EF',
+    gap: 11,
+    marginBottom: 12,
   },
-  trustSignalDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
+
+  overlayShield: {
+    width: 43,
+    height: 43,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#D1E5D6',
+    backgroundColor: '#EAF5ED',
+  },
+
+  overlayHeading: {
+    flex: 1,
+    gap: 2,
+  },
+
+  overlayEyebrow: {
+    fontSize: 9,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#1F7A53',
+    letterSpacing: 0.8,
+  },
+
+  overlayTitle: {
+    fontSize: 15,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#1B251D',
+    letterSpacing: -0.25,
+  },
+
+  overlayClose: {
+    width: 33,
+    height: 33,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F5F1',
+  },
+
+  overlayIntro: {
+    fontSize: 12,
+    fontFamily: 'Montserrat_500Medium',
+    color: '#66736A',
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+
+  benefitList: {
+    borderWidth: 1,
+    borderColor: '#E4ECE6',
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+  },
+
+  benefitRow: {
+    flexDirection: 'row',
+    gap: 11,
+    alignItems: 'flex-start',
+    paddingVertical: 11,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E7EEE8',
+  },
+
+  benefitIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EDF7EF',
+  },
+
+  benefitRowLast: {
+    borderBottomWidth: 0,
+  },
+
+  benefitCopy: {
+    flex: 1,
+    gap: 3,
+  },
+
+  benefitTitle: {
+    fontSize: 12,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#233027',
+  },
+
+  benefitText: {
+    fontSize: 10.5,
+    fontFamily: 'Montserrat_500Medium',
+    color: '#738076',
+    lineHeight: 15,
+  },
+
+  overlaySignal: {
+    marginTop: 13,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#EEF7F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  overlaySignalText: {
+    flex: 1,
+    fontSize: 10.5,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: '#4C6252',
+    lineHeight: 15,
+  },
+
+  overlayButton: {
+    height: 44,
+    marginTop: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#2D6A4F',
   },
-  trustSignalText: { fontSize: 10.5, fontFamily: 'Montserrat_700Bold', color: '#2D6A4F' },
-  trustList: {
-    gap: 0,
-    borderRadius: 18,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E7EDE8',
-  },
-  trustRow: {
-    minHeight: 54,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEF2EE',
-  },
-  trustRowText: { flex: 1, gap: 2 },
-  trustRowTitle: { fontSize: 12.5, fontFamily: 'Montserrat_700Bold', color: '#253026' },
-  trustText: { fontSize: 10.5, fontFamily: 'Montserrat_500Medium', color: '#7C867C', lineHeight: 15 },
-});
 
+  overlayButtonText: {
+    fontSize: 13,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#FFFFFF',
+  },
+});
