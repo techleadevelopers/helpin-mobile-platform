@@ -1,19 +1,30 @@
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PostCard } from '@/components/PostCard';
+import type { Post } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 
 export default function FavoritesScreen() {
-  const { posts, likedPosts } = useApp();
+  const { likedPosts, user, fetchLikedPosts } = useApp();
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const favorites = posts.filter((post) => likedPosts.includes(post.id));
+  const [remoteFavorites, setRemoteFavorites] = useState<Post[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const favorites = remoteFavorites.filter((post) => likedPosts.includes(post.id));
+
+  useEffect(() => {
+    setLoaded(false);
+    fetchLikedPosts()
+      .then(setRemoteFavorites)
+      .catch(() => setRemoteFavorites([]))
+      .finally(() => setLoaded(true));
+  }, [user?.id]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background, paddingTop: (Platform.OS === 'web' ? 67 : insets.top) + 12 }]}>
@@ -27,7 +38,7 @@ export default function FavoritesScreen() {
         data={favorites}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => <PostCard post={item} index={index} />}
-        ListEmptyComponent={<Text style={[styles.empty, { color: colors.mutedForeground }]}>Você ainda nío favoritou nenhum caso.</Text>}
+        ListEmptyComponent={loaded ? <Text style={[styles.empty, { color: colors.mutedForeground }]}>Voce ainda nao curtiu nenhum caso.</Text> : null}
       />
     </View>
   );
