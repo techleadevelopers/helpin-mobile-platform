@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  AppState as NativeAppState,
   FlatList,
   Image,
   Platform,
@@ -34,6 +35,7 @@ interface Message {
   sender: 'me' | 'other';
   time: string;
   status?: 'sending' | 'sent' | 'failed';
+  idempotencyKey?: string;
 }
 
 export default function ChatRoomScreen() {
@@ -52,7 +54,10 @@ export default function ChatRoomScreen() {
   const [connectionStatus, setConnectionStatus] = useState<ChatRealtimeStatus>('connecting');
   const [text, setText] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(user?.id ?? null);
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const currentUserIdRef = useRef<string | null>(user?.id ?? null);
 
   const participant = room?.participant ?? (authorName ? { name: authorName, verified: false } : null);
   const isAdoptionChat = chatType === 'adoption' && !!postName;
@@ -67,6 +72,17 @@ export default function ChatRoomScreen() {
   }, []);
 
   useEffect(() => {
+    currentUserIdRef.current = currentUserId;
+  }, [currentUserId]);
+
+  const acknowledgeMessage = useCallback((messageId?: string) => {
+    if (!id || !messageId || NativeAppState.currentState !== 'active') return;
+    createZooHelpApi()?.markChatRoomRead(id, messageId)
+      .then(() => refreshChatState().catch(() => {}))
+      .catch(() => {});
+  }, [id, refreshChatState]);
+
+  useEffect(() => {
     if (!id) return;
     let mounted = true;
     const api = createZooHelpApi();
@@ -74,13 +90,14 @@ export default function ChatRoomScreen() {
     Promise.all([
       api?.me().catch(() => null),
       api?.chatRoom(id).catch(() => null),
-      api?.chatMessages(id).catch(() => []),
+      api?.chatMessages(id, { limit: 50 }).catch(() => []),
     ]).then(([currentUser, loadedRoom, items]) => {
       if (!mounted) return;
       const nextUserId = currentUser?.user.id ?? user?.id ?? null;
       setCurrentUserId(nextUserId);
+      currentUserIdRef.current = nextUserId;
       if (loadedRoom) setRoom(loadedRoom);
-      refreshChatState().catch(() => {});
+      setHasOlderMessages((items ?? []).length === 50);
       setMessages((items ?? []).map((item) => ({
         id: item.id,
         text: item.body,
@@ -88,6 +105,7 @@ export default function ChatRoomScreen() {
         time: item.createdAt,
         status: 'sent',
       })));
+      acknowledgeMessage(items?.[0]?.id);
     });
 
     const realtime = connectChatRoom(id, {
@@ -96,11 +114,11 @@ export default function ChatRoomScreen() {
         appendMessage({
           id: event.messageId,
           text: event.body,
-          sender: event.senderId === (currentUserId ?? user?.id) ? 'me' : 'other',
+          sender: event.senderId === (currentUserIdRef.current ?? user?.id) ? 'me' : 'other',
           time: event.createdAt,
           status: 'sent',
         });
-        refreshChatState().catch(() => {});
+        acknowledgeMessage(event.messageId);
       },
     });
 
@@ -108,26 +126,30 @@ export default function ChatRoomScreen() {
       mounted = false;
       realtime.close();
     };
-  }, [appendMessage, currentUserId, id, refreshChatState, user?.id]);
+  }, [acknowledgeMessage, appendMessage, id, user?.id]);
 
-  function sendMessage() {
-    const body = text.trim();
+  function sendMessage(bodyOverride?: string, requestIdOverride?: string, tempIdOverride?: string) {
+    const body = bodyOverride ?? text.trim();
     if (!body || !id) return;
     const now = new Date();
-    const tempId = `local-${Date.now()}`;
+    const tempId = tempIdOverride ?? `local-${Date.now()}`;
+    const idempotencyKey = requestIdOverride ?? `mobile-chat-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const newMsg: Message = {
       id: tempId,
       text: body,
       sender: 'me',
       time: `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`,
       status: 'sending',
+      idempotencyKey,
     };
-    setMessages((prev) => [newMsg, ...prev]);
-    setText('');
+    setMessages((prev) => tempIdOverride
+      ? prev.map((item) => item.id === tempId ? newMsg : item)
+      : [newMsg, ...prev]);
+    if (!bodyOverride) setText('');
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     createZooHelpApi()
-      ?.sendChatMessage(id, body)
+      ?.sendChatMessage(id, body, idempotencyKey)
       .then((response) => {
         refreshChatState().catch(() => {});
         setMessages((prev) => {
@@ -152,6 +174,50 @@ export default function ChatRoomScreen() {
           item.id === tempId ? { ...item, status: 'failed' } : item
         )));
       });
+  }
+
+  async function loadOlderMessages() {
+    if (!id || loadingOlderMessages || !hasOlderMessages || messages.length === 0) return;
+    setLoadingOlderMessages(true);
+    const cursor = messages[messages.length - 1]?.id;
+    const items = await createZooHelpApi()?.chatMessages(id, { before: cursor, limit: 50 }).catch(() => []);
+    setMessages((prev) => [
+      ...prev,
+      ...(items ?? [])
+        .filter((item) => !prev.some((existing) => existing.id === item.id))
+        .map((item) => ({
+          id: item.id,
+          text: item.body,
+          sender: item.senderId === currentUserIdRef.current ? 'me' as const : 'other' as const,
+          time: item.createdAt,
+          status: 'sent' as const,
+        })),
+    ]);
+    setHasOlderMessages((items ?? []).length === 50);
+    setLoadingOlderMessages(false);
+  }
+
+  function handleOptions() {
+    if (!room) return;
+    Alert.alert(
+      'Opcoes do chat',
+      'Bloquear impede novas mensagens entre as contas.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Bloquear contato',
+          style: 'destructive',
+          onPress: () => {
+            createZooHelpApi()?.blockChatParticipant(room.participant.id)
+              .then(() => {
+                Alert.alert('Contato bloqueado', 'Novas mensagens deste contato foram bloqueadas.');
+                router.back();
+              })
+              .catch(() => Alert.alert('Erro', 'Nao foi possivel bloquear este contato agora.'));
+          },
+        },
+      ],
+    );
   }
 
   function renderMessage({ item }: { item: Message }) {
@@ -179,6 +245,11 @@ export default function ChatRoomScreen() {
             <Text style={[styles.feedTimeText, { color: colors.mutedForeground }]} numberOfLines={1}>
               {item.status === 'sending' ? 'enviando' : item.status === 'failed' ? 'falhou' : displayTime}
             </Text>
+            {item.status === 'failed' && (
+              <TouchableOpacity onPress={() => sendMessage(item.text, item.idempotencyKey, item.id)} activeOpacity={0.8}>
+                <Text style={styles.retryText}>Tentar novamente</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
@@ -232,7 +303,7 @@ export default function ChatRoomScreen() {
           </Text>
         </View>
         <TouchableOpacity
-          onPress={() => Alert.alert('Opcoes do chat', 'Denuncia e bloqueio usam a fila de moderacao do backend.')}
+          onPress={handleOptions}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <MaterialCommunityIcons name="dots-vertical" size={22} color={colors.foreground} />
@@ -275,6 +346,11 @@ export default function ChatRoomScreen() {
             </Text>
           </View>
         }
+        ListFooterComponent={hasOlderMessages ? (
+          <TouchableOpacity style={styles.loadOlderButton} onPress={loadOlderMessages} disabled={loadingOlderMessages}>
+            <Text style={styles.loadOlderText}>{loadingOlderMessages ? 'Carregando...' : 'Carregar mensagens anteriores'}</Text>
+          </TouchableOpacity>
+        ) : null}
       />
 
       <View
@@ -303,7 +379,7 @@ export default function ChatRoomScreen() {
               shadowColor: hasText ? colors.primary : 'transparent',
             },
           ]}
-          onPress={sendMessage}
+          onPress={() => sendMessage()}
           activeOpacity={0.85}
           disabled={!hasText}
         >
@@ -372,6 +448,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: 'Montserrat_600SemiBold'
   },
+  retryText: { fontSize: 10, fontFamily: 'Montserrat_700Bold', color: '#2D6A4F', marginLeft: 7 },
+  loadOlderButton: { alignSelf: 'center', paddingHorizontal: 16, paddingVertical: 10, marginTop: 6 },
+  loadOlderText: { fontSize: 12, fontFamily: 'Montserrat_600SemiBold', color: '#2D6A4F' },
 
   adoptionBanner: {
     flexDirection: 'row',
