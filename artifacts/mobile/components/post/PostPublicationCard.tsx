@@ -17,14 +17,18 @@ export function PostPublicationCard({
   colors,
   locationDisplay,
   timeDisplay,
+  contactDisplay,
   onPressMessage,
+  onPressContact,
 }: {
   description: string;
   breedAgeParts: string[];
   colors: Colors;
   locationDisplay: string;
   timeDisplay: string;
+  contactDisplay?: string;
   onPressMessage: () => void;
+  onPressContact: () => void;
 }) {
   return (
     <View style={styles.publicationBlock}>
@@ -58,8 +62,10 @@ export function PostPublicationCard({
             <PostLocationMeta
               locationDisplay={locationDisplay}
               timeDisplay={timeDisplay}
+              contactDisplay={contactDisplay}
               mutedColor={colors.mutedForeground}
               onPressMessage={onPressMessage}
+              onPressContact={onPressContact}
             />
           </View>
         </View>
