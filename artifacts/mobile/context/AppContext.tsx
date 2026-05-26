@@ -157,6 +157,7 @@ interface AppContextType {
   deleteAccount: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
   toggleLike: (postId: string) => void;
+  fetchLikedPosts: () => Promise<Post[]>;
   toggleFollowOng: (ongId: string) => void;
   toggleFollowUser: (userId: string) => void;
   deletePost: (postId: string) => Promise<void>;
@@ -220,6 +221,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const feedRetryAfterRef = useRef(0);
   const feedFailureCountRef = useRef(0);
   const deletedPostIdsRef = useRef<Set<string>>(new Set());
+  const pendingLikePostIdsRef = useRef<Set<string>>(new Set());
 
   const api = useMemo(
     () => createZooHelpApi(() => getSecureItem(AUTH_TOKEN_KEY)),
@@ -410,7 +412,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const visibleCachedFeed = cachedFeed
         .map((post) => mergePostImages(post, imageCache[post.id]))
         .filter((post) => !deletedPostIdsRef.current.has(post.id));
-      if (visibleCachedFeed.length) setPosts(sortPostsNewestFirst(visibleCachedFeed));
+      if (visibleCachedFeed.length) setPosts(visibleCachedFeed);
       await refreshOutboxCount();
       await refreshPostsFromBackend();
       await syncPendingOperations();
@@ -594,30 +596,68 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem('hasSeenOnboarding', 'true');
   }
 
+  function persistLikedPosts(userId: string, next: string[]) {
+    AsyncStorage.setItem(likedPostsStorageKey(userId), JSON.stringify(next)).catch(() => {});
+  }
+
+  function updateLikeState(postId: string, liked: boolean, likes?: number) {
+    if (!user?.id) return;
+    setLikedPosts((current) => {
+      const next = liked
+        ? Array.from(new Set([...current, postId]))
+        : current.filter((id) => id !== postId);
+      persistLikedPosts(user.id, next);
+      return next;
+    });
+    setPosts((current) =>
+      current.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              likedByMe: liked,
+              likes: likes ?? Math.max(0, post.likes + (liked ? 1 : -1)),
+            }
+          : post
+      )
+    );
+  }
+
   function toggleLike(postId: string) {
+    if (!user?.id || !api || pendingLikePostIdsRef.current.has(postId)) return;
+    const previousPost = posts.find((post) => post.id === postId);
+    const wasLiked = likedPosts.includes(postId) || previousPost?.likedByMe === true;
+    const nextLiked = !wasLiked;
+    pendingLikePostIdsRef.current.add(postId);
+    updateLikeState(postId, nextLiked);
+    const request = nextLiked ? api.likePost(postId) : api.unlikePost(postId);
+    request
+      .then((response) => updateLikeState(postId, response.liked, response.likes))
+      .catch(() => updateLikeState(postId, wasLiked, previousPost?.likes))
+      .finally(() => pendingLikePostIdsRef.current.delete(postId));
+  }
+
+  async function fetchLikedPosts() {
+    if (!api || !user?.id) return [];
+    const fetched = (await api.feed({ liked: true, limit: 100 })).map(mapPost);
+    const ids = fetched.map((post) => post.id);
+    setLikedPosts(ids);
+    persistLikedPosts(user.id, ids);
+    return fetched;
+  }
+
+  function synchronizeVisibleLikes(remotePosts: Post[]) {
     if (!user?.id) return;
     const storageKey = likedPostsStorageKey(user.id);
     setLikedPosts((prev) => {
-      const wasLiked = prev.includes(postId);
-      const next = wasLiked ? prev.filter((id) => id !== postId) : [...prev, postId];
-      AsyncStorage.setItem(storageKey, JSON.stringify(next));
-      setLikedPostUsers((current) => {
-        const currentUserIds = current[postId] ?? [];
-        const nextUserIds = wasLiked
-          ? currentUserIds.filter((id) => id !== user.id)
-          : Array.from(new Set([...currentUserIds, user.id]));
-        const nextMap = { ...current };
-        if (nextUserIds.length) {
-          nextMap[postId] = nextUserIds;
-        } else {
-          delete nextMap[postId];
-        }
-        AsyncStorage.setItem(LIKED_POST_USERS_KEY, JSON.stringify(nextMap)).catch(() => {});
-        return nextMap;
-      });
-      return next;
+      const visibleIds = new Set(remotePosts.map((post) => post.id));
+      const next = [
+        ...prev.filter((postId) => !visibleIds.has(postId)),
+        ...remotePosts.filter((post) => post.likedByMe).map((post) => post.id),
+      ];
+      const unique = Array.from(new Set(next));
+      AsyncStorage.setItem(storageKey, JSON.stringify(unique)).catch(() => {});
+      return unique;
     });
-    api?.likePost(postId).catch(() => {});
   }
 
   function toggleFollowOng(ongId: string) {
@@ -796,6 +836,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         .map(mapPost)
         .map((post) => mergePostImages(post, imageCache[post.id]))
         .filter((post) => !deletedPostIdsRef.current.has(post.id));
+      synchronizeVisibleLikes(mapped);
       const backendIds = new Set(mapped.map((post) => post.id));
       let nextFeed = mapped;
       setPosts((prev) => {
@@ -810,7 +851,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const createdAtMs = Date.parse(post.createdAt);
           return Number.isFinite(createdAtMs) && now - createdAtMs < 5 * 60 * 1000;
         });
-        nextFeed = sortPostsNewestFirst([...stickyLocalPosts, ...mergedMapped]);
+        nextFeed = [...sortPostsNewestFirst(stickyLocalPosts), ...mergedMapped];
         return nextFeed;
       });
       await saveCachedFeed(nextFeed);
@@ -829,7 +870,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch {
       const cachedFeed = await loadCachedFeed();
       const visibleCachedFeed = cachedFeed.filter((post) => !deletedPostIdsRef.current.has(post.id));
-      if (visibleCachedFeed.length) setPosts(sortPostsNewestFirst(visibleCachedFeed));
+      if (visibleCachedFeed.length) setPosts(visibleCachedFeed);
     }
   }
 
@@ -938,6 +979,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         deleteAccount,
         completeOnboarding,
         toggleLike,
+        fetchLikedPosts,
         toggleFollowOng,
         toggleFollowUser,
         deletePost,
