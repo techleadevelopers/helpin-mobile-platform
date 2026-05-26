@@ -738,6 +738,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       tags: post.tags,
       latitude: post.latitude,
       longitude: post.longitude,
+      geoSource: post.geoSource === 'gps_confirmed' ? 'gps_confirmed' : undefined,
+      routePublic: post.routePublic,
       locationAddress: post.locationAddress,
       idempotencyKey,
     });
