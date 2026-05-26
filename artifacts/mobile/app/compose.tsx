@@ -366,7 +366,6 @@ export default function ComposeScreen() {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     const publishAsAddressOnly = webAddressOnlyPost && needsRescue;
-    const effectiveNeedsRescue = needsRescue && !publishAsAddressOnly;
 
     const newPost: Post = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
@@ -401,19 +400,8 @@ export default function ComposeScreen() {
     };
 
     try {
-      const savedPost = await addPost(newPost);
-      if (effectiveNeedsRescue && shouldAttachCoords) {
-        const addressParam = encodeURIComponent(newPost.location);
-        router.replace(`/rescue/status?postId=${encodeURIComponent(savedPost.id)}&address=${addressParam}` as any);
-      } else if (effectiveNeedsRescue) {
-        Alert.alert(
-          'Publicado como urgente',
-          'O post foi criado com o endereço informado. Para disparo operacional em raio preciso, use GPS do app ou um endereço geocodificado.'
-        );
-        router.back();
-      } else {
-        router.back();
-      }
+      await addPost(newPost);
+      router.replace('/(tabs)/feed' as any);
     } catch (error) {
       if (error instanceof ZooHelpApiError && error.status === 401) {
         Alert.alert('Sessão expirada', 'Entre novamente para publicar um caso real.');
