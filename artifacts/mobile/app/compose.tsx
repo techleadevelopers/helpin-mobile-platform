@@ -1,20 +1,17 @@
-import * as Haptics from 'expo-haptics';
+﻿import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   AnimalTypeSelector,
-  ComposeAuthorCard,
-  ComposeContactSection,
   ComposeDock,
   ComposeHeader,
   ComposeLocationSection,
-  ComposeMediaSection,
   ComposeTextCard,
   ComposeTrustCard,
   ComposeTypeSelector,
@@ -65,7 +62,6 @@ export default function ComposeScreen() {
   const [typingTimeout, setTypingTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   const inputBorder = useSharedValue(0);
-  const urgentPulse = useSharedValue(1);
 
   const topPad = (Platform.OS === 'web' ? 0 : insets.top) + 16;
   const bottomPad = Platform.OS === 'web' ? 24 : insets.bottom;
@@ -217,7 +213,6 @@ export default function ComposeScreen() {
   function toggleUrgent() {
     const next = !urgent;
     setUrgent(next);
-    urgentPulse.value = withSpring(next ? 1.08 : 1, { damping: 8, stiffness: 200 });
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(
         next ? Haptics.NotificationFeedbackType.Warning : Haptics.NotificationFeedbackType.Success
@@ -242,10 +237,11 @@ export default function ComposeScreen() {
   }
 
   function buildAddressLabel() {
-    if (addressResult?.label) return addressResult.label;
     const street = [location.trim(), manualNumber.trim()].filter(Boolean).join(', ');
     const cityState = [manualCity.trim(), manualState.trim()].filter(Boolean).join(' - ');
     const manualLabel = [street, manualNeighborhood.trim(), cityState].filter(Boolean).join(', ');
+    if (hasAnyManualLocationPart()) return manualLabel || location.trim();
+    if (addressResult?.label) return addressResult.label;
     return manualLabel || location.trim();
   }
 
@@ -363,6 +359,8 @@ export default function ComposeScreen() {
       setLocation(nextLocation);
     }
     const shouldAttachCoords = Boolean(nextCoords && (!needsRescue || nextPrecision !== 'city'));
+    const locationAddress = manualComplete && !webAddressOnlyPost ? getManualLocationParts() : undefined;
+    const shouldSendClientCoords = shouldAttachCoords && !locationAddress;
     setSubmitting(true);
     if (Platform.OS !== 'web') {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -382,9 +380,9 @@ export default function ComposeScreen() {
       neighborhood: nextLocation.trim() || 'Local não informado',
       image: images[0] ?? null,
       images,
-      latitude: shouldAttachCoords ? nextCoords?.latitude : undefined,
-      longitude: shouldAttachCoords ? nextCoords?.longitude : undefined,
-      locationAddress: manualComplete && !webAddressOnlyPost ? getManualLocationParts() : undefined,
+      latitude: shouldSendClientCoords ? nextCoords?.latitude : undefined,
+      longitude: shouldSendClientCoords ? nextCoords?.longitude : undefined,
+      locationAddress,
       textOnly: images.length === 0,
       author: {
         id: currentUser.id,
@@ -421,7 +419,11 @@ export default function ComposeScreen() {
         Alert.alert('Sessão expirada', 'Entre novamente para publicar um caso real.');
         router.replace('/login');
       } else {
-        Alert.alert('Erro ao publicar', 'Não foi possível publicar agora. Tente novamente.');
+        const message =
+          error instanceof ZooHelpApiError
+            ? error.message.replace(/^validation error:\s*/i, '')
+            : 'Não foi possível publicar agora. Tente novamente.';
+        Alert.alert('Erro ao publicar', message);
       }
     } finally {
       setSubmitting(false);
@@ -431,10 +433,6 @@ export default function ComposeScreen() {
   const inputAnimStyle = useAnimatedStyle(() => ({
     borderColor: inputBorder.value === 1 ? currentType.color : '#E8ECF0',
     shadowOpacity: inputBorder.value === 1 ? 0.12 : 0,
-  }));
-
-  const urgentStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: urgentPulse.value }],
   }));
 
   const progress = Math.min(
@@ -449,10 +447,7 @@ export default function ComposeScreen() {
         colors={colors}
         currentType={currentType}
         progress={progress}
-        canPost={canPost}
-        submitting={submitting}
         onCancel={() => router.back()}
-        onPublish={handlePublish}
       />
 
       <ScrollView
@@ -461,16 +456,12 @@ export default function ComposeScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <ComposeAuthorCard
+        <ComposeTypeSelector
           user={currentUser}
           displayName={displayName}
           authorRoleLabel={authorRoleLabel}
           colors={colors}
           currentType={currentType}
-        />
-
-        <ComposeTypeSelector
-          colors={colors}
           postTypes={POST_TYPES}
           selectedType={selectedType}
           onSelectType={selectType}
@@ -479,7 +470,9 @@ export default function ComposeScreen() {
         <ComposeTextCard
           selectedType={selectedType}
           text={text}
+          images={images}
           colors={colors}
+          currentType={currentType}
           animatedStyle={inputAnimStyle}
           onChangeText={setText}
           onFocus={() => {
@@ -488,6 +481,8 @@ export default function ComposeScreen() {
           onBlur={() => {
             inputBorder.value = withTiming(0, { duration: 200 });
           }}
+          onPickImage={pickImage}
+          onRemoveImage={removeImage}
         />
 
         {selectedType === 'adoption' && (
@@ -501,14 +496,6 @@ export default function ComposeScreen() {
             }}
           />
         )}
-
-        <ComposeMediaSection
-          images={images}
-          colors={colors}
-          currentType={currentType}
-          onPickImage={pickImage}
-          onRemoveImage={removeImage}
-        />
 
         <ComposeLocationSection
           location={location}
@@ -524,11 +511,13 @@ export default function ComposeScreen() {
           addressManualFallbackVisible={addressManualFallbackVisible}
           colors={colors}
           currentType={currentType}
+          contact={contact}
           onChangeLocation={handleLocationChange}
           onChangeManualNumber={setManualNumber}
           onChangeManualNeighborhood={setManualNeighborhood}
           onChangeManualCity={setManualCity}
           onChangeManualState={setManualState}
+          onChangeContact={setContact}
           onFocusSuggestions={() => {
             if (suggestions.length > 0) setShowSuggestions(true);
           }}
@@ -538,17 +527,10 @@ export default function ComposeScreen() {
           onSelectSuggestion={selectSuggestion}
         />
 
-        <ComposeContactSection
-          contact={contact}
-          colors={colors}
-          currentType={currentType}
-          onChangeContact={setContact}
-        />
-
         <ComposeUrgencyCard
           urgent={urgent}
           colors={colors}
-          animatedStyle={urgentStyle}
+          animatedStyle={undefined}
           onToggleUrgent={toggleUrgent}
         />
 
@@ -572,4 +554,3 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { gap: 8, paddingTop: 8, paddingHorizontal: 0 },
 });
-
