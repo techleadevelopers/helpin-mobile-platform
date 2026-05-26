@@ -290,86 +290,27 @@ export default function ComposeScreen() {
     const needsRescue = selectedType === 'emergency' || urgent || params.rescue === '1';
     const manualAddress = buildAddressLabel();
     const manualComplete = hasCompleteManualLocation();
-    if (hasAnyManualLocationPart() && !manualComplete) {
-      Alert.alert('Endereco incompleto', 'Preencha rua, numero, bairro, cidade e UF para publicar com coordenada correta.');
-      setAddressLookupFailed(true);
-      setAddressManualFallbackVisible(true);
-      return;
-    }
     let nextCoords = coords;
     let nextPrecision = locationPrecision;
     let nextLocation = manualAddress || location;
-    let webAddressOnlyPost = false;
 
-    if (manualComplete || (manualAddress && nextPrecision !== 'gps')) {
-      const geocoded = manualComplete
-        ? await geocodeManualAddressWithQuickTimeout()
-        : await geocodeWithQuickTimeout(manualAddress);
-      if (geocoded) {
-        nextCoords = { latitude: geocoded.latitude, longitude: geocoded.longitude };
-        nextPrecision = 'address';
-        nextLocation = manualComplete ? manualAddress : geocoded.label;
-        setCoords(nextCoords);
-        setLocationPrecision(nextPrecision);
-        setLocation(nextLocation);
-        const staticMap = await getStaticMapUrl({
-          lat: geocoded.latitude,
-          lng: geocoded.longitude,
-          zoom: 16,
-          width: 640,
-          height: 320,
-        });
-        if (staticMap) setMapImageUrl(staticMap);
-      } else if (Platform.OS === 'web' && manualComplete) {
-        webAddressOnlyPost = true;
-        nextCoords = null;
-        nextPrecision = 'address';
-        nextLocation = manualAddress;
-        setLocation(nextLocation);
-        setLocationPrecision(nextPrecision);
-      } else {
-        setAddressLookupFailed(true);
-        setAddressManualFallbackVisible(true);
-        Alert.alert(
-          'Endereco nao localizado',
-          'Confira rua, numero, bairro, cidade e UF. Preciso localizar esse endereco para publicar com seguranca.',
-        );
-        return;
-      }
-    }
-
-    const hasOperationalCoords = Boolean(nextCoords && nextPrecision !== 'city');
-    if (needsRescue && !hasOperationalCoords && Platform.OS !== 'web') {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== 'granted') {
-        Alert.alert('Localização obrigatória', 'Autorize o GPS para acionar resgate e notificar pessoas próximas.');
-        return;
-      }
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-      nextCoords = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      };
-      nextPrecision = 'gps';
-      nextLocation = location.trim() || 'Localização atual';
-      setCoords(nextCoords);
-      setLocationPrecision(nextPrecision);
+    if (manualComplete) {
+      nextCoords = null;
+      nextPrecision = 'address';
+      nextLocation = manualAddress;
       setLocation(nextLocation);
+      setLocationPrecision(nextPrecision);
     }
-    const shouldAttachCoords = Boolean(nextCoords && (!needsRescue || nextPrecision !== 'city'));
-    const locationAddress = manualComplete && !webAddressOnlyPost ? getManualLocationParts() : undefined;
-    const shouldSendClientCoords = shouldAttachCoords && !locationAddress;
+
+    const locationAddress = manualComplete ? getManualLocationParts() : undefined;
+    const shouldSendClientCoords = Boolean(nextCoords && nextPrecision === 'gps' && !locationAddress);
     setSubmitting(true);
     if (Platform.OS !== 'web') {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-    const publishAsAddressOnly = webAddressOnlyPost && needsRescue;
-
     const newPost: Post = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-      type: publishAsAddressOnly ? 'post' : selectedType,
+      type: selectedType,
       animalType,
       name: text.trim().split(' ').slice(0, 2).join(' ') || 'Publicação',
       breed: '',
@@ -381,6 +322,8 @@ export default function ComposeScreen() {
       images,
       latitude: shouldSendClientCoords ? nextCoords?.latitude : undefined,
       longitude: shouldSendClientCoords ? nextCoords?.longitude : undefined,
+      geoSource: shouldSendClientCoords ? 'gps_confirmed' : undefined,
+      routePublic: needsRescue || selectedType === 'lost' || selectedType === 'found',
       locationAddress,
       textOnly: images.length === 0,
       author: {
@@ -393,7 +336,7 @@ export default function ComposeScreen() {
       likes: 0,
       comments: 0,
       shares: 0,
-      urgent: publishAsAddressOnly ? false : urgent,
+      urgent,
       createdAt: 'agora',
       contact: contact.trim(),
       tags: [],
