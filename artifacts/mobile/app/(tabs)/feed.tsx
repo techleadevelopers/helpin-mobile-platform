@@ -508,7 +508,7 @@ export default function FeedScreen() {
       locationAddress,
       };
 
-      const savedPost = await addPost(post);
+      await addPost(post);
       setQuickText('');
       setQuickImage(null);
       setQuickImages([]);
@@ -528,11 +528,7 @@ export default function FeedScreen() {
       setQuickContact('');
       setQuickUrgent(true);
       setActiveFilter('all');
-      if (webAddressOnlyPost) {
-        router.push(`/post/${savedPost.id}` as any);
-      } else {
-        router.push(`/rescue/status?postId=${encodeURIComponent(savedPost.id)}` as any);
-      }
+      router.replace('/(tabs)/feed' as any);
     } catch (error) {
       console.error('Quick post failed', error);
       const backendMessage =
