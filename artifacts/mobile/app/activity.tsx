@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Platform,
   ScrollView,
@@ -14,9 +14,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { StatusBadge } from '@/components/StatusBadge';
-import { MOCK_CONVERSATIONS, MOCK_POSTS, POST_TYPE_CONFIG } from '@/constants/data';
+import { type Post, POST_TYPE_CONFIG } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
+import { createZooHelpApi } from '@/services/zoohelpApi';
+import type { ChatConversationContract } from '@/services/zoohelpEngine';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -38,15 +40,25 @@ export default function ActivityScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { likedPosts } = useApp();
+  const { likedPosts, posts, user, fetchLikedPosts } = useApp();
   const [activeTab, setActiveTab] = useState<Tab>('curtidas');
+  const [remoteLikedPosts, setRemoteLikedPosts] = useState<Post[]>([]);
+  const [recentConversations, setRecentConversations] = useState<ChatConversationContract[]>([]);
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
 
-  const likedPostsList = MOCK_POSTS.filter((p) => likedPosts.includes(p.id));
-  const recentPosts = MOCK_POSTS.slice(0, 6);
-  const displayLiked = likedPostsList.length > 0 ? likedPostsList : MOCK_POSTS.slice(0, 4);
+  const likedPostsList = remoteLikedPosts.filter((post) => likedPosts.includes(post.id));
+  const recentPosts = posts.filter((post) => post.author.id === user?.id).slice(0, 6);
+
+  useEffect(() => {
+    fetchLikedPosts().then(setRemoteLikedPosts).catch(() => setRemoteLikedPosts([]));
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (activeTab !== 'conversas') return;
+    createZooHelpApi()?.chatRooms().then(setRecentConversations).catch(() => setRecentConversations([]));
+  }, [activeTab, user?.id]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -117,10 +129,10 @@ export default function ActivityScreen() {
               <MaterialCommunityIcons name="heart" size={16} color="#FF6B6B" />
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Curtidas recentes</Text>
               <View style={[styles.countBadge, { backgroundColor: '#FF6B6B18' }]}>
-                <Text style={[styles.countText, { color: '#FF6B6B' }]}>{displayLiked.length}</Text>
+                <Text style={[styles.countText, { color: '#FF6B6B' }]}>{likedPostsList.length}</Text>
               </View>
             </View>
-            {displayLiked.map((post) => (
+            {likedPostsList.map((post) => (
               <TouchableOpacity
                 key={post.id}
                 style={[styles.activityRow, { backgroundColor: colors.card, shadowColor: colors.shadow }]}
@@ -220,10 +232,10 @@ export default function ActivityScreen() {
               <MaterialCommunityIcons name="chat-outline" size={16} color="#2F80ED" />
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Conversas recentes</Text>
               <View style={[styles.countBadge, { backgroundColor: '#2F80ED18' }]}>
-                <Text style={[styles.countText, { color: '#2F80ED' }]}>{MOCK_CONVERSATIONS.length}</Text>
+                <Text style={[styles.countText, { color: '#2F80ED' }]}>{recentConversations.length}</Text>
               </View>
             </View>
-            {MOCK_CONVERSATIONS.map((conv) => (
+            {recentConversations.map((conv) => (
               <TouchableOpacity
                 key={conv.id}
                 style={[styles.convRow, { backgroundColor: colors.card, shadowColor: colors.shadow }]}
