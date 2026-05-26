@@ -19,26 +19,30 @@ export function ComposeUrgencyCard({ urgent, colors, animatedStyle, onToggleUrge
         style={[
           styles.urgentCard,
           {
-            backgroundColor: urgent ? '#C95A5A08' : '#FFFFFF',
-            borderColor: urgent ? '#C95A5A' : colors.border,
+            backgroundColor: urgent ? '#FFF9F9' : '#FFFFFF',
+            borderColor: urgent ? '#E8BFC3' : '#E7EDE8',
           },
         ]}
         onPress={onToggleUrgent}
         activeOpacity={0.92}
       >
-        <View style={[styles.urgentIcon, { backgroundColor: urgent ? '#C95A5A' : colors.muted }]}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={22} color={urgent ? '#FFFFFF' : colors.mutedForeground} />
+        <View style={[styles.cardAccent, { backgroundColor: urgent ? '#C95A5A' : '#DCE9DF' }]} />
+        <View style={[styles.urgentIcon, { backgroundColor: urgent ? '#FBE9EB' : '#F4F6F3' }]}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={17} color={urgent ? '#C95A5A' : colors.mutedForeground} />
         </View>
         <View style={styles.urgentInfo}>
-          <Text style={[styles.urgentTitle, { color: urgent ? '#C95A5A' : colors.foreground }]}>
-            Marcar como URGENTE
+          <Text style={[styles.urgentEyebrow, { color: urgent ? '#B84D5F' : '#668071' }]}>
+            {urgent ? 'ALERTA ATIVO' : 'PRIORIDADE DO CASO'}
+          </Text>
+          <Text style={[styles.urgentTitle, { color: urgent ? '#B84D5F' : colors.foreground }]}>
+            Marcar como Urgente
           </Text>
           <Text style={[styles.urgentDesc, { color: colors.mutedForeground }]}>
-            Aparece em destaque no feed e notifica usuários próximos
+            Destaca o pedido para resposta mais rápida.
           </Text>
         </View>
-        <View style={[styles.toggleTrack, { backgroundColor: urgent ? '#C95A5A' : colors.muted }]}>
-          <View style={[styles.toggleKnob, { transform: [{ translateX: urgent ? 20 : 2 }] }]} />
+        <View style={[styles.toggleTrack, { backgroundColor: urgent ? '#C95A5A' : '#DFE6E0' }]}>
+          <View style={[styles.toggleKnob, { transform: [{ translateX: urgent ? 16 : 2 }] }]} />
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -48,27 +52,38 @@ export function ComposeUrgencyCard({ urgent, colors, animatedStyle, onToggleUrge
 const styles = StyleSheet.create({
   urgentCard: {
     marginHorizontal: 12,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    padding: 16, borderRadius: 20, borderWidth: 1.5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    minHeight: 66,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 12, paddingVertical: 10, borderRadius: 18, borderWidth: 1,
+    shadowColor: '#173022',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.035,
+    shadowRadius: 10,
+    elevation: 1,
+    overflow: 'hidden',
+  },
+  cardAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 13,
+    bottom: 13,
+    width: 3,
+    borderTopRightRadius: 3,
+    borderBottomRightRadius: 3,
   },
   urgentIcon: {
-    width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
+    width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
   },
-  urgentInfo: { flex: 1, gap: 3 },
-  urgentTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  urgentDesc: { fontSize: 11, fontFamily: 'Inter_400Regular', lineHeight: 16 },
+  urgentInfo: { flex: 1, gap: 2 },
+  urgentEyebrow: { fontSize: 8, fontFamily: 'Montserrat_700Bold', letterSpacing: 0.65 },
+  urgentTitle: { fontSize: 12.5, fontFamily: 'Montserrat_700Bold' },
+  urgentDesc: { fontSize: 10, fontFamily: 'Montserrat_500Medium', lineHeight: 14 },
   toggleTrack: {
-    width: 44, height: 26, borderRadius: 13, justifyContent: 'center',
+    width: 36, height: 22, borderRadius: 11, justifyContent: 'center',
   },
   toggleKnob: {
-    width: 22, height: 22, borderRadius: 11, backgroundColor: '#FFFFFF',
+    width: 18, height: 18, borderRadius: 9, backgroundColor: '#FFFFFF',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2, shadowRadius: 2, elevation: 2,
+    shadowOpacity: 0.12, shadowRadius: 2, elevation: 1,
   },
 });
-
