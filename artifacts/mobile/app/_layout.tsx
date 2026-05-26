@@ -96,7 +96,7 @@ function RootLayoutNav() {
       />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="favorites" />
-      <Stack.Screen name="verification" />
+      <Stack.Screen name="verification" options={{ headerShown: false }} />
       <Stack.Screen name="support" />
       <Stack.Screen name="privacy" />
       <Stack.Screen name="settings" />
