@@ -35,7 +35,7 @@ export default function Sidebar() {
   const [location, setLocation] = useLocation();
   const { logout } = useAuth();
 
-  // Badges: dependerÃ£o dos endpoints no backend
+  // Badges: dependerão dos endpoints no backend
   const { data: pendingProvidersData } = useQuery({
     queryKey: ["verification-queue"],
     queryFn: () => fetchVerificationQueue(),
