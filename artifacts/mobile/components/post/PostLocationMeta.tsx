@@ -3,19 +3,25 @@ import { Image } from 'expo-image';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import { PostContactCard } from './PostContactCard';
+
 const FEED_TIME_ICON =
   'https://res.cloudinary.com/limpeja/image/upload/v1779576484/pngtree-vector-clock-icon-png-image_4152707_bfoxlj.jpg';
 
 export function PostLocationMeta({
   locationDisplay,
   timeDisplay,
+  contactDisplay,
   mutedColor,
   onPressMessage,
+  onPressContact,
 }: {
   locationDisplay: string;
   timeDisplay: string;
+  contactDisplay?: string;
   mutedColor: string;
   onPressMessage: () => void;
+  onPressContact: () => void;
 }) {
   return (
     <View style={styles.metaPanel}>
@@ -35,6 +41,7 @@ export function PostLocationMeta({
         <MaterialCommunityIcons name="message-outline" size={14} color="#216C55" />
         <Text style={styles.messageText}>Mensagem</Text>
       </TouchableOpacity>
+      <PostContactCard contactDisplay={contactDisplay ?? ''} onPress={onPressContact} />
     </View>
   );
 }
@@ -60,8 +67,7 @@ const styles = StyleSheet.create({
   feedTimeIcon: { width: 13, height: 13, opacity: 0.72 },
   feedTimeText: { fontSize: 10, fontFamily: 'Montserrat_600SemiBold' },
   messageButton: {
-    alignSelf: 'flex-start',
-    minWidth: 310,
+    width: '100%',
     height: 30,
     flexDirection: 'row',
     alignItems: 'center',
