@@ -469,6 +469,7 @@ export function mapPost(post: PostContract): Post {
     textOnly: post.textOnly,
     author: mapAuthor(post.author),
     likes: post.likes,
+    likedByMe: post.likedByMe,
     comments: post.comments,
     shares: post.shares,
     urgent: post.urgent,
