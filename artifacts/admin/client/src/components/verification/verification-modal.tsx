@@ -1,549 +1,341 @@
-// admin-web/src/components/modals/verification-modal.tsx
-
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Star, CheckCircle, User, X, MapPin, Loader2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { useToast } from "@/hooks/use-toast";
-import { useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Building2,
+  CalendarDays,
+  CheckCircle2,
+  FileImage,
+  Loader2,
+  LockKeyhole,
+  ShieldAlert,
+  X,
+} from "lucide-react";
 
-// Importa a função de API corrigida
-import { updateProviderProfile, updateProviderStatus, updateProviderVisibility } from "@/lib/api";
-// CORREÃ‡ÃƒO: Importa Provider e VerificationStatus
-import { Provider, ProviderVisibilityStatus, VerificationStatus } from "@/lib/types";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import {
+  fetchKybDocuments,
+  type KybDocument,
+  updateProviderStatus,
+} from "@/lib/api";
+import { Provider, VerificationStatus } from "@/lib/types";
 import RejectionModal from "./rejection-modal";
-import VisibilityReasonModal from "./visibility-reason-modal";
 
 interface VerificationModalProps {
   provider: Provider | null;
   isOpen: boolean;
   onClose: () => void;
-  // Callbacks opcionais para compatibilidade com chamadas existentes
   onApprove?: (providerId: string) => void;
   onReject?: (providerId: string, reason: string) => void;
   onBlock?: (providerId: string) => void;
   onProviderUpdated?: (provider: Provider) => void;
 }
 
-function formatRelativeTime(date: Date): string {
-  const now = new Date();
-  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+type EvidenceType = "document_front" | "document_back" | "selfie_with_document";
 
-  if (diffInMinutes < 1) return "Agora mesmo";
-  if (diffInMinutes < 60) return `${diffInMinutes} minutos atrÃ¡s`;
+const EVIDENCE_SLOTS: Array<{ type: EvidenceType; title: string; subtitle: string }> = [
+  { type: "document_front", title: "RG - frente", subtitle: "Documento de identidade" },
+  { type: "document_back", title: "RG - verso", subtitle: "Verso do documento" },
+  { type: "selfie_with_document", title: "Foto com RG na mao", subtitle: "Prova de posse" },
+];
 
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `${diffInHours} horas atrÃ¡s`;
-
-  const diffInDays = Math.floor(diffInHours / 24);
-  return `${diffInDays} dias atrÃ¡s`;
+function formatDate(value?: string | null) {
+  if (!value) return "Nao informado";
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
-const VISIBILITY_BADGE_CLASSES: Record<ProviderVisibilityStatus, string> = {
-  [ProviderVisibilityStatus.VISIBLE]: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  [ProviderVisibilityStatus.PENDING_VITRINE_REVIEW]: "bg-amber-100 text-amber-700 border-amber-200",
-  [ProviderVisibilityStatus.VITRINE_IRREGULAR]: "bg-red-100 text-red-700 border-red-200",
-};
 
+function formatRelativeTime(value?: string | null) {
+  if (!value) return "Nao informado";
+  const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000));
+  if (minutes < 1) return "Agora";
+  if (minutes < 60) return `${minutes} min atras`;
+  if (minutes < 1440) return `${Math.floor(minutes / 60)} h atras`;
+  return `${Math.floor(minutes / 1440)} d atras`;
+}
 
-export default function VerificationModal({ provider, isOpen, onClose, onProviderUpdated }: VerificationModalProps) {
+function displayValue(value?: string | number | null) {
+  return String(value ?? "").trim() || "Nao informado";
+}
+
+function statusLabel(status?: string | null) {
+  switch ((status ?? "").toLowerCase()) {
+    case "approved":
+      return "Aprovado";
+    case "rejected":
+      return "Rejeitado";
+    case "pending_review":
+    case "pending":
+      return "Pendente";
+    default:
+      return "Recebido";
+  }
+}
+
+function statusClass(status?: string | null) {
+  switch ((status ?? "").toLowerCase()) {
+    case "approved":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "rejected":
+      return "border-rose-200 bg-rose-50 text-rose-700";
+    default:
+      return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+}
+
+function RegistrationItem({ label, value }: { label: string; value?: string | number | null }) {
+  return (
+    <div className="min-w-0 rounded-xl border border-slate-100 bg-white px-3 py-2.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-1 truncate text-sm font-medium text-slate-900">{displayValue(value)}</p>
+    </div>
+  );
+}
+
+function EvidenceCard({
+  definition,
+  document,
+  loading,
+}: {
+  definition: (typeof EVIDENCE_SLOTS)[number];
+  document?: KybDocument;
+  loading: boolean;
+}) {
+  return (
+    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-slate-900">{definition.title}</p>
+          <p className="text-[11px] text-slate-500">{definition.subtitle}</p>
+        </div>
+        {document && (
+          <Badge className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] ${statusClass(document.status)}`}>
+            {statusLabel(document.status)}
+          </Badge>
+        )}
+      </div>
+      <div className="relative aspect-[4/3] bg-slate-50">
+        {loading ? (
+          <div className="flex h-full items-center justify-center text-slate-400">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        ) : document?.publicUrl ? (
+          <img src={document.publicUrl} alt={definition.title} className="h-full w-full object-contain p-2" />
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-400">
+            <FileImage className="h-7 w-7" />
+            <span className="text-xs">Arquivo nao enviado</span>
+          </div>
+        )}
+      </div>
+      <div className="px-3 py-2.5 text-[11px] text-slate-500">
+        {document ? `Enviado em ${formatDate(document.createdAt)}` : "Sem evidencia vinculada ao cadastro"}
+      </div>
+    </article>
+  );
+}
+
+export default function VerificationModal({
+  provider,
+  isOpen,
+  onClose,
+  onBlock,
+  onProviderUpdated,
+}: VerificationModalProps) {
   const [isRejectionModalOpen, setIsRejectionModalOpen] = useState(false);
-  const [latitudeInput, setLatitudeInput] = useState("");
-  const [longitudeInput, setLongitudeInput] = useState("");
-  const [isVisibilityReasonModalOpen, setIsVisibilityReasonModalOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (provider) {
-      const lat = provider.address?.latitude ?? provider.latitude;
-      const lon = provider.address?.longitude ?? provider.longitude;
-      setLatitudeInput(lat !== null && lat !== undefined ? String(lat) : "");
-      setLongitudeInput(lon !== null && lon !== undefined ? String(lon) : "");
-    } else {
-      setLatitudeInput("");
-      setLongitudeInput("");
-    }
-  }, [provider]);
+  const documentsQuery = useQuery<KybDocument[], Error>({
+    queryKey: ["/verification/kyb-documents", provider?.id],
+    queryFn: () => fetchKybDocuments(provider!.id),
+    enabled: isOpen && Boolean(provider?.id),
+    staleTime: 30_000,
+  });
 
-  // Mova as declaraÃ§Ãµes de useMutation para o topo do componente
+  const evidenceByType = useMemo(() => {
+    const evidence = new Map<string, KybDocument>();
+    (documentsQuery.data ?? []).forEach((document) => {
+      if (!evidence.has(document.documentType)) evidence.set(document.documentType, document);
+    });
+    return evidence;
+  }, [documentsQuery.data]);
+
   const approveMutation = useMutation({
     mutationFn: (providerId: string) => updateProviderStatus(providerId, VerificationStatus.APPROVED),
     onSuccess: (updatedProvider) => {
-      toast({ title: "Sucesso!", description: "ONG/Clínica aprovado com sucesso.", variant: "success" });
+      toast({ title: "ONG aprovada", description: "A validacao foi concluida.", variant: "success" });
       queryClient.invalidateQueries({ queryKey: ["/verification/pending-queue"] });
       queryClient.invalidateQueries({ queryKey: ["/providers"] });
       onProviderUpdated?.(updatedProvider);
       onClose();
     },
-    onError: (error: any) => {
-      toast({ title: "Erro na Aprovação", description: error.message, variant: "destructive" });
-    },
+    onError: (error: Error) => toast({ title: "Falha ao aprovar", description: error.message, variant: "destructive" }),
   });
 
   const rejectMutation = useMutation({
     mutationFn: ({ providerId, reason }: { providerId: string; reason: string }) =>
       updateProviderStatus(providerId, VerificationStatus.REJECTED, reason),
     onSuccess: (updatedProvider) => {
-      toast({ title: "Sucesso!", description: "ONG/Clínica rejeitado com sucesso.", variant: "success" });
+      toast({ title: "Cadastro rejeitado", description: "A decisao foi registrada.", variant: "success" });
       queryClient.invalidateQueries({ queryKey: ["/verification/pending-queue"] });
       queryClient.invalidateQueries({ queryKey: ["/providers"] });
       onProviderUpdated?.(updatedProvider);
-      onClose();
       setIsRejectionModalOpen(false);
+      onClose();
     },
-    onError: (error: any) => {
-      toast({ title: "Erro na Rejeição", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const updateLocationMutation = useMutation({
-    mutationFn: async ({ latitude, longitude }: { latitude: number; longitude: number }) => {
-      if (!provider?.address) {
-        throw new Error("EndereÃ§o nÃ£o disponÃ­vel para edição.");
-      }
-      const addr = provider.address;
-      const payload = {
-        ...addr,
-        latitude,
-        longitude,
-      };
-      return updateProviderProfile(provider.id, { address: payload });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Localização atualizada",
-        description: "Latitude e longitude salvas no cadastro do ONG ou clínica.",
-        variant: "success",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/verification/pending-queue"] });
-      queryClient.invalidateQueries({ queryKey: ["/providers"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Erro ao salvar localização",
-        description: error?.message || "NÃ£o foi possÃ­vel atualizar as coordenadas.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateVisibilityMutation = useMutation({
-    mutationFn: ({ status, reason }: { status: ProviderVisibilityStatus; reason?: string | null }) => {
-      if (!provider) {
-        return Promise.reject(new Error("ONG/Clínica indisponÃ­vel"));
-      }
-      return updateProviderVisibility(provider.id, status, reason);
-    },
-    onSuccess: (updatedProvider) => {
-      toast({
-        title: "Visibilidade atualizada",
-        description: "O status da vitrine foi atualizado com sucesso.",
-        variant: "success",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/verification/pending-queue"] });
-      queryClient.invalidateQueries({ queryKey: ["/providers"] });
-      setIsVisibilityReasonModalOpen(false);
-      onProviderUpdated?.(updatedProvider);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Erro ao atualizar vitrine",
-        description: error?.message || "NÃ£o foi possÃ­vel alterar o status da vitrine.",
-        variant: "destructive",
-      });
-    },
+    onError: (error: Error) => toast({ title: "Falha ao rejeitar", description: error.message, variant: "destructive" }),
   });
 
   if (!provider) return null;
 
-  const resolvedName = provider.fullName || provider.name || "Sem nome";
-  const providerVisibilityStatus = provider.visibilityStatus ?? ProviderVisibilityStatus.VISIBLE;
-  const visibilityReasonText = provider.visibilityReason?.trim() || "Nenhum motivo registrado";
-  const visibilityUpdatedText = provider.visibilityUpdatedAt
-    ? formatRelativeTime(new Date(provider.visibilityUpdatedAt))
-    : "Sem atualizaÃ§Ãµes recentes";
-  const visibilityBadgeClass = VISIBILITY_BADGE_CLASSES[providerVisibilityStatus];
-
-  const handleSetVisibilityStatus = (status: ProviderVisibilityStatus, reason?: string | null) => {
-    updateVisibilityMutation.mutate({ status, reason });
-  };
-  const handleVisibilityApprove = () => handleSetVisibilityStatus(ProviderVisibilityStatus.VISIBLE, null);
-  const handleVisibilityPending = () =>
-    handleSetVisibilityStatus(ProviderVisibilityStatus.PENDING_VITRINE_REVIEW);
-  const handleConfirmVisibilityReason = (reason: string) =>
-    handleSetVisibilityStatus(ProviderVisibilityStatus.VITRINE_IRREGULAR, reason);
-  const handleOpenVisibilityModal = () => setIsVisibilityReasonModalOpen(true);
-
-  const handleApprove = () => {
-    approveMutation.mutate(provider.id);
-  };
-
-  const handleReject = (reason: string) => {
-    rejectMutation.mutate({ providerId: provider.id, reason });
-  };
-
-  const handleBlock = () => {
-    // A lÃ³gica de bloqueio ainda precisa ser implementada
-    // Se houver um endpoint para isso, vocÃª criaria uma nova mutation aqui
-    toast({
-      title: "Funcionalidade em desenvolvimento",
-      description: "A lÃ³gica de bloqueio ainda nÃ£o foi implementada.",
-      variant: "warning",
-    });
-  };
-
-  const handleUpdateLocation = () => {
-    if (!provider?.address) {
-      toast({
-        title: "EndereÃ§o indisponÃ­vel",
-        description: "NÃ£o hÃ¡ endereÃ§o cadastrado para ajustar a localização.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const lat = parseFloat(latitudeInput.replace(",", "."));
-    const lon = parseFloat(longitudeInput.replace(",", "."));
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-      toast({
-        title: "Coordenadas invÃ¡lidas",
-        description: "Digite valores numÃ©ricos para latitude e longitude.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
-      toast({
-        title: "Fora do intervalo",
-        description: "Latitude deve estar entre -90 e 90, e longitude entre -180 e 180.",
-        variant: "destructive",
-      });
-      return;
-    }
-    updateLocationMutation.mutate({ latitude: lat, longitude: lon });
-  };
+  const providerName = provider.legalName || provider.fullName || provider.name || "ONG sem nome";
+  const address = [
+    [provider.street, provider.number].filter(Boolean).join(", "),
+    provider.neighborhood,
+    [provider.city, provider.state].filter(Boolean).join(" / "),
+    provider.cep,
+  ].filter(Boolean).join(" - ");
+  const documentsCount = EVIDENCE_SLOTS.filter((entry) => evidenceByType.has(entry.type)).length;
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-gray-900">Verificação de ONG/Clínica</DialogTitle>
-            <p className="text-gray-600">Revise documentos e status de verificação</p>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="scrollbar-premium max-h-[94vh] max-w-6xl gap-0 overflow-y-auto rounded-2xl border-0 bg-slate-50 p-0 shadow-floating-lg">
+          <DialogHeader className="border-b border-slate-200 bg-white px-7 py-6">
+            <div className="flex flex-wrap items-start justify-between gap-4 pr-8">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">Dossie operacional</p>
+                <DialogTitle className="mt-2 text-2xl font-semibold text-slate-950">Verificacao de ONG</DialogTitle>
+                <p className="mt-1 text-sm text-slate-500">Identidade do responsavel, cadastro institucional e decisao manual.</p>
+              </div>
+              <Badge className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
+                Revisao manual
+              </Badge>
+            </div>
           </DialogHeader>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
+            transition={{ duration: 0.2 }}
+            className="space-y-5 p-6"
           >
-            {/* Provider Info */}
-            
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-              <div className="flex items-center gap-4">
-                <Avatar className="w-16 h-16 ring-1 ring-gray-200 shadow-sm">
-                  {provider.avatarUrl ? (
-                    <AvatarImage
-                      src={provider.avatarUrl}
-                      alt={resolvedName}
-                    />
-                  ) : (
-                    <AvatarFallback>
-                      <User className="w-5 h-5 text-gray-500" />
+            <section className="rounded-2xl bg-slate-950 p-5 text-white shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-5">
+                <div className="flex min-w-0 items-center gap-4">
+                  <Avatar className="h-16 w-16 border border-white/10">
+                    <AvatarImage src={provider.avatarUrl} alt={providerName} />
+                    <AvatarFallback className="bg-emerald-900 text-emerald-100">
+                      <Building2 className="h-6 w-6" />
                     </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">Em analise</p>
+                    <h3 className="mt-1 truncate text-xl font-semibold">{providerName}</h3>
+                    <p className="mt-1 truncate text-sm text-slate-300">{provider.email}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-right">
+                    <p className="text-[10px] uppercase text-slate-400">Evidencias</p>
+                    <p className="mt-1 text-lg font-semibold">{documentsCount}/3</p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-right">
+                    <p className="text-[10px] uppercase text-slate-400">Na fila</p>
+                    <p className="mt-1 text-lg font-semibold">{formatRelativeTime(provider.createdAt)}</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <div className="grid gap-5 lg:grid-cols-[1.45fr_0.9fr]">
+              <section className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Documentos do responsavel</p>
+                    <h4 className="mt-1 text-base font-semibold text-slate-950">Evidencias recebidas</h4>
+                  </div>
+                  {documentsQuery.isError && (
+                    <Badge className="border border-rose-200 bg-rose-50 text-rose-700">Falha na consulta</Badge>
                   )}
-                </Avatar>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {EVIDENCE_SLOTS.map((definition) => (
+                    <EvidenceCard
+                      key={definition.type}
+                      definition={definition}
+                      document={evidenceByType.get(definition.type)}
+                      loading={documentsQuery.isLoading}
+                    />
+                  ))}
+                </div>
+                <div className="mt-4 flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-3 text-xs text-slate-600">
+                  <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
+                  As imagens exibidas sao os arquivos reais vinculados ao cadastro e devem ser tratadas como informacao restrita.
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Cadastro institucional</p>
+                <h4 className="mt-1 text-base font-semibold text-slate-950">Dados declarados</h4>
+                <div className="mt-4 grid grid-cols-2 gap-2.5">
+                  <RegistrationItem label="Nome da instituicao" value={provider.legalName || provider.fullName} />
+                  <RegistrationItem label="CNPJ" value={provider.cnpj} />
+                  <RegistrationItem label="Area de atuacao" value={provider.ongType} />
+                  <RegistrationItem label="Fundacao" value={provider.foundationYear} />
+                  <RegistrationItem label="Telefone" value={provider.phone || provider.userPhone} />
+                  <RegistrationItem label="Email" value={provider.email} />
+                </div>
+                <div className="mt-3 rounded-xl border border-slate-100 bg-white px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Endereco</p>
+                  <p className="mt-1 text-sm font-medium leading-5 text-slate-900">{address || "Nao informado"}</p>
+                </div>
+                <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                  <CalendarDays className="h-4 w-4" />
+                  Registro recebido em {formatDate(provider.createdAt)}
+                </div>
+              </section>
+            </div>
+
+            <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex items-center gap-3">
+                <ShieldAlert className="h-5 w-5 text-slate-500" />
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{resolvedName}</h3>
-                    <p className="text-sm text-gray-600">{provider.email}</p>
-                    <div className="flex items-center mt-2 space-x-4">
-                      <span className="text-sm text-gray-600 flex items-center">
-                        <Star className="w-4 h-4 text-yellow-400 mr-1" />
-                        4.8 ({provider.fiveStarReviewCount} avaliacoes)
-                      </span>
-                      <span className="text-sm text-gray-600 flex items-center">
-                        <User className="w-4 h-4 mr-1" />
-                        {provider.jobsCompleted || 0} trabalhos concluidos
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              <Badge className="border-0 text-sm px-3 py-1">
-                {provider.verificationStatus === VerificationStatus.PENDING_MANUAL_REVIEW
-                  ? "Revisao Manual"
-                  : "Documentos Pendentes"}
-              </Badge>
-            </div>
-
-
-            {/* Document Upload & OCR Results */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* ID Document */}
-              <div className="space-y-4">
-                <h4 className="text-md font-semibold text-gray-900">Documento de Identidade</h4>
-                <div className="border border-gray-200 rounded-xl p-4 space-y-3">
-                  <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
-                    {provider.documentPhotoFrontUrl ? (
-                      <img
-                        src={provider.documentPhotoFrontUrl}
-                        alt="ID Document"
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    ) : (
-                      <span className="text-gray-400">Nenhuma imagem disponÃ­vel</span>
-                    )}
-                  </div>
-
-                  {/* OCR Results */}
-                  <div className="bg-blue-50 rounded-lg p-3">
-                    <h5 className="text-sm font-medium text-blue-900 mb-2">Resultados OCR</h5>
-                    {provider.ocrResult ? (
-                      <div className="text-xs text-blue-800 space-y-1">
-                        <p>
-                          <strong>Nome:</strong> {provider.ocrResult.fullName || resolvedName}
-                        </p>
-                        <p>
-                          <strong>NÃºmero do Documento:</strong> {provider.ocrResult.documentNumber || "N/A"}
-                        </p>
-                        <p>
-                          <strong>Data de Nascimento:</strong> {provider.ocrResult.birthDate || "N/A"}
-                        </p>
-                        <p>
-                          <strong>Tipo de Documento:</strong> {provider.ocrResult.documentType || "N/A"}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-blue-800">Nenhum resultado de OCR disponÃ­vel.</p>
-                    )}
-                    <Badge className="bg-green-100 text-green-700 border-0 mt-2 text-xs">
-                      OCR ConfianÃ§a:{" "}
-                      {provider.ocrResult?.confidence
-                        ? `${(provider.ocrResult.confidence * 100).toFixed(1)}%`
-                        : "N/A"}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-
-              {/* Selfie with ID */}
-              <div className="space-y-4">
-                <h4 className="text-md font-semibold text-gray-900">Selfie com Documento</h4>
-                <div className="border border-gray-200 rounded-xl p-4 space-y-3">
-                  <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
-                    {provider.selfieWithDocumentUrl ? (
-                      <img
-                        src={provider.selfieWithDocumentUrl}
-                        alt="Selfie with ID"
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    ) : (
-                      <span className="text-gray-400">Nenhuma imagem disponÃ­vel</span>
-                    )}
-                  </div>
-
-                  {/* Liveness Check Results */}
-                  <div className="bg-green-50 rounded-lg p-3">
-                    <h5 className="text-sm font-medium text-green-900 mb-2">Verificação de Vivacidade</h5>
-                    {provider.livenessResult ? (
-                      <div className="text-xs text-green-800 space-y-1">
-                        <p>
-                          <strong>CorrespondÃªncia Facial:</strong>{" "}
-                          {provider.livenessResult.faceMatch
-                            ? `${(provider.livenessResult.faceMatch * 100).toFixed(1)}%`
-                            : "N/A"}
-                        </p>
-                        <p>
-                          <strong>Pontuação de Vivacidade:</strong>{" "}
-                          {provider.livenessResult.livenessScore
-                            ? `${(provider.livenessResult.livenessScore * 100).toFixed(1)}%`
-                            : "N/A"}
-                        </p>
-                        <p>
-                          <strong>Pontuação de Qualidade:</strong>{" "}
-                          {provider.livenessResult.qualityScore
-                            ? `${(provider.livenessResult.qualityScore * 100).toFixed(1)}%`
-                            : "N/A"}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-green-800">
-                        Nenhum resultado de verificação de vivacidade disponÃ­vel.
-                      </p>
-                    )}
-                    <Badge className="bg-green-100 text-green-700 border-0 mt-2 text-xs">
-                      {provider.livenessResult?.isLive ? "Pessoa Real Detectada" : "NÃ£o Detectada"}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Provider Details */}
-            <div className="space-y-4">
-              <h4 className="text-md font-semibold text-gray-900">InformaÃ§Ãµes do ONG/Clínica</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Telefone:</span>
-                    <span className="text-sm text-gray-900">{provider.phone || provider.userPhone || "N/A"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Cidade:</span>
-                    <span className="text-sm text-gray-900">{provider.city || "N/A"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Registro:</span>
-                    <span className="text-sm text-gray-900">{formatRelativeTime(new Date(provider.createdAt))}</span>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">ServiÃ§os:</span>
-                    <span className="text-sm text-gray-900">{provider.specialties?.join(", ") || "Apoio animal geral"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">ExperiÃªncia:</span>
-                    <span className="text-sm text-gray-900">3+ anos</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Verificação de Antecedentes:</span>
-                    <Badge className="bg-green-100 text-green-700 border-0 text-xs">Aprovado</Badge>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3 border border-dashed border-gray-200 rounded-xl p-4 bg-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-md font-semibold text-gray-900">Status de Visibilidade</h4>
-                  <Badge className={`border ${visibilityBadgeClass}`}>
-                    {providerVisibilityStatus.replace(/_/g, " ")}
-                  </Badge>
-                </div>
-                <div className="text-right text-xs text-gray-500 space-y-1">
-                  <p>{visibilityUpdatedText}</p>
-                  <p>{visibilityReasonText}</p>
+                  <p className="text-sm font-semibold text-slate-900">Decisao administrativa</p>
+                  <p className="text-xs text-slate-500">A aprovacao libera o selo da instituicao na rede.</p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant="outline"
-                  onClick={handleOpenVisibilityModal}
-                  className="text-red-600 border-red-200"
-                  disabled={updateVisibilityMutation.isPending}
-                >
-                  Invalidar Vitrine
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleVisibilityPending}
-                  className="text-amber-600 border-amber-200"
-                  disabled={updateVisibilityMutation.isPending}
-                >
-                  {updateVisibilityMutation.isPending ? "Atualizando..." : "Pendente Vitrine"}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleVisibilityApprove}
-                  className="text-emerald-600 border-emerald-200"
-                  disabled={updateVisibilityMutation.isPending}
-                >
-                  {updateVisibilityMutation.isPending ? "Atualizando..." : "Aprovar Foto"}
-                </Button>
-              </div>
-            </div>
-
-            {/* Manual Location Fix */}
-            <div className="space-y-3 border border-dashed border-gray-200 rounded-xl p-4 bg-gray-50">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <h4 className="text-md font-semibold text-gray-900 flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-medium-blue" />
-                    Ajustar Localização
-                  </h4>
-                  <p className="text-xs text-gray-600">Edite latitude/longitude se o endereÃ§o estiver incorreto.</p>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={handleUpdateLocation}
-                  disabled={updateLocationMutation.isPending}
-                  className="bg-medium-blue text-white"
-                >
-                  {updateLocationMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <MapPin className="w-4 h-4 mr-2" />
-                  )}
-                  Salvar localização
-                </Button>
-              </div>
-              {provider.address ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <span className="text-xs text-gray-600">Latitude</span>
-                    <Input
-                      value={latitudeInput}
-                      onChange={(e) => setLatitudeInput(e.target.value)}
-                      placeholder="-22.90"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-xs text-gray-600">Longitude</span>
-                    <Input
-                      value={longitudeInput}
-                      onChange={(e) => setLongitudeInput(e.target.value)}
-                      placeholder="-43.20"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-gray-600">Sem endereÃ§o cadastrado para este ONG ou clínica.</p>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-              <div className="flex space-x-2">
-                <Button
-                  onClick={handleApprove}
+                  onClick={() => approveMutation.mutate(provider.id)}
                   disabled={approveMutation.isPending}
-                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 shadow-floating"
+                  className="bg-emerald-700 text-white hover:bg-emerald-800"
                 >
-                  <CheckCircle className="mr-2" size={16} />
-                  {approveMutation.isPending ? "Aprovando..." : "Aprovar"}
+                  {approveMutation.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
+                  Aprovar
                 </Button>
                 <Button
+                  variant="outline"
                   onClick={() => setIsRejectionModalOpen(true)}
-                  variant="destructive"
-                  disabled={approveMutation.isPending || rejectMutation.isPending}
-                  className="shadow-floating"
+                  disabled={rejectMutation.isPending}
+                  className="border-rose-200 text-rose-700 hover:bg-rose-50"
                 >
-                  <X className="mr-2" size={16} />
+                  <X />
                   Rejeitar
                 </Button>
                 <Button
-                  onClick={handleBlock}
                   variant="outline"
-                  className="border-gray-600 text-gray-600 hover:bg-gray-600 hover:text-white shadow-floating"
+                  onClick={() => onBlock?.(provider.id)}
+                  className="border-slate-300 text-slate-700 hover:bg-slate-100"
                 >
                   Bloquear
                 </Button>
               </div>
-
-              <div className="flex space-x-2">
-                <Button variant="outline" className="text-gray-600 border-gray-200 hover:bg-gray-50">
-                  Solicitar Mais Info
-                </Button>
-                <Button variant="outline" onClick={onClose} className="text-gray-600 border-gray-200 hover:bg-gray-50">
-                  Cancelar
-                </Button>
-              </div>
-            </div>
+            </section>
           </motion.div>
         </DialogContent>
       </Dialog>
@@ -551,14 +343,8 @@ export default function VerificationModal({ provider, isOpen, onClose, onProvide
       <RejectionModal
         isOpen={isRejectionModalOpen}
         onClose={() => setIsRejectionModalOpen(false)}
-        onConfirm={handleReject}
+        onConfirm={(reason) => rejectMutation.mutate({ providerId: provider.id, reason })}
         isPending={rejectMutation.isPending}
-      />
-      <VisibilityReasonModal
-        isOpen={isVisibilityReasonModalOpen}
-        onClose={() => setIsVisibilityReasonModalOpen(false)}
-        onConfirm={handleConfirmVisibilityReason}
-        isPending={updateVisibilityMutation.isPending}
       />
     </>
   );
