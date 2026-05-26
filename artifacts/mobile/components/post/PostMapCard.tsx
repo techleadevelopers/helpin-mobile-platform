@@ -38,6 +38,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: 22,
     backgroundColor: '#FFFFFF',
+    marginHorizontal: 2,
     borderWidth: 0.5,
     borderColor: '#E3EAE5',
     shadowColor: '#1F3528',
