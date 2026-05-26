@@ -19,18 +19,13 @@ import {
   PostContactCard,
   PostContactSheet,
   PostImageModal,
-  PostLocationMeta,
   PostMapCard,
-  PostPhotoGallery,
-  PostPublicationCard,
 } from '@/components/post';
 import { UserBottomNav } from '@/components/UserBottomNav';
-import { ZooHelpHeader } from '@/components/ZooHelpHeader';
 import type { Post } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { getStoredAccessToken } from '@/services/secureSession';
-import { shareZooHelpItem } from '@/services/share';
 import { createZooHelpApi, mapPost } from '@/services/zoohelpApi';
 
 function formatPhoneNumber(value: string) {
@@ -96,22 +91,23 @@ export default function PostDetailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { likedPosts, toggleLike, posts } = useApp();
+  const { posts } = useApp();
   const [remotePost, setRemotePost] = useState<Post | null>(null);
   const [followingAuthor, setFollowingAuthor] = useState(false);
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   const [contactOverlayOpen, setContactOverlayOpen] = useState(false);
 
-  const post = posts.find((item) => item.id === id) ?? remotePost;
+  const cachedPost = posts.find((item) => item.id === id) ?? null;
+  const post = remotePost ?? cachedPost;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
 
   useEffect(() => {
-    if (!id || posts.some((item) => item.id === id)) return;
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return;
     createZooHelpApi()
       ?.post(id)
       .then((item) => setRemotePost(mapPost(item)))
       .catch(() => setRemotePost(null));
-  }, [id, posts]);
+  }, [id]);
 
   if (!post) {
     return (
@@ -131,7 +127,6 @@ export default function PostDetailScreen() {
       ].filter((uri): uri is string => Boolean(uri))
     )
   );
-  const isLiked = likedPosts.includes(post.id);
   const contactDisplay = activePost.contact ? formatPhoneNumber(activePost.contact) : '';
   const locationDisplay = formatLocationLine(post.neighborhood, post.location);
   const timeDisplay = formatPostTime(post.createdAt);
@@ -144,11 +139,6 @@ export default function PostDetailScreen() {
 
   function tapFeedback() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }
-
-  function handleLike() {
-    toggleLike(activePost.id);
-    tapFeedback();
   }
 
   function handleContact() {
@@ -212,46 +202,24 @@ export default function PostDetailScreen() {
     });
   }
 
-  function handleShare() {
-    tapFeedback();
-    shareZooHelpItem(activePost.name, `${activePost.name} no ZooHelp: ${activePost.description}`);
-  }
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false} bounces>
-        <ZooHelpHeader />
-
         <View style={[styles.content, { backgroundColor: colors.background }]}>
           <PostAuthorCard
             post={post}
             colors={colors}
             followingAuthor={followingAuthor}
-            onPressAuthor={() => router.push({ pathname: '/(tabs)/user/[id]', params: { id: post.author.id } })}
-            onToggleFollowing={() => setFollowingAuthor((current) => !current)}
-          />
-
-          <PostPhotoGallery
-            post={post}
             imageUris={imageUris}
             isResolved={isResolved}
-            borderColor={colors.border}
-            onSelectImage={setSelectedImageUri}
-          />
-
-          <PostPublicationCard
-            description={post.description}
             breedAgeParts={breedAgeParts}
-            colors={colors}
-            isLiked={isLiked}
-            onShare={handleShare}
-            onLike={handleLike}
-          />
-
-          <PostLocationMeta
             locationDisplay={locationDisplay}
             timeDisplay={timeDisplay}
-            mutedColor={colors.mutedForeground}
+            onPressAuthor={() => router.push({ pathname: '/(tabs)/user/[id]', params: { id: post.author.id } })}
+            onToggleFollowing={() => setFollowingAuthor((current) => !current)}
+            onPressTrust={() => Alert.alert('Protecao ativa', 'A ZooHelp usa sinais do perfil, contexto e localizacao para ajudar a coordenar respostas mais seguras.')}
+            onSelectImage={setSelectedImageUri}
+            onPressMessage={handleOpenChat}
           />
 
           <PostMapCard latitude={mapCoords.lat} longitude={mapCoords.lng} onPress={handleRoute} />
@@ -268,7 +236,12 @@ export default function PostDetailScreen() {
         <UserBottomNav />
       </View>
 
-      <PostImageModal selectedImageUri={selectedImageUri} onClose={() => setSelectedImageUri(null)} />
+      <PostImageModal
+        selectedImageUri={selectedImageUri}
+        authorName={activePost.author.name}
+        authorAvatar={activePost.author.avatar}
+        onClose={() => setSelectedImageUri(null)}
+      />
 
       <PostContactSheet
         visible={contactOverlayOpen}
@@ -288,7 +261,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  content: { padding: 18, paddingTop: 10, gap: 14 },
+  content: { padding: 18, paddingTop: 1, gap: 14, bottom: 12, },
   errorText: { fontSize: 14, fontFamily: 'Montserrat_400Regular', marginTop: 10 },
   bottomNavHost: {
     position: 'absolute',
