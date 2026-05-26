@@ -620,9 +620,6 @@ export default function FeedScreen() {
           ]}
         >
           <View style={styles.quickPostTop}>
-            <View style={[styles.quickPostAvatar, { backgroundColor: colors.primary + '18' }]}>
-              <MaterialCommunityIcons name="paw" size={20} color={colors.primary} />
-            </View>
             <View style={[styles.quickInputShell, { backgroundColor: colors.muted }]}>
               <TextInput
                 ref={quickInputRef}
@@ -678,8 +675,12 @@ export default function FeedScreen() {
               <TouchableOpacity
                 style={[styles.quickLabelTool, { backgroundColor: quickLocation ? colors.primary + '18' : colors.muted }]}
                 onPress={() => {
-                  setQuickLocationPickerVisible(true);
-                  setTimeout(() => addressInputRef.current?.focus(), 0);
+                  setQuickLocationPickerVisible((visible) => {
+                    if (!visible) {
+                      setTimeout(() => addressInputRef.current?.focus(), 0);
+                    }
+                    return !visible;
+                  });
                 }}
                 activeOpacity={0.75}
               >
