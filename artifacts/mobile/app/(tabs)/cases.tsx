@@ -1,8 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Modal,
   Platform,
@@ -51,12 +51,22 @@ function isResolved(post: Post) {
   return post.rescueStatus === 'resolved';
 }
 
-function statusForPost(post: Post, index: number): CaseStatus {
+function isOperationalCase(post: Post) {
+  return (
+    post.urgent ||
+    post.type === 'emergency' ||
+    post.rescueOperational ||
+    post.rescueStatus === 'open' ||
+    post.rescueStatus === 'active'
+  );
+}
+
+function statusForPost(post: Post): CaseStatus {
   if (isResolved(post)) return 'Encerrado';
+  if (isOperationalCase(post)) return 'Novo';
   if (post.type === 'adoption') return 'Disponivel';
   if (post.type === 'found') return 'Lar temporario';
   if (post.type === 'campaign') return 'Em tratamento';
-  if (post.type === 'emergency' || post.urgent) return 'Novo';
   return 'Novo';
 }
 
@@ -83,34 +93,6 @@ function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) 
       <Text style={styles.eyebrow}>{subtitle}</Text>
       <Text style={styles.title}>{title}</Text>
     </View>
-  );
-}
-
-function StatusTab({
-  status,
-  count,
-  active,
-  onPress,
-}: {
-  status: CaseStatus;
-  count: number;
-  active: boolean;
-  onPress: () => void;
-}) {
-  const config = statusConfig(status);
-
-  return (
-    <TouchableOpacity
-      style={[styles.statusTab, active && styles.statusTabActive]}
-      onPress={onPress}
-      activeOpacity={0.84}
-    >
-      <MaterialCommunityIcons name={config.icon} size={11} color={active ? PRIMARY : config.color} />
-      <Text style={[styles.statusLabel, active && styles.statusLabelActive]}>{status.toUpperCase()}</Text>
-      <View style={[styles.statusCount, active && styles.statusCountActive]}>
-        <Text style={[styles.statusCountText, active && styles.statusCountTextActive]}>{count}</Text>
-      </View>
-    </TouchableOpacity>
   );
 }
 
@@ -221,17 +203,24 @@ function EmptyState({ activeStatus }: { activeStatus: CaseStatus }) {
 export default function OngCasesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { posts, user } = useApp();
+  const { posts, refreshPosts, user } = useApp();
   const [activeStatus, setActiveStatus] = useState<CaseStatus>('Novo');
   const [selectedCase, setSelectedCase] = useState<{ post: Post; status: CaseStatus } | null>(null);
+  const [filterVisible, setFilterVisible] = useState(false);
 
   const cases = useMemo(
-    () => posts.map((post, index) => ({ post, status: statusForPost(post, index) })),
+    () => posts.map((post) => ({ post, status: statusForPost(post) })),
     [posts],
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      refreshPosts().catch(() => {});
+    }, [refreshPosts])
+  );
+
   const ownCases = useMemo(
-    () => user?.type === 'ong' ? cases.filter(({ post }) => post.author.id === user.id || post.type === 'emergency' || post.urgent) : cases,
+    () => user?.type === 'ong' ? cases.filter(({ post }) => post.author.id === user.id || isOperationalCase(post)) : cases,
     [cases, user?.id, user?.type],
   );
 
@@ -243,9 +232,12 @@ export default function OngCasesScreen() {
     return counts;
   }, [ownCases]);
 
-  const filteredCases = ownCases.filter((item) => item.status === activeStatus);
+  const filteredCases = ownCases
+    .filter((item) => item.status === activeStatus)
+    .sort((a, b) => Number(isOperationalCase(b.post)) - Number(isOperationalCase(a.post)));
   const activeCount = ownCases.filter(({ post }) => !isResolved(post)).length;
-  const urgentCount = ownCases.filter(({ post }) => post.urgent || post.type === 'emergency').length;
+  const urgentCount = ownCases.filter(({ post }) => isOperationalCase(post)).length;
+  const activeStatusConfig = statusConfig(activeStatus);
 
   function push(route: string) {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -280,20 +272,19 @@ export default function OngCasesScreen() {
           </View>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statusTabs}>
-          {STATUSES.map((item) => (
-            <StatusTab
-              key={item.value}
-              status={item.value}
-              count={statusCounts[item.value]}
-              active={activeStatus === item.value}
-              onPress={() => {
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setActiveStatus(item.value);
-              }}
-            />
-          ))}
-        </ScrollView>
+        <TouchableOpacity style={styles.filterButton} onPress={() => setFilterVisible(true)} activeOpacity={0.84}>
+          <View style={[styles.filterIcon, { backgroundColor: `${activeStatusConfig.color}14` }]}>
+            <MaterialCommunityIcons name="filter-variant" size={17} color={activeStatusConfig.color} />
+          </View>
+          <View style={styles.filterCopy}>
+            <Text style={styles.filterEyebrow}>Filtro de status</Text>
+            <Text style={styles.filterValue}>{activeStatus}</Text>
+          </View>
+          <View style={styles.filterCount}>
+            <Text style={styles.filterCountText}>{statusCounts[activeStatus]}</Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-down" size={18} color={MUTED} />
+        </TouchableOpacity>
 
         <View style={styles.list}>
           {filteredCases.length > 0 ? (
@@ -352,6 +343,44 @@ export default function OngCasesScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal transparent visible={filterVisible} animationType="fade" onRequestClose={() => setFilterVisible(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setFilterVisible(false)} />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetEyebrow}>FILTROS</Text>
+            <Text style={styles.sheetTitle}>Status dos casos</Text>
+            <Text style={styles.sheetSubtitle}>Escolha quais casos deseja acompanhar agora.</Text>
+            <View style={styles.filterOptions}>
+              {STATUSES.map((item) => {
+                const isActive = activeStatus === item.value;
+                return (
+                  <TouchableOpacity
+                    key={item.value}
+                    style={[styles.filterOption, isActive && { borderColor: item.color, backgroundColor: `${item.color}12` }]}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setActiveStatus(item.value);
+                      setFilterVisible(false);
+                    }}
+                    activeOpacity={0.84}
+                  >
+                    <View style={[styles.filterOptionIcon, { backgroundColor: `${item.color}14` }]}>
+                      <MaterialCommunityIcons name={item.icon} size={16} color={item.color} />
+                    </View>
+                    <Text style={[styles.filterOptionText, isActive && { color: item.color }]}>{item.value}</Text>
+                    <View style={styles.filterOptionCount}>
+                      <Text style={styles.filterOptionCountText}>{statusCounts[item.value]}</Text>
+                    </View>
+                    {isActive && <MaterialCommunityIcons name="check-circle" size={17} color={item.color} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -394,40 +423,52 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 18, fontFamily: 'Montserrat_700Bold', color: INK },
   summaryLabel: { fontSize: 10, fontFamily: 'Montserrat_500Medium', color: MUTED },
   summaryDivider: { width: 1, height: 34, backgroundColor: BORDER },
-  statusTabs: {
-    flexDirection: 'row',
-    gap: 7,
-    paddingRight: 18,
-  },
-  statusTab: {
-    minHeight: 24,
+  filterButton: {
+    minHeight: 54,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: BORDER_SOFT,
+    backgroundColor: CARD,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 9,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#D8E6DB',
-    backgroundColor: GREEN_SOFT,
+    gap: 9,
+    paddingHorizontal: 10,
+    shadowColor: '#172018',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.045,
+    shadowRadius: 10,
+    elevation: 1,
   },
-  statusTabActive: {
-    backgroundColor: '#D7E9DA',
-    borderColor: '#BBD5C2',
-  },
-  statusLabel: { fontSize: 9, fontFamily: 'Montserrat_700Bold', color: PRIMARY },
-  statusLabelActive: { color: PRIMARY },
-  statusCount: {
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+  filterIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
-    backgroundColor: '#FFFFFF',
   },
-  statusCountActive: { backgroundColor: '#F4F8F5' },
-  statusCountText: { fontSize: 9, fontFamily: 'Montserrat_700Bold', color: MUTED },
-  statusCountTextActive: { color: PRIMARY },
+  filterCopy: { flex: 1, gap: 1 },
+  filterEyebrow: {
+    fontSize: 8,
+    fontFamily: 'Montserrat_700Bold',
+    color: MUTED,
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
+  },
+  filterValue: {
+    fontSize: 13,
+    fontFamily: 'Montserrat_700Bold',
+    color: INK,
+  },
+  filterCount: {
+    minWidth: 26,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    backgroundColor: GREEN_SOFT,
+  },
+  filterCountText: { fontSize: 11, fontFamily: 'Montserrat_700Bold', color: PRIMARY },
   list: { gap: 12 },
   caseCard: {
     padding: 14,
@@ -534,6 +575,51 @@ const styles = StyleSheet.create({
   sheetHandle: { alignSelf: 'center', width: 34, height: 4, borderRadius: 2, backgroundColor: '#DDE5DF', marginBottom: 4 },
   sheetTitle: { fontSize: 16, fontFamily: 'Montserrat_700Bold', color: INK },
   sheetSubtitle: { fontSize: 12, fontFamily: 'Montserrat_500Medium', color: MUTED, lineHeight: 18 },
+  sheetEyebrow: {
+    fontSize: 8,
+    fontFamily: 'Montserrat_700Bold',
+    color: MUTED,
+    letterSpacing: 0.7,
+  },
+  filterOptions: { gap: 8 },
+  filterOption: {
+    minHeight: 50,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER_SOFT,
+    backgroundColor: '#F8FAF8',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    paddingHorizontal: 10,
+  },
+  filterOptionIcon: {
+    width: 31,
+    height: 31,
+    borderRadius: 15.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterOptionText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: 'Montserrat_700Bold',
+    color: INK,
+  },
+  filterOptionCount: {
+    minWidth: 24,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 7,
+    backgroundColor: '#FFFFFF',
+  },
+  filterOptionCountText: {
+    fontSize: 10,
+    fontFamily: 'Montserrat_700Bold',
+    color: MUTED,
+  },
   sheetAction: {
     minHeight: 44,
     borderRadius: 16,
