@@ -1,8 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+import { PostLocationMeta } from './PostLocationMeta';
 
 type Colors = {
   primary: string;
@@ -15,135 +15,147 @@ export function PostPublicationCard({
   description,
   breedAgeParts,
   colors,
-  isLiked,
-  onShare,
-  onLike,
+  locationDisplay,
+  timeDisplay,
+  onPressMessage,
 }: {
   description: string;
   breedAgeParts: string[];
   colors: Colors;
-  isLiked: boolean;
-  onShare: () => void;
-  onLike: () => void;
+  locationDisplay: string;
+  timeDisplay: string;
+  onPressMessage: () => void;
 }) {
   return (
     <View style={styles.publicationBlock}>
-      <Text style={[styles.publicationTitle, { color: colors.primary }]}>Publicação :</Text>
-      <View style={styles.titleRow}>
-        <View style={styles.titleInfo}>
-          <Text style={[styles.description, { color: colors.foreground }]}>{description}</Text>
-          {breedAgeParts.length > 0 && (
-            <View style={styles.breedAgeRow}>
-              <Text style={[styles.breedAge, { color: colors.mutedForeground }]}>
-                {breedAgeParts.join(' - ')}
+      <View style={styles.publicationHeader}>
+        <View style={styles.publicationLabelRow}>
+          <View style={styles.publicationIcon}>
+            <MaterialCommunityIcons name="text-box-edit-outline" size={15} color={colors.primary} />
+          </View>
+          <View style={styles.publicationTextContainer}>
+            <Text style={[styles.publicationTitle, { color: colors.primary }]}>PUBLICAÇÃO</Text>
+            <Text style={styles.publicationSupport}>Detalhes compartilhados.</Text>
+            <View style={[styles.descriptionContainer, { left: -20, right: -4, marginTop: 5 }]}>
+              <Text
+                style={[styles.description, { color: "#5f5c5c" }]}
+                allowFontScaling={false}
+                textBreakStrategy="simple"
+              >
+                {String(description).normalize()}
               </Text>
+              {breedAgeParts.length > 0 && (
+                <View style={styles.breedAgeRow}>
+                  <Text
+                    style={[styles.breedAge, { color: colors.mutedForeground }]}
+                    allowFontScaling={false}
+                  >
+                    {breedAgeParts.join(' - ')}
+                  </Text>
+                </View>
+              )}
             </View>
-          )}
-        </View>
-        <View style={styles.titleActions}>
-          <IconButton
-            icon="share-variant-outline"
-            color={colors.mutedForeground}
-            backgroundColor="#F8FAF7"
-            borderColor={colors.border}
-            onPress={onShare}
-          />
-          <IconButton
-            icon={isLiked ? 'heart' : 'heart-outline'}
-            color={isLiked ? '#C95A5A' : colors.mutedForeground}
-            backgroundColor={isLiked ? '#C95A5A0F' : '#F8FAF7'}
-            borderColor={isLiked ? '#C95A5A24' : colors.border}
-            onPress={onLike}
-            size={18}
-          />
+            <PostLocationMeta
+              locationDisplay={locationDisplay}
+              timeDisplay={timeDisplay}
+              mutedColor={colors.mutedForeground}
+              onPressMessage={onPressMessage}
+            />
+          </View>
         </View>
       </View>
     </View>
   );
 }
 
-function IconButton({
-  icon,
-  color,
-  backgroundColor,
-  borderColor,
-  onPress,
-  size = 17,
-}: {
-  icon: MCIcon;
-  color: string;
-  backgroundColor: string;
-  borderColor: string;
-  onPress: () => void;
-  size?: number;
-}) {
-  return (
-    <TouchableOpacity
-      style={[styles.titleIconBtn, { backgroundColor, borderColor }]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <MaterialCommunityIcons name={icon} size={size} color={color} />
-    </TouchableOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
-  publicationBlock: { gap: 3 },
-  publicationTitle: {
-    paddingTop: 5,
-    paddingBottom: -4,
-    marginLeft: 10,
-    fontSize: 15,
-    fontFamily: 'Montserrat_600SemiBold',
-    letterSpacing: -1,
-    lineHeight: 21,
-    textShadowColor: 'rgba(46,125,50,0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+  publicationBlock: {
+    gap: 10,
+    padding: 9,
+    borderRadius: 22,
+    shadowColor: '#183F2A',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.045,
+    shadowRadius: 13,
+    elevation: 2,
   },
-  titleRow: {
+  publicationHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    justifyContent: 'space-between',
     gap: 10,
-    marginHorizontal: 9,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    minHeight: 136,
-    borderRadius: 16,
-    borderWidth: 0.8,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(45,106,79,0.24)',
-    backgroundColor: 'rgba(255,255,255,0.72)',
+    backgroundColor: '#38a78213',
+    paddingVertical: 12,
+    borderRadius: 0,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
     shadowColor: '#1F3528',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.035,
-    shadowRadius: 12,
+    shadowOffset: { width: 2, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
     elevation: 1,
+    paddingBottom: 30,
   },
-  titleInfo: { flex: 1, gap: 5 },
-  description: {
-    paddingTop: 5,
-    paddingBottom: 5,
-    fontSize: 13.5,
-    lineHeight: 20,
-    fontFamily: 'Montserrat_500Medium',
-    opacity: 0.85,
+  publicationLabelRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+    paddingHorizontal: 8,
   },
-  breedAgeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  breedAge: { fontSize: 12, fontFamily: 'Montserrat_400Regular', opacity: 0.7 },
-  titleActions: { flexDirection: 'row', gap: 6 },
-  titleIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  publicationIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 0.5,
-    shadowColor: '#1F3528',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 7,
-    elevation: 1,
+  },
+  publicationTextContainer: {
+    flex: 1,
+    gap: 2,
+  },
+  publicationTitle: {
+    fontSize: 8.5,
+    fontFamily: 'Montserrat_700Bold',
+    letterSpacing: 0.72,
+    lineHeight: 14,
+  },
+  publicationSupport: {
+    fontSize: 9.5,
+    fontFamily: 'Montserrat_500Medium',
+    color: '#78857C',
+    lineHeight: 8,
+    marginBottom: 10,
+  },
+  descriptionContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 0,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    marginTop: 18,
+    marginLeft: -4,
+    marginRight: -4,
+  },
+  description: {
+    fontSize: 10.5,
+    fontFamily: 'Montserrat_600SemiBold',
+    lineHeight: 14,
+    color: '#78857C',
+    textTransform: 'none', // Garante que não haverá transformação para maiúsculas/minúsculas
+  },
+  breedAgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  breedAge: {
+    fontSize: 10.5,
+    fontFamily: 'Montserrat_400Regular',
+    opacity: 0.7,
+    color: '#78857C',
+    textTransform: 'none', // Garante que não haverá transformação
   },
 });
