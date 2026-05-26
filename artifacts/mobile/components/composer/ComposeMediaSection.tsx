@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
 
 import { ComposerSection, sectionStyles } from './ComposerSection';
 import type { ComposerColors, ComposerPostType } from './types';
@@ -18,65 +18,151 @@ export function ComposeMediaSection({ images, colors, currentType, onPickImage, 
   return (
     <ComposerSection>
       <View style={styles.mediaTitleRow}>
-        <Text style={[sectionStyles.label, { color: colors.mutedForeground }]}>Fotos</Text>
-        <Text style={[styles.mediaHint, { color: colors.mutedForeground }]}>
-          {images.length}/4 · fotos aumentam 3x as chances de ajuda
-        </Text>
-      </View>
-      <View style={styles.mediaGrid}>
-        {images.map((uri, index) => (
-          <View key={uri} style={styles.mediaThumb}>
-            <Image source={{ uri }} style={styles.mediaImg} contentFit="cover" />
-            {index === 0 && (
-              <View style={styles.mediaMainBadge}>
-                <Text style={styles.mediaMainText}>Capa</Text>
-              </View>
-            )}
-            <TouchableOpacity style={styles.mediaRemove} onPress={() => onRemoveImage(uri)}>
-              <MaterialCommunityIcons name="close" size={11} color="#FFFFFF" />
-            </TouchableOpacity>
+        <View style={styles.mediaHeading}>
+          <View style={styles.headerIcon}>
+            <MaterialCommunityIcons name="image-multiple-outline" size={16} color="#263129" />
           </View>
-        ))}
-        {images.length < 4 && (
-          <TouchableOpacity
-            style={[styles.mediaAdd, { borderColor: currentType.color, backgroundColor: currentType.light }]}
-            onPress={onPickImage}
-            activeOpacity={0.8}
-          >
-            <MaterialCommunityIcons name="plus" size={22} color={currentType.color} />
-            <Text style={[styles.mediaAddText, { color: currentType.color }]}>Adicionar</Text>
-          </TouchableOpacity>
-        )}
+          <View>
+            <Text style={[sectionStyles.label, { color: '#263129' }]}>Fotos</Text>
+            <Text style={sectionStyles.support}>Mostre detalhes úteis do animal.</Text>
+          </View>
+        </View>
+        <View style={styles.mediaBenefit}>
+          <MaterialCommunityIcons name="trending-up" size={12} color="#277A55" />
+          <Text style={styles.mediaBenefitText}>Mais visibilidade</Text>
+        </View>
       </View>
+      
+      {/* Miniaturas em formato de bolinha na horizontal */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbnailScroll}>
+        <View style={styles.thumbnailContainer}>
+          {images.map((uri, index) => (
+            <View key={uri} style={styles.thumbnailWrapper}>
+              <View style={styles.thumbnailCircle}>
+                <Image source={{ uri }} style={styles.thumbnailImage} contentFit="cover" />
+                {index === 0 && (
+                  <View style={styles.thumbnailBadge}>
+                    <Text style={styles.thumbnailBadgeText}>Capa</Text>
+                  </View>
+                )}
+                <TouchableOpacity style={styles.thumbnailRemove} onPress={() => onRemoveImage(uri)}>
+                  <MaterialCommunityIcons name="close" size={10} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+          
+          {images.length < 4 && (
+            <TouchableOpacity
+              style={[
+                styles.thumbnailAdd,
+                { borderColor: currentType.color, backgroundColor: '#F1F2F1' }
+              ]}
+              onPress={onPickImage}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="camera" size={18} color={currentType.color} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </ScrollView>
     </ComposerSection>
   );
 }
 
 const styles = StyleSheet.create({
-  mediaTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  mediaHint: { fontSize: 10, fontFamily: 'Inter_400Regular', maxWidth: 180, textAlign: 'right' },
-  mediaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  mediaThumb: {
-    width: 88, height: 88, borderRadius: 14, overflow: 'hidden', position: 'relative',
+  mediaTitleRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    gap: 8,
+    marginBottom: 12,
   },
-  mediaImg: { width: '100%', height: '100%' },
-  mediaMainBadge: {
-    position: 'absolute', bottom: 5, left: 5,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
+  mediaHeading: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 9, 
+    flex: 1 
   },
-  mediaMainText: { fontSize: 9, fontFamily: 'Inter_600SemiBold', color: '#FFFFFF' },
-  mediaRemove: {
-    position: 'absolute', top: 5, right: 5,
-    width: 20, height: 20, borderRadius: 10,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center', justifyContent: 'center',
+  headerIcon: {
+    width: 31,
+    height: 31,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EDF7EF',
   },
-  mediaAdd: {
-    width: 88, height: 88, borderRadius: 14,
-    borderWidth: 2, borderStyle: 'dashed',
-    alignItems: 'center', justifyContent: 'center', gap: 4,
+  mediaBenefit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    backgroundColor: '#EEF7F0',
   },
-  mediaAddText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+  mediaBenefitText: { 
+    fontSize: 8.5, 
+    fontFamily: 'Montserrat_700Bold', 
+    color: '#277A55' 
+  },
+  thumbnailScroll: {
+    flexGrow: 0,
+  },
+  thumbnailContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  thumbnailWrapper: {
+    position: 'relative',
+  },
+  thumbnailCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1.5,
+    borderColor: '#E8F0EC',
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+  },
+  thumbnailBadge: {
+    position: 'absolute',
+    bottom: 2,
+    left: 2,
+    right: 2,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    alignItems: 'center',
+  },
+  thumbnailBadgeText: {
+    fontSize: 6,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: '#FFFFFF',
+  },
+  thumbnailRemove: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbnailAdd: {
+    width: 50,
+    height: 50,
+    left: 10,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
-
