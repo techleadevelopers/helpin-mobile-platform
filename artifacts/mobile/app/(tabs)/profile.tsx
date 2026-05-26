@@ -289,42 +289,44 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.avatarLift}>
-        <View style={styles.avatarRing}>
-          <TouchableOpacity
-            activeOpacity={0.86}
-            onPress={pickProfilePhoto}
-            accessibilityRole="button"
-            accessibilityLabel="Alterar foto de perfil"
-          >
-            {user.avatar ? (
-              <Image source={{ uri: user.avatar }} style={styles.profilePhoto} contentFit="cover" />
-            ) : (
-              <View style={styles.profilePhotoPlaceholder}>
-                <MaterialCommunityIcons name="camera-plus" size={30} color="#FFFFFF" />
+      <View style={styles.identityRow}>
+        <View style={styles.avatarLift}>
+          <View style={styles.avatarRing}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              onPress={pickProfilePhoto}
+              accessibilityRole="button"
+              accessibilityLabel="Alterar foto de perfil"
+            >
+              {user.avatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.profilePhoto} contentFit="cover" />
+              ) : (
+                <View style={styles.profilePhotoPlaceholder}>
+                  <MaterialCommunityIcons name="camera-plus" size={28} color="#FFFFFF" />
+                </View>
+              )}
+              {user.verified && (
+                <View style={styles.profileVerifiedBadge}>
+                  <MaterialCommunityIcons name="check-decagram" size={19} color="#7B8B8B" />
+                </View>
+              )}
+              <View style={styles.profileCameraBadge}>
+                <MaterialCommunityIcons name="camera" size={12} color="#2D6A4F" />
               </View>
-            )}
-            {user.verified && (
-              <View style={styles.profileVerifiedBadge}>
-                <MaterialCommunityIcons name="check-decagram" size={21} color="#7B8B8B" />
-              </View>
-            )}
-            <View style={styles.profileCameraBadge}>
-              <MaterialCommunityIcons name="camera" size={13} color="#2D6A4F" />
-            </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.identityBlock}>
+          <Text style={styles.userName} numberOfLines={2}>{displayName}</Text>
+          <Text style={styles.userRole}>{accountLabel}</Text>
+          <TouchableOpacity style={styles.locationPill} onPress={detectLocation} activeOpacity={0.82}>
+            <MaterialCommunityIcons name="map-marker" size={12} color="#2D6A4F" />
+            <Text style={styles.locationText} numberOfLines={2}>
+              {detectingLocation ? 'Detectando localizacao...' : locationLabel}
+            </Text>
           </TouchableOpacity>
         </View>
-      </View>
-
-      <View style={styles.identityBlock}>
-        <Text style={styles.userName} numberOfLines={1}>{displayName}</Text>
-        <Text style={styles.userRole}>{accountLabel}</Text>
-        <TouchableOpacity style={styles.locationPill} onPress={detectLocation} activeOpacity={0.82}>
-          <MaterialCommunityIcons name="map-marker" size={12} color="#2D6A4F" />
-          <Text style={styles.locationText} numberOfLines={1}>
-            {detectingLocation ? 'Detectando localizacao...' : locationLabel}
-          </Text>
-        </TouchableOpacity>
       </View>
 
       <View style={styles.sectionBlock}>
@@ -616,11 +618,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FFFFFF',
   },
-  avatarLift: { alignItems: 'center', marginTop: 0 },
+  identityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  avatarLift: { alignItems: 'center', justifyContent: 'center' },
   avatarRing: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
     backgroundColor: '#F7F8F4',
     alignItems: 'center',
     justifyContent: 'center',
@@ -631,15 +641,15 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   profilePhoto: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     backgroundColor: '#2D6A4F',
   },
   profilePhotoPlaceholder: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     backgroundColor: '#2D6A4F',
     alignItems: 'center',
     justifyContent: 'center',
@@ -648,9 +658,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: -2,
     bottom: 4,
-    width: 27,
-    height: 27,
-    borderRadius: 13.5,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#EAF7EF',
@@ -661,9 +671,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 1,
     bottom: 5,
-    width: 23,
-    height: 23,
-    borderRadius: 11.5,
+    width: 21,
+    height: 21,
+    borderRadius: 10.5,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
@@ -675,9 +685,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  identityBlock: { alignItems: 'center', gap: 4, paddingHorizontal: 18 },
+  identityBlock: { flex: 1, alignItems: 'flex-start', gap: 4, minWidth: 0 },
   userName: {
-    fontSize: 17,
+    fontSize: 18,
     fontFamily: 'Montserrat_700Bold',
     color: '#1C251D',
     letterSpacing: -0.25,
@@ -693,7 +703,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: '#EAF7EF',
   },
-  locationText: { maxWidth: 220, fontSize: 10, fontFamily: 'Montserrat_600SemiBold', color: '#2D6A4F' },
+  locationText: { flex: 1, fontSize: 10, fontFamily: 'Montserrat_600SemiBold', color: '#2D6A4F', lineHeight: 14 },
   sectionBlock: { marginHorizontal: 18, gap: 9 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { fontSize: 13, fontFamily: 'Montserrat_700Bold', color: '#1C251D' },
