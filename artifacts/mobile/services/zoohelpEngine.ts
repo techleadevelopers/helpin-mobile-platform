@@ -606,26 +606,59 @@ export class ZooHelpEngine {
     return this.request<ChatConversationContract>(`/v1/chat/rooms/${encodeURIComponent(roomId)}`);
   }
 
-  chatMessages(roomId: string) {
-    return this.request<ChatMessageContract[]>(`/v1/chat/rooms/${encodeURIComponent(roomId)}/messages`);
+  chatMessages(roomId: string, input: { before?: string; limit?: number } = {}) {
+    const params = new URLSearchParams();
+    if (input.before) params.set("before", input.before);
+    if (input.limit != null) params.set("limit", String(input.limit));
+    const suffix = params.toString() ? `?${params}` : "";
+    return this.request<ChatMessageContract[]>(`/v1/chat/rooms/${encodeURIComponent(roomId)}/messages${suffix}`);
   }
 
-  chatWebSocketUrl(roomId: string, accessToken?: string | null) {
-    return this.webSocketUrl(`/v1/chat/rooms/${encodeURIComponent(roomId)}/ws`, accessToken);
+  issueChatWebSocketTicket(roomId: string) {
+    return this.request<{ ticket: string; expiresAt: string }>(
+      `/v1/chat/rooms/${encodeURIComponent(roomId)}/ws-ticket`,
+      { method: "POST" },
+    );
+  }
+
+  chatWebSocketUrl(roomId: string, ticket: string) {
+    return this.webSocketUrl(
+      `/v1/chat/rooms/${encodeURIComponent(roomId)}/ws?ticket=${encodeURIComponent(ticket)}`,
+    );
+  }
+
+  markChatRoomRead(roomId: string, throughMessageId: string) {
+    return this.request<{ status: string }>(`/v1/chat/rooms/${encodeURIComponent(roomId)}/read`, {
+      method: "PATCH",
+      body: JSON.stringify({ throughMessageId }),
+    });
   }
 
   rescueWebSocketUrl(rescueId: string, accessToken?: string | null) {
     return this.webSocketUrl(`/v1/rescue/active/${encodeURIComponent(rescueId)}/ws`, accessToken);
   }
 
-  sendChatMessage(roomId: string, body: string) {
+  sendChatMessage(roomId: string, body: string, idempotencyKey?: string) {
     return this.request<{ message: ChatMessageContract }>(
       `/v1/chat/rooms/${encodeURIComponent(roomId)}/messages`,
       {
         method: "POST",
+        headers: idempotencyKey ? { "idempotency-key": idempotencyKey } : undefined,
         body: JSON.stringify({ body }),
       },
     );
+  }
+
+  blockChatParticipant(participantId: string) {
+    return this.request<{ status: string }>(`/v1/chat/participants/${encodeURIComponent(participantId)}/block`, {
+      method: "PUT",
+    });
+  }
+
+  unblockChatParticipant(participantId: string) {
+    return this.request<{ status: string }>(`/v1/chat/participants/${encodeURIComponent(participantId)}/block`, {
+      method: "DELETE",
+    });
   }
 
   nearby(input: { lat?: number; lng?: number; radiusKm?: number } = {}) {
