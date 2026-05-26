@@ -167,8 +167,9 @@ export default function PostDetailScreen() {
     }
 
     const api = createZooHelpApi(() => token);
-    const rooms = await api?.chatRooms({ postId: activePost.id }).catch(() => null);
-    const room = rooms?.[0] ?? await api?.openChatRoom(activePost.id).catch((error) => {
+    const rooms = await api?.chatRooms().catch(() => null);
+    const existingRoom = rooms?.find((item) => item.participant.id === activePost.author.id);
+    const room = existingRoom ?? await api?.openDirectChat(activePost.author.id).catch((error) => {
       const status = typeof error?.status === 'number' ? error.status : null;
       if (status === 401) {
         Alert.alert('Sessao expirada', 'Entre novamente para conversar com esta pessoa.');
