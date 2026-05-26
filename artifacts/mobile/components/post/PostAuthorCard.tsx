@@ -29,11 +29,13 @@ export function PostAuthorCard({
   breedAgeParts,
   locationDisplay,
   timeDisplay,
+  contactDisplay,
   onPressAuthor,
   onToggleFollowing,
   onPressTrust,
   onSelectImage,
   onPressMessage,
+  onPressContact,
 }: {
   post: Post;
   colors: Colors;
@@ -43,11 +45,13 @@ export function PostAuthorCard({
   breedAgeParts: string[];
   locationDisplay: string;
   timeDisplay: string;
+  contactDisplay?: string;
   onPressAuthor: () => void;
   onToggleFollowing: () => void;
   onPressTrust: () => void;
   onSelectImage: (uri: string) => void;
   onPressMessage: () => void;
+  onPressContact: () => void;
 }) {
   const isOrg = post.author.type === 'ong' || post.author.type === 'vet';
   const authorLabel =
@@ -129,7 +133,9 @@ export function PostAuthorCard({
         colors={colors}
         locationDisplay={locationDisplay}
         timeDisplay={timeDisplay}
+        contactDisplay={contactDisplay}
         onPressMessage={onPressMessage}
+        onPressContact={onPressContact}
       />
 
       <TouchableOpacity style={styles.trustBanner} onPress={onPressTrust} activeOpacity={0.84}>
