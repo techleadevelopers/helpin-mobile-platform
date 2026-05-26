@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -48,35 +48,6 @@ export default function ChatScreen() {
   function refreshConversations() {
     createZooHelpApi()?.chatRooms().then(setConversations).catch(() => setConversations([]));
   }
-
-  const visibleConversations = useMemo(() => {
-    const grouped = new Map<string, ChatConversationContract>();
-
-    conversations.forEach((conversation) => {
-      const key = conversation.participant.id;
-      const current = grouped.get(key);
-      if (!current) {
-        grouped.set(key, conversation);
-        return;
-      }
-
-      const currentTime = Date.parse(current.lastMessageTime);
-      const nextTime = Date.parse(conversation.lastMessageTime);
-      const latest =
-        Number.isNaN(nextTime) || Number.isNaN(currentTime)
-          ? current
-          : nextTime > currentTime
-            ? conversation
-            : current;
-
-      grouped.set(key, {
-        ...latest,
-        unread: current.unread + conversation.unread,
-      });
-    });
-
-    return Array.from(grouped.values());
-  }, [conversations]);
 
   function renderConversation({ item }: { item: ChatConversationContract }) {
     return (
@@ -163,12 +134,12 @@ export default function ChatScreen() {
       </View>
 
       <FlatList
-        data={visibleConversations}
+        data={conversations}
         renderItem={renderConversation}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[
           styles.listContent,
-          visibleConversations.length === 0 && styles.emptyListContent,
+          conversations.length === 0 && styles.emptyListContent,
           { paddingBottom: Platform.OS === 'web' ? 100 : insets.bottom + 65 },
         ]}
         showsVerticalScrollIndicator={false}
