@@ -47,6 +47,7 @@ export interface PostContract {
   textOnly: boolean;
   author: AuthorContract;
   likes: number;
+  likedByMe: boolean;
   comments: number;
   shares: number;
   urgent: boolean;
@@ -257,13 +258,15 @@ export class ZooHelpEngine {
     return this.request<{ status: string; service: string }>("/healthz");
   }
 
-  feed(input: { lat?: number; lng?: number; radiusKm?: number; type?: PostType; authorType?: AccountType } = {}) {
+  feed(input: { lat?: number; lng?: number; radiusKm?: number; type?: PostType; authorType?: AccountType; liked?: boolean; limit?: number } = {}) {
     const params = new URLSearchParams();
     if (input.lat != null) params.set("lat", String(input.lat));
     if (input.lng != null) params.set("lng", String(input.lng));
     if (input.radiusKm != null) params.set("radius_km", String(input.radiusKm));
     if (input.type) params.set("type", input.type);
     if (input.authorType) params.set("author_type", input.authorType);
+    if (input.liked != null) params.set("liked", String(input.liked));
+    if (input.limit != null) params.set("limit", String(input.limit));
     const suffix = params.toString() ? `?${params}` : "";
     return this.request<PostContract[]>(`/v1/feed${suffix}`);
   }
@@ -354,8 +357,14 @@ export class ZooHelpEngine {
   }
 
   likePost(id: string) {
-    return this.request<{ postId: string; liked: boolean }>(`/v1/posts/${encodeURIComponent(id)}/like`, {
-      method: "POST",
+    return this.request<{ postId: string; liked: boolean; likes: number }>(`/v1/posts/${encodeURIComponent(id)}/like`, {
+      method: "PUT",
+    });
+  }
+
+  unlikePost(id: string) {
+    return this.request<{ postId: string; liked: boolean; likes: number }>(`/v1/posts/${encodeURIComponent(id)}/like`, {
+      method: "DELETE",
     });
   }
 
