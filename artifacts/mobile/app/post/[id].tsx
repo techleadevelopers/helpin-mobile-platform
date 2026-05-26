@@ -16,7 +16,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   PostActionsRow,
   PostAuthorCard,
-  PostContactCard,
   PostContactSheet,
   PostImageModal,
   PostMapCard,
@@ -168,9 +167,8 @@ export default function PostDetailScreen() {
     }
 
     const api = createZooHelpApi(() => token);
-    const rooms = await api?.chatRooms().catch(() => null);
-    const existingRoom = rooms?.find((item) => item.participant.id === activePost.author.id);
-    const room = existingRoom ?? await api?.openDirectChat(activePost.author.id).catch((error) => {
+    const rooms = await api?.chatRooms({ postId: activePost.id }).catch(() => null);
+    const room = rooms?.[0] ?? await api?.openChatRoom(activePost.id).catch((error) => {
       const status = typeof error?.status === 'number' ? error.status : null;
       if (status === 401) {
         Alert.alert('Sessao expirada', 'Entre novamente para conversar com esta pessoa.');
@@ -215,16 +213,16 @@ export default function PostDetailScreen() {
             breedAgeParts={breedAgeParts}
             locationDisplay={locationDisplay}
             timeDisplay={timeDisplay}
+            contactDisplay={contactDisplay}
             onPressAuthor={() => router.push({ pathname: '/(tabs)/user/[id]', params: { id: post.author.id } })}
             onToggleFollowing={() => setFollowingAuthor((current) => !current)}
             onPressTrust={() => Alert.alert('Protecao ativa', 'A ZooHelp usa sinais do perfil, contexto e localizacao para ajudar a coordenar respostas mais seguras.')}
             onSelectImage={setSelectedImageUri}
             onPressMessage={handleOpenChat}
+            onPressContact={handleContact}
           />
 
           <PostMapCard latitude={mapCoords.lat} longitude={mapCoords.lng} onPress={handleRoute} />
-
-          <PostContactCard colors={colors} contactDisplay={contactDisplay} onPress={handleContact} />
 
           <PostActionsRow onRoute={handleRoute} onChat={handleOpenChat} onContact={handleContact} />
 
