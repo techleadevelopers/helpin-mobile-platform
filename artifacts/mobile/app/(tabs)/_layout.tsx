@@ -33,7 +33,7 @@ function ClassicTabLayout() {
         name="feed"
         options={{
           title: 'Feed',
-          href: isOng ? undefined : null,
+          href: null,
         }}
       />
       <Tabs.Screen
