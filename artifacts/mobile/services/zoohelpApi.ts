@@ -13,6 +13,11 @@ export const supportPaymentsEnabled = process.env?.EXPO_PUBLIC_SUPPORT_PAYMENTS_
 
 export const backendEnabled = Boolean(API_BASE_URL);
 
+async function authenticatedMapFetch(url: string) {
+  const token = await getStoredAccessToken();
+  return fetch(url, token ? { headers: { authorization: `Bearer ${token}` } } : undefined);
+}
+
 export function createZooHelpApi(getAccessToken: () => Promise<string | null> | string | null = getStoredAccessToken) {
   if (!API_BASE_URL) return null;
   return new ZooHelpEngine({
@@ -229,7 +234,7 @@ export async function getStaticMapUrl(input: {
   });
 
   try {
-    const response = await fetch(`${API_BASE_URL}/v1/maps/static-url?${params.toString()}`);
+    const response = await authenticatedMapFetch(`${API_BASE_URL}/v1/maps/static-url?${params.toString()}`);
     if (response.ok) {
       const payload = (await response.json()) as { imageUrl?: string };
       if (payload.imageUrl) return payload.imageUrl;
@@ -282,7 +287,7 @@ export async function geocodeAddress(address: string) {
 
   try {
     const params = new URLSearchParams({ address: sanitized });
-    const response = await fetch(`${API_BASE_URL}/v1/maps/geocode?${params.toString()}`);
+    const response = await authenticatedMapFetch(`${API_BASE_URL}/v1/maps/geocode?${params.toString()}`);
     if (response.ok) {
       const payload = (await response.json()) as { label?: string; latitude?: number; longitude?: number } | null;
       if (typeof payload?.latitude === 'number' && typeof payload.longitude === 'number') {
@@ -344,7 +349,7 @@ export async function searchAddressSuggestions(input: string) {
 
   try {
     const params = new URLSearchParams({ input: query });
-    const response = await fetch(`${API_BASE_URL}/v1/maps/place-autocomplete?${params.toString()}`);
+    const response = await authenticatedMapFetch(`${API_BASE_URL}/v1/maps/place-autocomplete?${params.toString()}`);
     if (response.ok) {
       const payload = (await response.json()) as {
         predictions?: Array<{ placeId?: string; place_id?: string; description?: string }>;
@@ -392,7 +397,7 @@ export async function getPlaceAddressDetails(placeId: string) {
 
   try {
     const params = new URLSearchParams({ placeId, place_id: placeId });
-    const response = await fetch(`${API_BASE_URL}/v1/maps/place-details?${params.toString()}`);
+    const response = await authenticatedMapFetch(`${API_BASE_URL}/v1/maps/place-details?${params.toString()}`);
     if (response.ok) {
       const payload = (await response.json()) as { label?: string; latitude?: number; longitude?: number } | null;
       if (typeof payload?.latitude === 'number' && typeof payload.longitude === 'number') {
@@ -481,6 +486,9 @@ export function mapPost(post: PostContract): Post {
     tags: post.tags,
     latitude: post.latitude,
     longitude: post.longitude,
+    geoStatus: post.geoStatus,
+    geoSource: post.geoSource,
+    routePublic: post.routePublic,
   };
 }
 
