@@ -22,7 +22,7 @@ import { useApp } from '@/context/AppContext';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-const PRIMARY = '#2D6A4F';
+const PRIMARY = '#343e3a';
 const INK = '#18231B';
 const TEXT = '#3D473F';
 const MUTED = '#7C867C';
@@ -36,6 +36,16 @@ const DANGER = '#C95A5A';
 
 function isResolved(post: Post) {
   return post.rescueStatus === 'resolved';
+}
+
+function isOperationalCase(post: Post) {
+  return (
+    post.urgent ||
+    post.type === 'emergency' ||
+    post.rescueOperational ||
+    post.rescueStatus === 'open' ||
+    post.rescueStatus === 'active'
+  );
 }
 
 function formatLocation(user: ReturnType<typeof useApp>['user']) {
@@ -57,24 +67,39 @@ function compactNumber(value: number) {
 
 function SectionHeader({
   icon,
+  eyebrow,
   title,
+  subtitle,
   action,
   onAction,
+  tone = 'default',
 }: {
   icon: MCIcon;
+  eyebrow: string;
   title: string;
+  subtitle: string;
   action?: string;
   onAction?: () => void;
+  tone?: 'default' | 'urgent';
 }) {
+  const urgent = tone === 'urgent';
+
   return (
     <View style={styles.sectionHeader}>
-      <View style={styles.sectionTitleRow}>
-        <MaterialCommunityIcons name={icon} size={18} color={PRIMARY} />
-        <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.sectionHeading}>
+        <View style={[styles.sectionIcon, urgent && styles.sectionIconUrgent]}>
+          <MaterialCommunityIcons name={icon} size={17} color={urgent ? DANGER : PRIMARY} />
+        </View>
+        <View style={styles.sectionTitleCopy}>
+          <Text style={[styles.sectionEyebrow, urgent && styles.sectionEyebrowUrgent]}>{eyebrow}</Text>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+        </View>
       </View>
       {action && onAction && (
-        <TouchableOpacity onPress={onAction} activeOpacity={0.78}>
+        <TouchableOpacity style={styles.sectionActionBtn} onPress={onAction} activeOpacity={0.78}>
           <Text style={styles.sectionAction}>{action}</Text>
+          <MaterialCommunityIcons name="chevron-right" size={14} color={TEXT} />
         </TouchableOpacity>
       )}
     </View>
@@ -95,18 +120,21 @@ function Metric({ label, value, tone }: { label: string; value: string | number;
 function QuickAction({
   icon,
   label,
+  support,
   onPress,
 }: {
   icon: MCIcon;
   label: string;
+  support: string;
   onPress: () => void;
 }) {
   return (
     <TouchableOpacity style={styles.quickAction} onPress={onPress} activeOpacity={0.84}>
       <View style={styles.quickIcon}>
-        <MaterialCommunityIcons name={icon} size={22} color={PRIMARY} />
+        <MaterialCommunityIcons name={icon} size={20} color={PRIMARY} />
       </View>
       <Text style={styles.quickLabel}>{label}</Text>
+      <Text style={styles.quickSupport}>{support}</Text>
     </TouchableOpacity>
   );
 }
@@ -114,11 +142,13 @@ function QuickAction({
 function PrimaryAction({
   icon,
   label,
+  support,
   onPress,
   secondary,
 }: {
   icon: MCIcon;
   label: string;
+  support: string;
   onPress: () => void;
   secondary?: boolean;
 }) {
@@ -128,8 +158,14 @@ function PrimaryAction({
       onPress={onPress}
       activeOpacity={0.86}
     >
-      <MaterialCommunityIcons name={icon} size={18} color={secondary ? PRIMARY : '#FFFFFF'} />
-      <Text style={[styles.primaryActionText, secondary && styles.secondaryActionText]}>{label}</Text>
+      <View style={[styles.primaryActionIcon, secondary && styles.secondaryActionIcon]}>
+        <MaterialCommunityIcons name={icon} size={18} color={secondary ? PRIMARY : '#FFFFFF'} />
+      </View>
+      <View style={styles.primaryActionCopy}>
+        <Text style={[styles.primaryActionText, secondary && styles.secondaryActionText]}>{label}</Text>
+        <Text style={[styles.primaryActionSupport, secondary && styles.secondaryActionSupport]}>{support}</Text>
+      </View>
+      <MaterialCommunityIcons name="chevron-right" size={18} color={secondary ? '#708078' : 'rgba(255,255,255,0.8)'} />
     </TouchableOpacity>
   );
 }
@@ -149,6 +185,13 @@ function CaseCard({
 
   return (
     <View style={[styles.caseCard, urgent && styles.caseCardUrgent]}>
+      {urgent && <View style={styles.urgentAccent} />}
+      {urgent && (
+        <View style={styles.urgentLeadRow}>
+          <MaterialCommunityIcons name="alarm-light-outline" size={12} color={DANGER} />
+          <Text style={styles.urgentLead}>URGENTE AGORA</Text>
+        </View>
+      )}
       <View style={styles.caseTop}>
         <Avatar name={post.author.name} size={42} verified={post.author.verified} type={post.author.type} imageUrl={post.author.avatar} />
         <View style={styles.caseInfo}>
@@ -160,31 +203,74 @@ function CaseCard({
         </View>
       </View>
       <Text style={styles.caseDescription} numberOfLines={2}>{post.description || 'Caso aguardando acao da ONG.'}</Text>
-      <OperationalStatus post={post} variant="compact" />
+      <View style={styles.statusSurface}>
+        <OperationalStatus post={post} variant="compact" />
+      </View>
       <View style={styles.caseActions}>
-        <TouchableOpacity style={styles.caseActionBtn} onPress={onOpen} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="eye-outline" size={14} color={PRIMARY} />
-          <Text style={styles.caseActionText}>Detalhes</Text>
+        <TouchableOpacity style={styles.casePrimaryAction} onPress={onOpen} activeOpacity={0.84}>
+          <MaterialCommunityIcons name="eye-outline" size={14} color="#FFFFFF" />
+          <Text style={styles.casePrimaryActionText}>Ver caso</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.caseActionBtn} onPress={onChat} activeOpacity={0.8}>
           <MaterialCommunityIcons name="chat-outline" size={14} color={PRIMARY} />
-          <Text style={styles.caseActionText}>Chat</Text>
+          <Text style={styles.caseActionText}>Abrir chat</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.caseActionBtn} onPress={onMap} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="map-outline" size={14} color={PRIMARY} />
-          <Text style={styles.caseActionText}>Mapa</Text>
+          <MaterialCommunityIcons name="map-marker-path" size={14} color={PRIMARY} />
+          <Text style={styles.caseActionText}>Rota</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-function EmptyCard({ text }: { text: string }) {
+function EmptyAlertCard() {
   return (
     <View style={styles.emptyCard}>
-      <MaterialCommunityIcons name="paw-outline" size={22} color={MUTED_2} />
-      <Text style={styles.emptyText}>{text}</Text>
+      <View style={styles.emptyIcon}>
+        <MaterialCommunityIcons name="shield-check-outline" size={21} color={PRIMARY} />
+      </View>
+      <Text style={styles.emptyTitle}>Nenhum alerta urgente agora</Text>
+      <Text style={styles.emptyText}>A rede está estável nesta região no momento.</Text>
     </View>
+  );
+}
+
+function FollowEmptyCard({ onExplore }: { onExplore: () => void }) {
+  return (
+    <View style={styles.followEmptyCard}>
+      <View style={styles.followEmptyIcon}>
+        <MaterialCommunityIcons name="paw-outline" size={22} color={PRIMARY} />
+      </View>
+      <Text style={styles.followEmptyTitle}>Nenhum resgate em acompanhamento</Text>
+      <Text style={styles.followEmptyText}>
+        Casos aceitos aparecerão aqui com status, contatos e próximos passos.
+      </Text>
+      <TouchableOpacity style={styles.exploreBtn} onPress={onExplore} activeOpacity={0.82}>
+        <MaterialCommunityIcons name="map-search-outline" size={14} color={PRIMARY} />
+        <Text style={styles.exploreBtnText}>Explorar ocorrências</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function MiniCaseRow({ post, onPress }: { post: Post; onPress: () => void }) {
+  const urgent = isOperationalCase(post);
+
+  return (
+    <TouchableOpacity style={styles.miniCaseRow} onPress={onPress} activeOpacity={0.84}>
+      <View style={[styles.miniCaseIcon, urgent && styles.miniCaseIconUrgent]}>
+        <MaterialCommunityIcons name={urgent ? 'alarm-light-outline' : 'clipboard-text-outline'} size={16} color={urgent ? DANGER : PRIMARY} />
+      </View>
+      <View style={styles.miniCaseCopy}>
+        <View style={styles.miniCaseTitleRow}>
+          <Text style={styles.miniCaseTitle} numberOfLines={1}>{post.name || post.author.name || 'Caso'}</Text>
+          {urgent && <Text style={styles.miniUrgentText}>URGENTE</Text>}
+        </View>
+        <Text style={styles.miniCaseMeta} numberOfLines={1}>{post.neighborhood || post.location || 'Local nao informado'}</Text>
+      </View>
+      <MaterialCommunityIcons name="chevron-right" size={18} color={MUTED_2} />
+    </TouchableOpacity>
   );
 }
 
@@ -199,13 +285,23 @@ export function OngDashboard() {
     [posts, user?.id],
   );
   const urgentCases = useMemo(
-    () => posts.filter((post) => !isResolved(post) && (post.urgent || post.type === 'emergency')).slice(0, 3),
+    () => posts.filter((post) => !isResolved(post) && isOperationalCase(post)).slice(0, 3),
     [posts],
   );
   const activeOngCases = useMemo(
     () => ongPosts.filter((post) => !isResolved(post)).slice(0, 3),
     [ongPosts],
   );
+  const caseSnapshot = useMemo(() => {
+    const seen = new Set<string>();
+    return [...urgentCases, ...activeOngCases]
+      .filter((post) => {
+        if (seen.has(post.id)) return false;
+        seen.add(post.id);
+        return true;
+      })
+      .slice(0, 3);
+  }, [activeOngCases, urgentCases]);
   const adoptionCount = ongPosts.filter((post) => post.type === 'adoption').length;
   const unreadNotifications = chatMessageNotifications.filter((item) => !item.isRead).length;
   const unreadTotal = chatUnreadCount + unreadNotifications;
@@ -279,20 +375,78 @@ export function OngDashboard() {
         )}
 
         <View style={styles.quickCard}>
-          <View style={styles.quickGrid}>
-            <QuickAction icon="ambulance" label="Resgate" onPress={() => push('/composer?type=emergency&rescue=1')} />
-            <QuickAction icon="home-heart" label="Adocao" onPress={() => push('/composer?type=adoption')} />
-            <QuickAction icon="bullhorn-outline" label="Atualizar" onPress={() => push('/composer?type=post')} />
-            <QuickAction icon="clipboard-text-outline" label="Casos" onPress={() => push('/(tabs)/cases')} />
+          <View style={styles.quickHeader}>
+            <View style={styles.quickHeaderIcon}>
+              <MaterialCommunityIcons name="view-dashboard-outline" size={18} color={PRIMARY} />
+            </View>
+            <View style={styles.quickHeaderCopy}>
+              <Text style={styles.quickEyebrow}>CENTRAL OPERACIONAL</Text>
+              <Text style={styles.quickTitle}>Ações da instituição</Text>
+              <Text style={styles.quickSubtitle}>Publique, acompanhe e mobilize sua rede.</Text>
+            </View>
           </View>
+
+          <View style={styles.quickGrid}>
+            <QuickAction icon="newspaper-variant-outline" label="Feed" support="Rede" onPress={() => push('/(tabs)/feed')} />
+            <QuickAction icon="home-heart" label="Adoção" support="Publicar" onPress={() => push('/composer?type=adoption')} />
+            <QuickAction icon="bullhorn-outline" label="Atualizar" support="Aviso" onPress={() => push('/composer?type=post')} />
+            <QuickAction icon="clipboard-text-outline" label="Casos" support="Gestão" onPress={() => push('/(tabs)/cases')} />
+          </View>
+
+          <View style={styles.quickDivider} />
+
           <View style={styles.primaryActionsRow}>
-            <PrimaryAction icon="plus-circle-outline" label="Novo resgate" onPress={() => push('/composer?type=emergency&rescue=1')} />
-            <PrimaryAction icon="home-heart" label="Adocao" onPress={() => push('/composer?type=adoption')} secondary />
+            <PrimaryAction
+              icon="plus-circle-outline"
+              label="Resgate"
+              support="Mobilizar ajuda"
+              onPress={() => push('/composer?type=emergency&rescue=1')}
+            />
+            <PrimaryAction
+              icon="home-heart"
+              label="Adoção"
+              support="Criar anúncio"
+              onPress={() => push('/composer?type=adoption')}
+              secondary
+            />
           </View>
         </View>
 
-        <View style={styles.sectionCard}>
-          <SectionHeader icon="bell-alert-outline" title="Precisa de atencao" action="Ver mapa" onAction={() => push('/(tabs)/map')} />
+        <View style={styles.microCasesCard}>
+          <View style={styles.microCasesHeader}>
+            <View style={styles.microCasesTitleWrap}>
+              <Text style={styles.microCasesEyebrow}>CASOS</Text>
+              <Text style={styles.microCasesTitle}>Visao rapida</Text>
+            </View>
+            <TouchableOpacity style={styles.microCasesAction} onPress={() => push('/(tabs)/cases')} activeOpacity={0.82}>
+              <Text style={styles.microCasesActionText}>Abrir</Text>
+              <MaterialCommunityIcons name="chevron-right" size={13} color={TEXT} />
+            </TouchableOpacity>
+          </View>
+          {caseSnapshot.length > 0 ? (
+            <View style={styles.microCasesList}>
+              {caseSnapshot.map((post) => (
+                <MiniCaseRow key={post.id} post={post} onPress={() => push(`/post/${post.id}`)} />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.microCasesEmpty}>
+              <MaterialCommunityIcons name="clipboard-check-outline" size={16} color={PRIMARY} />
+              <Text style={styles.microCasesEmptyText}>Nenhum caso ativo agora</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={[styles.sectionCard, styles.attentionSection]}>
+          <SectionHeader
+            icon="bell-alert-outline"
+            eyebrow="OPERAÇÃO EM TEMPO REAL"
+            title="Precisa de atenção"
+            subtitle={`${urgentCases.length} ocorrência${urgentCases.length === 1 ? '' : 's'} urgente${urgentCases.length === 1 ? '' : 's'} próxima${urgentCases.length === 1 ? '' : 's'}`}
+            action="Ver mapa"
+            onAction={() => push('/(tabs)/map')}
+            tone="urgent"
+          />
           {urgentCases.length > 0 ? (
             <View style={styles.caseList}>
               {urgentCases.map((post) => (
@@ -306,12 +460,19 @@ export function OngDashboard() {
               ))}
             </View>
           ) : (
-            <EmptyCard text="Nenhum alerta urgente agora." />
+            <EmptyAlertCard />
           )}
         </View>
 
         <View style={styles.sectionCard}>
-          <SectionHeader icon="check-circle-outline" title="Acompanhamentos" action="Ver todas" onAction={() => push('/(tabs)/cases')} />
+          <SectionHeader
+            icon="check-circle-outline"
+            eyebrow="GESTÃO DE RESGATES"
+            title="Acompanhamentos"
+            subtitle="Casos assumidos pela sua instituição"
+            action="Ver todas"
+            onAction={() => push('/(tabs)/cases')}
+          />
           {activeOngCases.length > 0 ? (
             <View style={styles.followList}>
               {activeOngCases.map((post) => (
@@ -328,12 +489,19 @@ export function OngDashboard() {
               ))}
             </View>
           ) : (
-            <EmptyCard text="Nenhum caso proprio em acompanhamento." />
+            <FollowEmptyCard onExplore={() => push('/(tabs)/cases')} />
           )}
         </View>
 
         <View style={styles.sectionCard}>
-          <SectionHeader icon="chat-outline" title="Conversas" action="Abrir" onAction={() => push('/(tabs)/chat')} />
+          <SectionHeader
+            icon="chat-outline"
+            eyebrow="COMUNICAÇÃO"
+            title="Conversas"
+            subtitle="Coordene contatos e retornos"
+            action="Abrir"
+            onAction={() => push('/(tabs)/chat')}
+          />
           <TouchableOpacity style={styles.chatRow} onPress={() => push('/(tabs)/chat')} activeOpacity={0.84}>
             <View style={styles.chatIcon}>
               <MaterialCommunityIcons name="chat-processing-outline" size={21} color={PRIMARY} />
@@ -425,56 +593,184 @@ const styles = StyleSheet.create({
   reviewTitle: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#5D4614' },
   reviewText: { fontSize: 11, fontFamily: 'Montserrat_500Medium', color: '#8A6E29', lineHeight: 16 },
   quickCard: {
-    padding: 12,
-    gap: 14,
+    padding: 14,
+    gap: 13,
     borderRadius: 24,
-    backgroundColor: CARD,
+    backgroundColor: '#FCFDFB',
     borderWidth: 1,
-    borderColor: BORDER_SOFT,
+    borderColor: '#E3EBE5',
     shadowColor: '#172018',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.055,
+    shadowRadius: 16,
     elevation: 2,
   },
-  quickGrid: { flexDirection: 'row', gap: 10 },
-  quickAction: {
-    flex: 1,
-    minHeight: 86,
+  quickHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  quickHeaderIcon: {
+    width: 36,
+    height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
-    backgroundColor: '#F4F6F3',
+    backgroundColor: GREEN_SOFT,
+    borderWidth: 1,
+    borderColor: '#D8E9DD',
+  },
+  quickHeaderCopy: { flex: 1, gap: 1 },
+  quickEyebrow: { fontSize: 8, fontFamily: 'Montserrat_700Bold', color: PRIMARY, letterSpacing: 0.7 },
+  quickTitle: { fontSize: 14, fontFamily: 'Montserrat_700Bold', color: INK, letterSpacing: -0.2 },
+  quickSubtitle: { fontSize: 9.5, fontFamily: 'Montserrat_500Medium', color: MUTED, lineHeight: 14 },
+  quickGrid: { flexDirection: 'row', gap: 8 },
+  quickAction: {
+    flex: 1,
+    minHeight: 91,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: '#F5F8F5',
+    borderWidth: 1,
+    borderColor: '#E7EEE8',
   },
   quickIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#DDEBE1',
+    marginBottom: 2,
+    backgroundColor: '#E6F2E9',
   },
-  quickLabel: { fontSize: 11, fontFamily: 'Montserrat_600SemiBold', color: TEXT },
+  quickLabel: { fontSize: 10.5, fontFamily: 'Montserrat_700Bold', color: TEXT },
+  quickSupport: { fontSize: 8.5, fontFamily: 'Montserrat_500Medium', color: MUTED },
+  quickDivider: { height: 1, backgroundColor: '#E9EFEA' },
   primaryActionsRow: { flexDirection: 'row', gap: 10 },
   primaryAction: {
-    flex: 1.35,
-    minHeight: 44,
-    borderRadius: 22,
+    flex: 1.02,
+    minHeight: 58,
+    borderRadius: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#586158',
+    gap: 9,
+    paddingHorizontal: 11,
+    backgroundColor: PRIMARY,
+    shadowColor: PRIMARY,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    elevation: 2,
   },
   secondaryAction: {
     flex: 1,
     backgroundColor: CARD,
     borderWidth: 1,
-    borderColor: BORDER,
+    borderColor: '#DCE8DF',
+    shadowOpacity: 0,
+    elevation: 0,
   },
-  primaryActionText: { fontSize: 13, fontFamily: 'Montserrat_700Bold', color: '#FFFFFF' },
+  primaryActionIcon: {
+    width: 31,
+    height: 31,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  secondaryActionIcon: { backgroundColor: '#EAF5ED' },
+  primaryActionCopy: { flex: 1, gap: 2 },
+  primaryActionText: { fontSize: 11, fontFamily: 'Montserrat_700Bold', color: '#FFFFFF' },
   secondaryActionText: { color: PRIMARY },
+  primaryActionSupport: { fontSize: 8.5, fontFamily: 'Montserrat_500Medium', color: 'rgba(255,255,255,0.78)' },
+  secondaryActionSupport: { color: MUTED },
+  microCasesCard: {
+    padding: 12,
+    gap: 10,
+    borderRadius: 20,
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: BORDER_SOFT,
+    shadowColor: '#172018',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.045,
+    shadowRadius: 12,
+    elevation: 1,
+  },
+  microCasesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  microCasesTitleWrap: { flex: 1, gap: 1 },
+  microCasesEyebrow: {
+    fontSize: 8,
+    fontFamily: 'Montserrat_700Bold',
+    color: PRIMARY,
+    letterSpacing: 0.7,
+  },
+  microCasesTitle: {
+    fontSize: 14,
+    fontFamily: 'Montserrat_700Bold',
+    color: INK,
+  },
+  microCasesAction: {
+    minHeight: 28,
+    borderRadius: 14,
+    paddingHorizontal: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#F3F6F3',
+  },
+  microCasesActionText: { fontSize: 9.5, fontFamily: 'Montserrat_700Bold', color: TEXT },
+  microCasesList: { gap: 7 },
+  miniCaseRow: {
+    minHeight: 48,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#E7EEE8',
+    backgroundColor: '#F8FAF8',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+  },
+  miniCaseIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: GREEN_SOFT,
+  },
+  miniCaseIconUrgent: { backgroundColor: '#FFF0F0' },
+  miniCaseCopy: { flex: 1, gap: 2, minWidth: 0 },
+  miniCaseTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  miniCaseTitle: { flex: 1, fontSize: 11.5, fontFamily: 'Montserrat_700Bold', color: INK },
+  miniUrgentText: {
+    fontSize: 7.5,
+    fontFamily: 'Montserrat_700Bold',
+    color: DANGER,
+    letterSpacing: 0.4,
+  },
+  miniCaseMeta: { fontSize: 9.5, fontFamily: 'Montserrat_500Medium', color: MUTED },
+  microCasesEmpty: {
+    minHeight: 44,
+    borderRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: '#F8FAF8',
+    borderWidth: 1,
+    borderColor: '#E7EEE8',
+  },
+  microCasesEmptyText: {
+    fontSize: 10.5,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: MUTED,
+  },
   sectionCard: {
     padding: 14,
     borderRadius: 22,
@@ -487,31 +783,86 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 2,
   },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sectionTitle: { fontSize: 16, fontFamily: 'Montserrat_700Bold', color: '#1C251D', letterSpacing: -0.25 },
-  sectionAction: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: TEXT },
+  attentionSection: {
+    borderColor: '#E8E8E3',
+  },
+  sectionHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 9, marginBottom: 13 },
+  sectionHeading: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 9 },
+  sectionIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: GREEN_SOFT,
+  },
+  sectionIconUrgent: { backgroundColor: '#FFF0F0' },
+  sectionTitleCopy: { flex: 1, minWidth: 0, gap: 2 },
+  sectionEyebrow: { fontSize: 8, fontFamily: 'Montserrat_700Bold', color: PRIMARY, letterSpacing: 0.7 },
+  sectionEyebrowUrgent: { color: DANGER },
+  sectionTitle: { fontSize: 15, fontFamily: 'Montserrat_700Bold', color: '#1C251D', letterSpacing: -0.25 },
+  sectionSubtitle: { fontSize: 9.5, fontFamily: 'Montserrat_500Medium', color: MUTED, lineHeight: 14 },
+  sectionActionBtn: {
+    minHeight: 30,
+    borderRadius: 15,
+    paddingHorizontal: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#F3F6F3',
+  },
+  sectionAction: { fontSize: 9.5, fontFamily: 'Montserrat_700Bold', color: TEXT },
   caseList: { gap: 10 },
   caseCard: {
-    padding: 12,
-    gap: 8,
-    borderRadius: 16,
+    position: 'relative',
+    overflow: 'hidden',
+    padding: 13,
+    gap: 9,
+    borderRadius: 19,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: BORDER,
   },
-  caseCardUrgent: { borderColor: '#F3C6C6', backgroundColor: '#FFFDFD' },
+  caseCardUrgent: { borderColor: '#F3D1D1', backgroundColor: '#FFFCFC', paddingLeft: 16 },
+  urgentAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: DANGER,
+  },
+  urgentLeadRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  urgentLead: { fontSize: 8.5, fontFamily: 'Montserrat_700Bold', color: DANGER, letterSpacing: 0.72 },
   caseTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   caseInfo: { flex: 1, minWidth: 0, gap: 2 },
   caseTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   caseTitle: { flex: 1, fontSize: 13, fontFamily: 'Montserrat_700Bold', color: INK },
   caseLocation: { fontSize: 11, fontFamily: 'Montserrat_500Medium', color: MUTED },
   caseDescription: { fontSize: 12, fontFamily: 'Montserrat_500Medium', color: TEXT, lineHeight: 17 },
-  caseActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingTop: 1 },
+  statusSurface: {
+    borderRadius: 13,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    backgroundColor: '#F3F8F4',
+    borderWidth: 1,
+    borderColor: '#E3ECE5',
+  },
+  caseActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingTop: 2 },
+  casePrimaryAction: {
+    minHeight: 32,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: PRIMARY,
+  },
+  casePrimaryActionText: { fontSize: 10.5, fontFamily: 'Montserrat_700Bold', color: '#FFFFFF' },
   caseActionBtn: {
-    minHeight: 30,
+    minHeight: 32,
     paddingHorizontal: 10,
-    borderRadius: 15,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
@@ -519,18 +870,71 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BORDER,
   },
-  caseActionText: { fontSize: 11, fontFamily: 'Montserrat_700Bold', color: TEXT },
+  caseActionText: { fontSize: 10.5, fontFamily: 'Montserrat_700Bold', color: TEXT },
   emptyCard: {
-    minHeight: 72,
-    borderRadius: 16,
+    minHeight: 116,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#F4F6F3',
+    gap: 5,
+    backgroundColor: '#F5F8F5',
     borderWidth: 1,
     borderColor: BORDER,
   },
-  emptyText: { fontSize: 12, fontFamily: 'Montserrat_600SemiBold', color: MUTED },
+  emptyIcon: {
+    width: 39,
+    height: 39,
+    borderRadius: 20,
+    marginBottom: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EAF5ED',
+  },
+  emptyTitle: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: INK },
+  emptyText: { fontSize: 10, fontFamily: 'Montserrat_500Medium', color: MUTED },
+  followEmptyCard: {
+    minHeight: 172,
+    borderRadius: 19,
+    paddingHorizontal: 18,
+    paddingVertical: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: '#F6F9F6',
+    borderWidth: 1,
+    borderColor: '#E2EBE4',
+  },
+  followEmptyIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    marginBottom: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EAF5ED',
+  },
+  followEmptyTitle: { fontSize: 13, fontFamily: 'Montserrat_700Bold', color: INK, textAlign: 'center' },
+  followEmptyText: {
+    maxWidth: 260,
+    fontSize: 10.5,
+    fontFamily: 'Montserrat_500Medium',
+    color: MUTED,
+    lineHeight: 16,
+    textAlign: 'center',
+  },
+  exploreBtn: {
+    minHeight: 36,
+    marginTop: 5,
+    paddingHorizontal: 13,
+    borderRadius: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#D5E7D9',
+    backgroundColor: '#FFFFFF',
+  },
+  exploreBtnText: { fontSize: 10, fontFamily: 'Montserrat_700Bold', color: PRIMARY },
   followList: { gap: 8 },
   followRow: {
     minHeight: 76,
