@@ -8,14 +8,16 @@ export function PostActionsRow({
   onRoute,
   onChat,
   onContact,
+  showRoute = true,
 }: {
   onRoute: () => void;
   onChat: () => void;
   onContact: () => void;
+  showRoute?: boolean;
 }) {
   return (
     <View style={styles.postActionsRow}>
-      <ActionButton icon="navigation-variant-outline" label="Rota" onPress={onRoute} />
+      {showRoute && <ActionButton icon="navigation-variant-outline" label="Rota" onPress={onRoute} />}
       <ActionButton icon="chat-outline" label="Chat" onPress={onChat} />
       <ActionButton icon="whatsapp" label="Contato" onPress={onContact} />
     </View>
