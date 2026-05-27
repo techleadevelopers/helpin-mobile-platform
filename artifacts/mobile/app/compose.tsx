@@ -13,7 +13,6 @@ import {
   ComposeHeader,
   ComposeLocationSection,
   ComposeTextCard,
-  ComposeTrustCard,
   ComposeTypeSelector,
   ComposeUrgencyCard,
   POST_TYPES,
@@ -25,6 +24,49 @@ import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { geocodeAddress, geocodeStructuredAddress, getPlaceAddressDetails, getStaticMapUrl, searchAddressSuggestions } from '@/services/zoohelpApi';
 import { ZooHelpApiError } from '@/services/zoohelpEngine';
+
+const BRAZIL_STATE_TO_UF: Record<string, string> = {
+  acre: 'AC',
+  alagoas: 'AL',
+  amapa: 'AP',
+  amazonas: 'AM',
+  bahia: 'BA',
+  ceara: 'CE',
+  'distrito federal': 'DF',
+  'espirito santo': 'ES',
+  goias: 'GO',
+  maranhao: 'MA',
+  'mato grosso': 'MT',
+  'mato grosso do sul': 'MS',
+  'minas gerais': 'MG',
+  para: 'PA',
+  paraiba: 'PB',
+  parana: 'PR',
+  pernambuco: 'PE',
+  piaui: 'PI',
+  'rio de janeiro': 'RJ',
+  'rio grande do norte': 'RN',
+  'rio grande do sul': 'RS',
+  rondonia: 'RO',
+  roraima: 'RR',
+  'santa catarina': 'SC',
+  'sao paulo': 'SP',
+  sergipe: 'SE',
+  tocantins: 'TO',
+};
+
+function toBrazilStateCode(value?: string | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) return '';
+  if (/^[A-Za-z]{2}$/.test(trimmed)) return trimmed.toUpperCase();
+  const normalized = trimmed
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/^estado de\s+/i, '')
+    .replace(/^state of\s+/i, '')
+    .toLowerCase();
+  return BRAZIL_STATE_TO_UF[normalized] ?? '';
+}
 
 export default function ComposeScreen() {
   const colors = useColors();
@@ -282,6 +324,67 @@ export default function ComposeScreen() {
     ]);
   }
 
+  async function handleUseGps() {
+    setAddressSearching(true);
+    setShowSuggestions(false);
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert('GPS bloqueado', 'Permita o acesso a localização para preencher o endereco automaticamente.');
+        return;
+      }
+
+      const current = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      const nextCoords = {
+        latitude: current.coords.latitude,
+        longitude: current.coords.longitude,
+      };
+      const [address] = await Location.reverseGeocodeAsync(nextCoords);
+      const street = [address?.street, address?.name].find((value) => value?.trim())?.trim() ?? '';
+      const number = address?.streetNumber?.trim() ?? '';
+      const neighborhood = [address?.district, address?.subregion].find((value) => value?.trim())?.trim() ?? '';
+      const city = [address?.city, address?.subregion].find((value) => value?.trim())?.trim() ?? '';
+      const state = toBrazilStateCode(address?.region);
+      const cityState = [city, state].filter(Boolean).join(' - ');
+      const label = [
+        [street, number].filter(Boolean).join(', '),
+        neighborhood,
+        cityState,
+      ].filter(Boolean).join(', ');
+
+      setCoords(nextCoords);
+      setLocationPrecision('gps');
+      setLocation(label || `${nextCoords.latitude}, ${nextCoords.longitude}`);
+      setManualNumber(number);
+      setManualNeighborhood(neighborhood);
+      setManualCity(city);
+      setManualState(state);
+      setAddressResult({
+        label: label || 'Localização atual',
+        ...nextCoords,
+      });
+      setAddressLookupFailed(false);
+      setAddressManualFallbackVisible(false);
+
+      const staticMap = await getStaticMapUrl({
+        lat: nextCoords.latitude,
+        lng: nextCoords.longitude,
+        zoom: 17,
+        width: 640,
+        height: 320,
+      });
+      if (staticMap) setMapImageUrl(staticMap);
+    } catch {
+      Alert.alert('GPS indisponivel', 'Nao foi possivel buscar sua localização agora. Preencha o endereco manualmente.');
+      setAddressLookupFailed(true);
+      setAddressManualFallbackVisible(true);
+    } finally {
+      setAddressSearching(false);
+    }
+  }
+
   async function handlePublish() {
     if (!canPost) {
       Alert.alert('Publicação vazia', 'Escreva algo ou adicione uma foto.');
@@ -303,7 +406,7 @@ export default function ComposeScreen() {
     }
 
     const locationAddress = manualComplete ? getManualLocationParts() : undefined;
-    const shouldSendClientCoords = Boolean(nextCoords && nextPrecision === 'gps' && !locationAddress);
+    const shouldSendClientCoords = Boolean(nextCoords && nextPrecision === 'gps');
     setSubmitting(true);
     if (Platform.OS !== 'web') {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -317,7 +420,7 @@ export default function ComposeScreen() {
       age: '',
       description: text.trim(),
       location: nextLocation.trim() || 'Localização não informada',
-      neighborhood: nextLocation.trim() || 'Local não informado',
+      neighborhood: locationAddress?.neighborhood || nextLocation.trim() || 'Local não informado',
       image: images[0] ?? null,
       images,
       latitude: shouldSendClientCoords ? nextCoords?.latitude : undefined,
@@ -416,7 +519,7 @@ export default function ComposeScreen() {
           onRemoveImage={removeImage}
         />
 
-        {selectedType === 'adoption' && (
+        {selectedType !== 'campaign' && selectedType !== 'post' && (
           <AnimalTypeSelector
             animalType={animalType}
             colors={colors}
@@ -443,12 +546,14 @@ export default function ComposeScreen() {
           colors={colors}
           currentType={currentType}
           contact={contact}
+          locationPrecision={locationPrecision}
           onChangeLocation={handleLocationChange}
           onChangeManualNumber={setManualNumber}
           onChangeManualNeighborhood={setManualNeighborhood}
           onChangeManualCity={setManualCity}
           onChangeManualState={setManualState}
           onChangeContact={setContact}
+          onUseGps={handleUseGps}
           onFocusSuggestions={() => {
             if (suggestions.length > 0) setShowSuggestions(true);
           }}
@@ -465,7 +570,6 @@ export default function ComposeScreen() {
           onToggleUrgent={toggleUrgent}
         />
 
-        <ComposeTrustCard />
       </ScrollView>
 
       <ComposeDock
