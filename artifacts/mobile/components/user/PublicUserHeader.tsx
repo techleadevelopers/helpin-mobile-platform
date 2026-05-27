@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   followingButton: { backgroundColor: '#EAF3EC', borderWidth: 1, borderColor: '#CFE0D4' },
   followText: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#FFFFFF' },
   followingText: { color: '#2D6A4F' },
-  messageButton: { flex: 1, height: 32, marginTop: 10, borderRadius: 18, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DCE4DD' },
+  messageButton: { flex: 1, height: 32, borderRadius: 18, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DCE4DD' },
   messageText: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#2D6A4F' },
   userSearchBox: {
     minHeight: 34,
@@ -204,4 +204,3 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 9, fontFamily: 'Montserrat_500Medium', color: '#7C867C' },
   bio: { marginTop: 10, fontSize: 12, fontFamily: 'Montserrat_500Medium', color: '#3D473F', lineHeight: 17 },
 });
-
