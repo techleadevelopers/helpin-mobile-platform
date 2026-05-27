@@ -11,7 +11,7 @@ type Tone = 'alert' | 'active' | 'resolved' | 'default';
 type Variant = 'feed' | 'compact' | 'line';
 
 const TYPE_LABELS: Record<PostType, string> = {
-  adoption: 'Adocao',
+  adoption: 'Adoção',
   emergency: 'Emergencia',
   lost: 'Perdido',
   found: 'Encontrado',
@@ -61,7 +61,7 @@ function getLead(post: Post) {
 
 function getHumanState(post: Post) {
   if (post.rescueStatus === 'resolved') return 'caso encerrado';
-  if (post.rescueStatus === 'active') return 'Resgate em coordenacao';
+  if (post.rescueStatus === 'active') return 'Resgate em coordenação';
   if (post.author.type === 'ong') return 'ONG acionada';
   if (post.type === 'emergency') return 'Sem resposta ainda';
   if (post.type === 'adoption') return 'Aguardando interesse';
