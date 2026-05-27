@@ -81,7 +81,7 @@ export default function ForgotPasswordScreen() {
             <View style={styles.notice}>
               <MaterialCommunityIcons name="check-circle-outline" size={18} color={colors.primary} />
               <Text style={styles.noticeText}>
-                Se esse e-mail existir, o link de redefinicao sera enviado em instantes.
+                Se esse e-mail existir, o link de redefinição sera enviado em instantes.
               </Text>
             </View>
           )}
