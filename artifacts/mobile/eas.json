@@ -30,7 +30,6 @@
       }
     },
     "production": {
-      "autoIncrement": true,
       "env": {
         "APP_ENV": "production",
         "EXPO_PUBLIC_API_BASE_URL": "https://zoohelp-core-production.up.railway.app",
@@ -39,6 +38,18 @@
       },
       "ios": {
         "resourceClass": "m-medium"
+      }
+    },
+    "apk_direct_test": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_ENV": "development",
+        "EXPO_PUBLIC_API_BASE_URL": "https://zoohelp-core-production.up.railway.app",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "REPLACE_WITH_EAS_SECRET",
+        "EXPO_PUBLIC_SUPPORT_PAYMENTS_ENABLED": "false"
       }
     }
   },
