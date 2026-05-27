@@ -40,12 +40,13 @@ export function StatusBadge({ type, urgent, resolved, size = 'md', hideType = fa
   const isExtraSmall = size === 'xs';
   const iconSize = isExtraSmall ? 10 : isSmall ? 11 : 13;
   const gradient = TYPE_GRADIENTS[type];
+  const label = urgent && !resolved ? `${config.label} urgente` : config.label;
 
   return (
     <View style={styles.row}>
       {!hideType && (
         <LinearGradient
-          colors={gradient}
+          colors={urgent && !resolved ? ['#D94B3D', '#C7332A'] : gradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[
@@ -61,7 +62,7 @@ export function StatusBadge({ type, urgent, resolved, size = 'md', hideType = fa
             <MaterialCommunityIcons name={TYPE_ICONS[type]} size={iconSize} color="#FFFFFF" />
           </View>
           <Text style={[styles.label, isSmall && styles.labelSm, isExtraSmall && styles.labelXs]}>
-            {config.label}
+            {label}
           </Text>
         </LinearGradient>
       )}
@@ -85,7 +86,7 @@ export function StatusBadge({ type, urgent, resolved, size = 'md', hideType = fa
             RESOLVIDO
           </Text>
         </LinearGradient>
-      ) : urgent && (
+      ) : urgent && hideType && (
         <LinearGradient
           colors={['#D94B3D', '#C7332A']}
           start={{ x: 0, y: 0 }}
