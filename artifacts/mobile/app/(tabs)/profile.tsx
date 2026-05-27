@@ -25,18 +25,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OperationalStatus } from '@/components/OperationalStatus';
 import { useApp } from '@/context/AppContext';
-import { shareZooHelpItem } from '@/services/share';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 const MENU_ITEMS: Array<{ icon: MCIcon; label: string; color: string; route?: string }> = [
   { icon: 'account-circle-outline', label: 'Meu perfil', color: '#2D6A4F' },
-  { icon: 'card-account-details-outline', label: 'Meus dados', color: '#2D6A4F' },
+  { icon: 'card-account-details-outline', label: 'Meus dados', color: '#2D6A4F', route: '/account-data' },
   { icon: 'lightning-bolt-outline', label: 'Minha atividade', color: '#2D6A4F', route: '/activity' },
   { icon: 'bell-badge-outline', label: 'Notificacoes', color: '#FF5A7A', route: '/notifications' },
   { icon: 'heart-outline', label: 'Meus favoritos', color: '#E84D6A', route: '/favorites' },
-  { icon: 'certificate-outline', label: 'Verificacao de conta', color: '#7357D6', route: '/verification' },
-  { icon: 'account-multiple-outline', label: 'Convidar amigos', color: '#1E8A9E' },
+  { icon: 'certificate-outline', label: 'Verificação de conta', color: '#7357D6', route: '/verification' },
+  { icon: 'account-multiple-outline', label: 'Convidar amigos', color: '#1E8A9E', route: '/invite' },
   { icon: 'help-circle-outline', label: 'Suporte', color: '#2D6A4F', route: '/support' },
   { icon: 'shield-check-outline', label: 'Privacidade e seguranca', color: '#3D7B7B', route: '/privacy' },
   { icon: 'cog-outline', label: 'Configuracoes', color: '#6B7280', route: '/settings' },
@@ -59,7 +58,7 @@ export default function ProfileScreen() {
   } = useApp();
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [isDataOverlayVisible, setIsDataOverlayVisible] = useState(false);
-  const [locationLabel, setLocationLabel] = useState('Localizacao nao definida');
+  const [locationLabel, setLocationLabel] = useState('Localização nao definida');
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -81,7 +80,7 @@ export default function ProfileScreen() {
   const accountLabel = user?.type === 'ong' ? 'ONG verificada' : user?.type === 'vet' ? 'Veterinario' : 'Protetor animal';
   const myPosts = user?.id ? posts.filter((post) => post.author.id === user.id).slice(0, 3) : [];
   const unreadNotifications = chatUnreadCount + chatMessageNotifications.filter((item) => !item.isRead).length;
-  const menuItems = MENU_ITEMS.filter((item) => item.label !== 'Verificacao de conta' || user?.type === 'ong');
+  const menuItems = MENU_ITEMS.filter((item) => item.label !== 'Verificação de conta' || user?.type === 'ong');
 
   const logoutScale = useSharedValue(1);
 
@@ -94,7 +93,7 @@ export default function ProfileScreen() {
     const nextLocation = [address?.neighborhood, address?.city, address?.state?.toUpperCase()]
       .filter(Boolean)
       .join(', ');
-    setLocationLabel(nextLocation || 'Localizacao nao definida');
+    setLocationLabel(nextLocation || 'Localização nao definida');
   }, [user?.profileAddress]);
 
   if (isLoading) return null;
@@ -200,7 +199,7 @@ export default function ProfileScreen() {
 
   async function detectLocation() {
     if (Platform.OS === 'web') {
-      Alert.alert('Localizacao', 'GPS real esta disponivel no app mobile.');
+      Alert.alert('Localização', 'GPS real esta disponivel no app mobile.');
       return;
     }
 
@@ -208,7 +207,7 @@ export default function ProfileScreen() {
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
-        Alert.alert('Permissao de localizacao', 'Ative a localizacao para mostrar sua area de impacto.');
+        Alert.alert('Permissao de localização', 'Ative a localização para mostrar sua area de impacto.');
         return;
       }
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -216,7 +215,7 @@ export default function ProfileScreen() {
       setLocationLabel(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
-      Alert.alert('Localizacao', 'Nao foi possivel detectar sua localizacao agora.');
+      Alert.alert('Localização', 'Nao foi possivel detectar sua localização agora.');
     } finally {
       setDetectingLocation(false);
     }
@@ -242,7 +241,7 @@ export default function ProfileScreen() {
 
   function handleDeleteAccount() {
     setIsDeleteModalVisible(false);
-    Alert.alert('Excluir conta', 'Todos os seus dados serao permanentemente apagados. Esta acao nao pode ser desfeita.', [
+    Alert.alert('Excluir conta', 'Todos os seus dados serao permanentemente apagados. Esta ação nao pode ser desfeita.', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Excluir', style: 'destructive', onPress: () => deleteAccount() },
     ]);
@@ -323,7 +322,7 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.locationPill} onPress={detectLocation} activeOpacity={0.82}>
             <MaterialCommunityIcons name="map-marker" size={12} color="#2D6A4F" />
             <Text style={styles.locationText} numberOfLines={2}>
-              {detectingLocation ? 'Detectando localizacao...' : locationLabel}
+              {detectingLocation ? 'Detectando localização...' : locationLabel}
             </Text>
           </TouchableOpacity>
         </View>
@@ -384,12 +383,7 @@ export default function ProfileScreen() {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 if (isOwnProfileItem && user?.id) {
                   router.push({ pathname: '/(tabs)/user/[id]', params: { id: user.id } });
-                } else if (item.label === 'Meus dados') {
-                  openDataOverlay();
                 } else if (item.route) router.push(item.route as any);
-                else if (item.label === 'Convidar amigos') {
-                  shareZooHelpItem('ZooHelp', 'Conheca o ZooHelp e ajude animais perto de voce.');
-                }
               }}
             >
               <View style={[styles.menuIconWrap, { backgroundColor: item.color + '14' }]}>
@@ -440,7 +434,7 @@ export default function ProfileScreen() {
         {isDeleteModalVisible && (
           <View style={styles.dangerContent}>
             <Text style={styles.dangerDesc}>
-              Esta acao e irreversivel. Todos os seus dados serao permanentemente apagados.
+              Esta ação e irreversivel. Todos os seus dados serao permanentemente apagados.
             </Text>
             <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount} activeOpacity={0.8}>
               <MaterialCommunityIcons name="delete-forever-outline" size={15} color="#B84D5F" />
