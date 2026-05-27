@@ -1,8 +1,12 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PostLocationMeta } from './PostLocationMeta';
+
+const FEED_TIME_ICON =
+  'https://res.cloudinary.com/limpeja/image/upload/v1779576484/pngtree-vector-clock-icon-png-image_4152707_bfoxlj.jpg';
 
 type Colors = {
   primary: string;
@@ -35,14 +39,20 @@ export function PostPublicationCard({
       <View style={styles.publicationHeader}>
         <View style={styles.publicationLabelRow}>
           <View style={styles.publicationIcon}>
-            <MaterialCommunityIcons name="text-box-edit-outline" size={15} color={colors.primary} />
+            <MaterialCommunityIcons name="text-box-outline" size={16} color="#2D6A4F" />
           </View>
           <View style={styles.publicationTextContainer}>
-            <Text style={[styles.publicationTitle, { color: colors.primary }]}>PUBLICAÇÃO</Text>
-            <Text style={styles.publicationSupport}>Detalhes compartilhados.</Text>
-            <View style={[styles.descriptionContainer, { left: -20, right: -4, marginTop: 5 }]}>
+            <View style={styles.publicationTitleRow}>
+              <Text style={styles.publicationTitle}>Publicação</Text>
+              <View style={styles.publicationTimeRow}>
+                <Image source={{ uri: FEED_TIME_ICON }} style={styles.publicationTimeIcon} contentFit="contain" />
+                <Text style={styles.publicationSupport}>{timeDisplay}</Text>
+              </View>
+            </View>
+
+            <View style={styles.descriptionContainer}>
               <Text
-                style={[styles.description, { color: "#5f5c5c" }]}
+                style={styles.description}
                 allowFontScaling={false}
                 textBreakStrategy="simple"
               >
@@ -59,6 +69,7 @@ export function PostPublicationCard({
                 </View>
               )}
             </View>
+
             <PostLocationMeta
               locationDisplay={locationDisplay}
               timeDisplay={timeDisplay}
@@ -76,92 +87,93 @@ export function PostPublicationCard({
 
 const styles = StyleSheet.create({
   publicationBlock: {
-    gap: 10,
-    padding: 9,
-    borderRadius: 22,
-    shadowColor: '#183F2A',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.045,
-    shadowRadius: 13,
-    elevation: 2,
+    margin: -5,
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 19,    
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
+    borderBottomEndRadius: 22,
+    borderBottomStartRadius: 22,
+    backgroundColor: '#ffffffc1',
   },
   publicationHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 10,
-    backgroundColor: '#38a78213',
-    paddingVertical: 12,
-    borderRadius: 0,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    shadowColor: '#1F3528',
-    shadowOffset: { width: 2, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 1,
-    paddingBottom: 30,
   },
   publicationLabelRow: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 9,
-    paddingHorizontal: 8,
   },
   publicationIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#EEF7F0',
   },
   publicationTextContainer: {
     flex: 1,
-    gap: 2,
+    gap: 10,
+  },
+  publicationTitleRow: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
   },
   publicationTitle: {
-    fontSize: 8.5,
+    flex: 1,
+    fontSize: 13,
     fontFamily: 'Montserrat_700Bold',
-    letterSpacing: 0.72,
-    lineHeight: 14,
+    color: '#18231B',
+    letterSpacing: 0,
   },
   publicationSupport: {
     fontSize: 9.5,
-    fontFamily: 'Montserrat_500Medium',
-    color: '#78857C',
-    lineHeight: 8,
-    marginBottom: 10,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: '#7B867E',
+    letterSpacing: 0,
+  },
+  publicationTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  publicationTimeIcon: {
+    width: 13,
+    height: 13,
+    opacity: 0.72,
   },
   descriptionContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 0,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-    marginTop: 18,
-    marginLeft: -4,
-    marginRight: -4,
+    gap: 5,
+    paddingVertical: 2,
+    left: -17,
   },
   description: {
-    fontSize: 10.5,
-    fontFamily: 'Montserrat_600SemiBold',
-    lineHeight: 14,
-    color: '#78857C',
-    textTransform: 'none', // Garante que não haverá transformação para maiúsculas/minúsculas
+    fontSize: 13,
+    fontFamily: 'Montserrat_500Medium',
+    lineHeight: 19,
+    color: '#253029',
+    textTransform: 'none',
   },
   breedAgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 4,
+    marginTop: 2,
   },
   breedAge: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontFamily: 'Montserrat_400Regular',
     opacity: 0.7,
     color: '#78857C',
-    textTransform: 'none', // Garante que não haverá transformação
+    textTransform: 'none',
   },
 });
