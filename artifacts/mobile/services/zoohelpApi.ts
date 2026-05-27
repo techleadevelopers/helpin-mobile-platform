@@ -458,6 +458,14 @@ export function mapPost(post: PostContract): Post {
     ...(post.images?.map((image) => image.url).filter(Boolean) ?? []),
     ...(post.image ? [post.image] : []),
   ]));
+  const address = post.locationAddress;
+  const addressLine = address
+    ? [
+        [address.street, address.number].filter(Boolean).join(', '),
+        address.neighborhood,
+        [address.city, address.state].filter(Boolean).join(' - '),
+      ].filter(Boolean).join(', ')
+    : '';
 
   return {
     id: post.id,
@@ -467,8 +475,8 @@ export function mapPost(post: PostContract): Post {
     breed: post.breed,
     age: post.age,
     description: post.description,
-    location: post.location,
-    neighborhood: post.neighborhood,
+    location: addressLine || post.location,
+    neighborhood: address?.neighborhood || post.neighborhood,
     image: post.image,
     images: imageUrls,
     textOnly: post.textOnly,
@@ -480,6 +488,7 @@ export function mapPost(post: PostContract): Post {
     urgent: post.urgent,
     rescueStatus: post.rescueStatus,
     rescueOperational: post.rescueOperational,
+    rescueFinalReport: post.rescueFinalReport,
     resolvedAt: post.resolvedAt,
     createdAt: post.createdAt,
     contact: post.contact,
@@ -489,6 +498,16 @@ export function mapPost(post: PostContract): Post {
     geoStatus: post.geoStatus,
     geoSource: post.geoSource,
     routePublic: post.routePublic,
+    locationAddress: address
+      ? {
+          street: address.street,
+          number: address.number,
+          neighborhood: address.neighborhood,
+          city: address.city,
+          state: address.state,
+          complement: address.complement ?? undefined,
+        }
+      : undefined,
   };
 }
 
