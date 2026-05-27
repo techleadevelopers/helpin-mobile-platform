@@ -239,7 +239,7 @@ function CaseDetail({
 
       <div className="rounded-2xl border border-gray-100 bg-white p-4">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Comunicacao do caso</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Comunicação do caso</p>
           <span className="text-xs font-medium text-gray-400">{dispute.messages?.length ?? 0} mensagens</span>
         </div>
         <div className="scrollbar-premium mt-3 max-h-44 space-y-3 overflow-y-auto pr-1">
@@ -261,7 +261,7 @@ function CaseDetail({
           <Input
             value={message}
             onChange={(event) => setMessage(event.target.value)}
-            placeholder="Enviar orientacao as partes..."
+            placeholder="Enviar orientação as partes..."
             className="h-11 rounded-xl border-gray-200 bg-slate-50"
           />
           <Button
@@ -346,7 +346,7 @@ export default function DisputeManagement() {
       if (selectedDisputeId) {
         queryClient.invalidateQueries({ queryKey: ["/disputes", selectedDisputeId] });
       }
-      toast({ title: "Mensagem enviada", description: "A comunicacao foi registrada no caso." });
+      toast({ title: "Mensagem enviada", description: "A comunicação foi registrada no caso." });
     },
     onError: (mutationError: Error) => {
       toast({ title: "Falha no envio", description: mutationError.message, variant: "destructive" });
@@ -414,7 +414,7 @@ export default function DisputeManagement() {
       <Sidebar />
       <div className="ml-72 flex-1 overflow-hidden">
         <Header
-          title="Moderacao e Golpes"
+          title="Moderação e Golpes"
           subtitle="Central operacional para investigar relatos, proteger a rede e documentar decisoes."
         />
 
@@ -422,7 +422,7 @@ export default function DisputeManagement() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Trust operations</p>
-              <h2 className="mt-1 text-sm font-semibold text-gray-900">Fila de moderacao em tempo real</h2>
+              <h2 className="mt-1 text-sm font-semibold text-gray-900">Fila de moderação em tempo real</h2>
             </div>
             <div className="flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-3 py-1.5 text-xs font-medium text-emerald-700 shadow-sm">
               <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]" />
@@ -433,7 +433,7 @@ export default function DisputeManagement() {
           <div className="mb-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard title="Casos recebidos" value={String(disputes.length)} detail="Fila operacional" icon={Scale} gradient="from-slate-700 to-slate-950" delay={0} />
             <MetricCard title="Aguardando analise" value={String(pendingCount)} detail="Exigem triagem" icon={AlertTriangle} gradient="from-amber-400 to-orange-500" delay={0.05} />
-            <MetricCard title="Em revisao" value={String(inReviewCount)} detail="Investigacao ativa" icon={FileText} gradient="from-blue-500 to-indigo-600" delay={0.1} />
+            <MetricCard title="Em revisao" value={String(inReviewCount)} detail="Investigação ativa" icon={FileText} gradient="from-blue-500 to-indigo-600" delay={0.1} />
             <MetricCard title="Taxa resolvida" value={`${resolutionRate}%`} detail={`${resolvedCount} decisoes concluidas`} icon={ShieldCheck} gradient="from-emerald-500 to-emerald-600" delay={0.15} />
           </div>
 
@@ -464,7 +464,7 @@ export default function DisputeManagement() {
                   <Input
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
-                    placeholder="Buscar por caso, resgate, motivo ou descricao..."
+                    placeholder="Buscar por caso, resgate, motivo ou descrição..."
                     className="h-11 rounded-xl border-gray-200 bg-slate-50 pl-10"
                   />
                 </div>
