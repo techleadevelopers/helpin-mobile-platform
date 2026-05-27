@@ -300,11 +300,11 @@ export default function UserManagement() {
     mutationFn: ({ clientId }: { clientId: string }) =>
       sendNotification({
         userId: clientId,
-        title: "Atualizacao importante",
+        title: "Atualização importante",
         message: "Estamos revisando seu perfil e entraremos em contato em breve.",
       }),
     onSuccess: () => {
-      toast({ title: "Notificacao enviada", description: "O usuario recebeu a mensagem.", variant: "success" });
+      toast({ title: "Notificação enviada", description: "O usuario recebeu a mensagem.", variant: "success" });
     },
     onError: (err: any) => {
       toast({ title: "Erro ao notificar", description: err?.message || "Nao foi possivel enviar.", variant: "destructive" });
@@ -347,14 +347,14 @@ export default function UserManagement() {
 
       <div className="ml-72 flex flex-1 flex-col overflow-hidden">
         <Header
-          title="Usuarios e Reputacao"
+          title="Usuarios e Reputação"
           subtitle="Contas, trust, atividade e risco operacional."
         />
 
         <main className="flex-1 overflow-y-auto bg-slate-50/70 p-6">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Operacao</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Operação</p>
               <h2 className="mt-1 text-sm font-semibold text-gray-900">Base de usuarios</h2>
             </div>
             <Button variant="outline" className="h-8 rounded-xl text-xs" onClick={handleExportCsv}>
@@ -625,10 +625,10 @@ function UserOperationalDialog({
               <UserAvatar user={user} sizeClass="h-12 w-12" />
               <div className="min-w-0 flex-1">
                 <DialogTitle className="truncate text-base font-semibold text-gray-950">{user.name || user.email}</DialogTitle>
-                <DialogDescription className="mt-1 text-xs text-gray-500">Conta, reputacao e atividade operacional.</DialogDescription>
+                <DialogDescription className="mt-1 text-xs text-gray-500">Conta, reputação e atividade operacional.</DialogDescription>
               </div>
               <Badge className={`border px-2 py-0 text-[10px] ${getVerificationBadge(user.verificationStatus)}`}>
-                {(user.verificationStatus || "sem verificacao").replace(/_/g, " ").toLowerCase()}
+                {(user.verificationStatus || "sem verificação").replace(/_/g, " ").toLowerCase()}
               </Badge>
             </div>
           </DialogHeader>
@@ -662,7 +662,7 @@ function UserOperationalDialog({
               </div>
             </section>
             <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Localizacao</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Localização</h3>
               <div className="mt-3">
                 <Info label="Endereco" value={address || "Nao informado"} />
               </div>
