@@ -15,4 +15,4 @@ Regra arquitetural:
 - UI Expo/React Native fica em `artifacts/mobile`.
 - Contratos gerados ficam em `lib/api-client-react` e `lib/api-zod`.
 - Backend Rust/Python fica fora do client, em `../backend`.
-- Esta lib so centraliza configuracao, capacidades e chamadas ao core.
+- Esta lib so centraliza configuração, capacidades e chamadas ao core.
