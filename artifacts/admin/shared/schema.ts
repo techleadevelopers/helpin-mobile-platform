@@ -42,9 +42,10 @@ export interface Provider extends BaseRecord {
   livenessResult?: Record<string, unknown> | null;
   fiveStarReviewCount: number;
   monthlyBookingsCount: number;
-  totalEarnings: string;
+    totalEarnings: string;
     latitude?: string | null;
     longitude?: string | null;
+    avatarUrl?: string | null;
 }
 
 export interface InsertProvider {
@@ -64,6 +65,7 @@ export interface InsertProvider {
   totalEarnings?: string;
   latitude?: string | null;
   longitude?: string | null;
+  avatarUrl?: string | null;
 }
 
 export interface Service extends BaseRecord {
