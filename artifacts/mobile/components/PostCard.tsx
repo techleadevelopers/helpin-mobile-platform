@@ -107,6 +107,48 @@ function limitText(value: string, maxChars: number) {
   return `${compact.slice(0, maxChars).trimEnd()}...`;
 }
 
+function normalizeLocationPart(value: string) {
+  return value
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*,\s*/g, ', ')
+    .toLowerCase();
+}
+
+function collapseRepeatedAddress(value: string) {
+  const parts = value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length % 2 === 0) {
+    const half = parts.length / 2;
+    const firstHalf = parts.slice(0, half).map(normalizeLocationPart).join('|');
+    const secondHalf = parts.slice(half).map(normalizeLocationPart).join('|');
+    if (firstHalf === secondHalf) return parts.slice(0, half).join(', ');
+  }
+  return parts.join(', ');
+}
+
+function formatFeedAddress(post: Post) {
+  if (post.locationAddress) {
+    return [
+      [post.locationAddress.street, post.locationAddress.number].filter(Boolean).join(', '),
+      post.locationAddress.neighborhood,
+      [post.locationAddress.city, post.locationAddress.state].filter(Boolean).join(' - '),
+    ].filter(Boolean).join(', ');
+  }
+
+  const location = collapseRepeatedAddress(post.location || '');
+  const normalizedLocation = normalizeLocationPart(location);
+  const normalizedNeighborhood = normalizeLocationPart(post.neighborhood || '');
+  if (!normalizedNeighborhood || normalizedLocation.includes(normalizedNeighborhood)) {
+    return location || post.neighborhood || 'Localização do caso';
+  }
+  return [post.neighborhood, location].filter(Boolean).join(', ');
+}
+
 export function PostCard({ post, index = 0 }: PostCardProps) {
   const colors = useColors();
   const router = useRouter();
@@ -132,7 +174,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   const [localRescueOperational, setLocalRescueOperational] = useState<RescueOperationalSummary | null | undefined>();
   const [resolvedGoingCoords, setResolvedGoingCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const displayTime = formatPostTime(post.createdAt);
-  const locationPreview = limitText(limitWords(post.neighborhood, 15), 38);
+  const locationPreview = formatFeedAddress(post);
 
   const scale = useSharedValue(1);
   const heartScale = useSharedValue(1);
@@ -315,7 +357,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   async function confirmGoing() {
     const api = createZooHelpApi();
     if (!api) {
-      Alert.alert('Confirmacao indisponivel', 'Conecte ao backend para registrar sua ida.');
+      Alert.alert('Confirmação indisponivel', 'Conecte ao backend para registrar sua ida.');
       return;
     }
     try {
@@ -330,12 +372,12 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     } catch (error) {
       if (error instanceof ZooHelpApiError && error.status === 404) {
         Alert.alert(
-          'Confirmacao ainda indisponivel',
-          'A API publicada ainda nao suporta esta confirmacao. Atualize o backend e tente novamente.',
+          'Confirmação ainda indisponivel',
+          'A API publicada ainda nao suporta esta confirmação. Atualize o backend e tente novamente.',
         );
         return;
       }
-      Alert.alert('Confirmacao indisponivel', 'Nao foi possivel registrar sua ida agora. Tente novamente.');
+      Alert.alert('Confirmação indisponivel', 'Nao foi possivel registrar sua ida agora. Tente novamente.');
     }
   }
 
@@ -349,14 +391,14 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     if (Platform.OS === 'web') {
       const confirmed =
         typeof window === 'undefined' ||
-        window.confirm('Deseja excluir este post? Esta acao nao pode ser desfeita.');
+        window.confirm('Deseja excluir este post? Esta ação nao pode ser desfeita.');
       if (confirmed) runDeletePost();
       return;
     }
 
     Alert.alert(
       'Excluir post',
-      'Deseja excluir este post? Esta acao nao pode ser desfeita.',
+      'Deseja excluir este post? Esta ação nao pode ser desfeita.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -533,7 +575,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
       />
 
       <View style={styles.imageTopRow}>
-        <StatusBadge type={post.type} urgent={displayUrgent && !isResolved} resolved={isResolved} size="sm" hideType />
+        <StatusBadge type={post.type} urgent={displayUrgent && !isResolved} resolved={isResolved} size="sm" />
       </View>
 
       <View style={styles.imageBottomRow}>
@@ -557,7 +599,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     const coords = getRouteCoords() ?? DEFAULT_MAP_COORDS;
     const mapLat = coords.latitude;
     const mapLng = coords.longitude;
-    const locationLabel = post.location || post.neighborhood || 'Localizacao do caso';
+    const locationLabel = post.location || post.neighborhood || 'Localização do caso';
 
     return (
       <Modal
@@ -592,7 +634,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
             <TouchableOpacity style={styles.overlayMapCard} onPress={openRoute} activeOpacity={0.86}>
               <View style={styles.overlayMapInfo}>
                 <Text style={styles.overlayMapTitle}>Area de resgate</Text>
-                <Text style={styles.overlayMapSubtitle} numberOfLines={2}>Baseado na localizacao do caso</Text>
+                <Text style={styles.overlayMapSubtitle} numberOfLines={2}>Baseado na localização do caso</Text>
                 <Text style={styles.overlayMapLink}>{'Abrir rota ->'}</Text>
               </View>
               <View style={styles.overlayMapPreview}>
@@ -705,8 +747,8 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                     <MaterialCommunityIcons name="check-decagram" size={13} color="#2F80ED" />
                   )}
                 </View>
-                <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                  {post.neighborhood} · {displayTime}
+                <Text style={[styles.metaText, { color: colors.mutedForeground }]} numberOfLines={1}>
+                  {locationPreview}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -860,7 +902,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
               </View>
               <View style={styles.metaRow}>
                 <MaterialCommunityIcons name="map-marker-outline" size={11} color={colors.mutedForeground} />
-                <Text style={[styles.metaText, { color: colors.mutedForeground }]} numberOfLines={1}>
+                <Text style={[styles.metaText, { color: colors.mutedForeground }]} numberOfLines={1} ellipsizeMode="tail">
                   {locationPreview}
                 </Text>
               </View>
