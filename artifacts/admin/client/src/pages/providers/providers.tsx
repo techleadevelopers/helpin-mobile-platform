@@ -99,7 +99,7 @@ export default function Providers() {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Rede</p>
-              <h2 className="mt-1 text-sm font-semibold text-gray-900">Operacao das ONGs verificadas</h2>
+              <h2 className="mt-1 text-sm font-semibold text-gray-900">Operação das ONGs verificadas</h2>
             </div>
             <div className="rounded-full border border-gray-100 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm">
               {totalCount} registros
