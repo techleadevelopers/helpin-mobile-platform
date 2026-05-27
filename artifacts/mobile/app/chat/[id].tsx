@@ -316,7 +316,7 @@ export default function ChatRoomScreen() {
             <MaterialCommunityIcons name="home-heart" size={15} color="#2D6A4F" />
           </View>
           <View style={styles.adoptionBannerInfo}>
-            <Text style={styles.adoptionBannerTitle}>Pedido de adocao</Text>
+            <Text style={styles.adoptionBannerTitle}>Pedido de adoção</Text>
             <Text style={[styles.adoptionBannerPost, { color: colors.mutedForeground }]} numberOfLines={1}>
               {postName ? decodeURIComponent(postName) : room?.postTitle}
             </Text>
