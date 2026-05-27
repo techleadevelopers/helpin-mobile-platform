@@ -17,7 +17,7 @@ export function PostMapCard({
     <PremiumTouchableOpacity style={styles.rescueMapCard} onPress={onPress} activeOpacity={0.9}>
       <View style={styles.rescueMapInfo}>
         <Text style={styles.rescueMapTitle}>Area de resgate</Text>
-        <Text style={styles.rescueMapSubtitle}>Baseado na localizacao do caso</Text>
+        <Text style={styles.rescueMapSubtitle}>Baseado na localização do caso</Text>
         <Text style={styles.rescueMapLink}>{'Abrir rota ->'}</Text>
       </View>
       <View style={styles.rescueMapPreview}>
@@ -36,6 +36,8 @@ const styles = StyleSheet.create({
     height: 96,
     flexDirection: 'row',
     overflow: 'hidden',
+    marginTop: 22,
+    marginBottom: 12,
     borderRadius: 22,
     backgroundColor: '#FFFFFF',
     marginHorizontal: 2,
