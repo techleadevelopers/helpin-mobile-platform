@@ -130,7 +130,7 @@ function CaseCard({
             </View>
           </View>
           <Text style={styles.caseDescription} numberOfLines={2}>
-            {post.description || 'Caso aguardando atualizacao da ONG.'}
+            {post.description || 'Caso aguardando atualização da ONG.'}
           </Text>
           <View style={styles.caseMetaRow}>
             <MaterialCommunityIcons name="map-marker-outline" size={12} color={MUTED} />
