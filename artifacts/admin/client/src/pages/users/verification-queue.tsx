@@ -66,7 +66,7 @@ const statusPresentation: Partial<Record<VerificationStatus, {
 };
 
 const fallbackStatus = {
-  label: "Verificacao pendente",
+  label: "Verificação pendente",
   priority: "Baixa",
   badge: "border-slate-200 bg-slate-50 text-slate-700",
   icon: Clock3,
@@ -93,7 +93,7 @@ const formatElapsed = (value: string) => {
 };
 const formatAddress = (provider: Provider) => {
   const location = [provider.city, provider.state].filter(Boolean).join(" / ");
-  return location || "Localizacao nao informada";
+  return location || "Localização nao informada";
 };
 
 function StatusBadge({ provider }: { provider: Provider }) {
@@ -152,7 +152,7 @@ function ProviderReviewPanel({ provider, isUpdating, onApprove, onBlock, onOpenD
           <ShieldCheck size={24} className="text-slate-400" />
         </div>
         <p className="mt-4 text-sm font-semibold text-gray-900">Selecione uma ONG</p>
-        <p className="mt-1 max-w-xs text-sm text-gray-500">Consulte o cadastro e tome uma decisao de verificacao.</p>
+        <p className="mt-1 max-w-xs text-sm text-gray-500">Consulte o cadastro e tome uma decisao de verificação.</p>
       </div>
     );
   }
@@ -201,7 +201,7 @@ function ProviderReviewPanel({ provider, isUpdating, onApprove, onBlock, onOpenD
             <p className="mt-1 font-semibold text-gray-900">{formatValue(provider.phone || provider.userPhone)}</p>
           </div>
           <div className="col-span-2">
-            <p className="text-xs text-gray-400">Localizacao</p>
+            <p className="text-xs text-gray-400">Localização</p>
             <p className="mt-1 font-semibold text-gray-900">{formatAddress(provider)}</p>
           </div>
         </div>
@@ -213,7 +213,7 @@ function ProviderReviewPanel({ provider, isUpdating, onApprove, onBlock, onOpenD
           <span className="text-xs font-semibold text-orange-600">{status.priority}</span>
         </div>
         <p className="mt-3 text-sm leading-6 text-gray-600">
-          Abra o dossie para conferir documentos, OCR, prova de vivacidade, vitrine e localizacao antes da decisao final.
+          Abra o dossie para conferir documentos, OCR, prova de vivacidade, vitrine e localização antes da decisao final.
         </p>
         <Button onClick={onOpenDossier} className="mt-4 h-11 w-full rounded-xl bg-medium-blue text-white hover:bg-blue-700">
           <Eye size={16} />
@@ -357,7 +357,7 @@ export default function VerificationQueue() {
       <Sidebar />
       <div className="ml-72 flex-1 overflow-hidden">
         <Header
-          title="Verificacao de ONGs"
+          title="Verificação de ONGs"
           subtitle="Central operacional para validar cadastro, documentos e confianca da rede."
         />
 
@@ -365,7 +365,7 @@ export default function VerificationQueue() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Trust onboarding</p>
-              <h2 className="mt-1 text-sm font-semibold text-gray-900">Fila de verificacao em tempo real</h2>
+              <h2 className="mt-1 text-sm font-semibold text-gray-900">Fila de verificação em tempo real</h2>
             </div>
             <div className="flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-3 py-1.5 text-xs font-medium text-emerald-700 shadow-sm">
               <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]" />
@@ -385,7 +385,7 @@ export default function VerificationQueue() {
               <div className="border-b border-gray-100 p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Fila de avaliacao</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Fila de avaliação</p>
                     <p className="mt-1 text-sm text-gray-500">{filteredQueue.length} cadastros na visao atual</p>
                   </div>
                   <Select value={statusFilter} onValueChange={(value: QueueFilter) => setStatusFilter(value)}>
@@ -471,7 +471,7 @@ export default function VerificationQueue() {
 
             <Card className="col-span-5 hidden overflow-hidden border border-gray-100 bg-white shadow-sm xl:block">
               <div className="border-b border-gray-100 px-5 py-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Mesa de aprovacao</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Mesa de aprovação</p>
                 <p className="mt-1 text-sm font-semibold text-gray-900">Cadastro e decisao operacional</p>
               </div>
               <ProviderReviewPanel
