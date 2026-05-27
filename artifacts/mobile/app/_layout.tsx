@@ -100,6 +100,8 @@ function RootLayoutNav() {
       <Stack.Screen name="support" />
       <Stack.Screen name="privacy" />
       <Stack.Screen name="settings" />
+      <Stack.Screen name="account-data" />
+      <Stack.Screen name="invite" />
       <Stack.Screen name="marketplace" />
     </Stack>
   );
