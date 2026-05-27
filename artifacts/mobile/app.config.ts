@@ -25,7 +25,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ios: {
       supportsTablet: false,
       bundleIdentifier: "com.zoohelp.app",
-      buildNumber: process.env.IOS_BUILD_NUMBER || "1",
+      buildNumber: "1",
       requireFullScreen: false,
       infoPlist: {
         NSCameraUsageDescription:
@@ -37,7 +37,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         NSLocationWhenInUseUsageDescription:
           "O ZooHelp usa sua localização para mostrar animais próximos de você.",
         NSLocationAlwaysAndWhenInUseUsageDescription:
-          "O ZooHelp usa sua localização para mostrar animais próximos e enviar alertas de emergência na sua regiío.",
+          "O ZooHelp usa sua localização para mostrar animais próximos e enviar alertas de emergência na sua região.",
         NSMicrophoneUsageDescription:
           "O ZooHelp pode precisar do microfone para gravação de áudio ou vídeo nas publicações.",
       },
@@ -48,7 +48,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         backgroundColor: "#4CAF50",
       },
       package: "com.zoohelp.app",
-      versionCode: Number(process.env.ANDROID_VERSION_CODE || "1"),
+      versionCode: 1,
       permissions: [
         "android.permission.CAMERA",
         "android.permission.ACCESS_FINE_LOCATION",
@@ -80,7 +80,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         "expo-location",
         {
           locationAlwaysAndWhenInUsePermission:
-            "O ZooHelp usa sua localização para mostrar animais próximos e enviar alertas de emergência na sua regiío.",
+            "O ZooHelp usa sua localização para mostrar animais próximos e enviar alertas de emergência na sua região.",
           locationWhenInUsePermission:
             "O ZooHelp usa sua localização para mostrar animais próximos de você.",
         },
@@ -104,6 +104,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ...config.extra,
       environment: process.env.APP_ENV || process.env.NODE_ENV || "development",
       sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || "",
+      eas: {
+        projectId: "6fa106b1-6f9f-4da4-872e-5ba9ee75ff4b"
+      }
     },
   };
 };
