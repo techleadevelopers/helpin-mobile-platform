@@ -8,7 +8,7 @@ Documento de referencia visual para as telas:
 
 Objetivo: manter uma linguagem premium, limpa, verde, social e mobile-first em telas de usuario, perfil e detalhe de post.
 
-## Direcao Visual
+## Direção Visual
 
 As tres telas usam uma estetica de produto social com foco em cuidado animal:
 
@@ -201,9 +201,9 @@ Arquivo: `app/(tabs)/profile.tsx`
 
 - Fundo geral `#F7F8F4`.
 - Top bar com dois botoes circulares verdes claros.
-- Avatar central elevado com anel, sombra, badge de verificacao e camera.
+- Avatar central elevado com anel, sombra, badge de verificação e camera.
 - Nome e role centralizados.
-- Localizacao em pill verde claro.
+- Localização em pill verde claro.
 - Lista de casos com rows brancas.
 - Menu principal em card branco unico com divisores internos.
 - Danger zone em vermelho claro, separada visualmente.
@@ -394,7 +394,7 @@ Arquivo: `app/user/[id].tsx`
 
 - Header com gradiente `#F5F7F2 -> #FFFFFF`.
 - Busca compacta no topo.
-- Perfil publico com avatar, nome, role, localizacao e acoes.
+- Perfil publico com avatar, nome, role, localização e acoes.
 - Estatisticas em barra com borda superior/inferior.
 - Tabs em container verde claro.
 - Grid de posts em cards pequenos.
@@ -644,11 +644,11 @@ Arquivo: `app/post/[id].tsx`
   - 2 fotos: duas colunas.
   - 3 fotos: destaque + stack lateral.
   - 4+ fotos: grid 2x2 com overlay `+N`.
-- Bloco de publicacao com borda tracejada verde.
-- Linha de localizacao compacta.
+- Bloco de publicação com borda tracejada verde.
+- Linha de localização compacta.
 - Card de mapa horizontal, premium, com preview e pin.
 - Card de contato e sheet de contato.
-- Tres botoes de acao: Rota, Chat, Contato.
+- Tres botoes de ação: Rota, Chat, Contato.
 - Bottom nav padronizada por `UserBottomNav`.
 
 ### CSS Equivalente
@@ -986,7 +986,7 @@ Padrao atual para telas de usuario:
 1. Use `#2D6A4F` como acento principal, nao como fundo dominante em toda a tela.
 2. Cards principais devem ter raio entre 16 e 24.
 3. Use sombras pequenas; reserve sombras fortes para sheets e overlays.
-4. Evite micro-cards dentro de cards quando a informacao for apenas texto simples.
+4. Evite micro-cards dentro de cards quando a informação for apenas texto simples.
 5. Para overlays premium, use vidro verde com `BlurView` e uma camada `rgba(42, 87, 58, 0.27)`.
 6. Botoes primarios devem ter verde solido, texto branco e raio 18-22.
 7. Botoes secundarios devem ser brancos ou verde claro com borda.
