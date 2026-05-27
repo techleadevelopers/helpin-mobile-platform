@@ -112,7 +112,7 @@ export default function SupportCenter() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-gray-900">{conversation.name}</span>
-                      <Badge variant={conversation.status === "Em Atendimento" ? "outline" : "ghost"}>{conversation.status}</Badge>
+                      <Badge variant={conversation.status === "Em Atendimento" ? "outline" : "secondary"}>{conversation.status}</Badge>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-500">
                       <Clock size={14} />
