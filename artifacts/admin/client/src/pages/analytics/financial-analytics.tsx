@@ -86,7 +86,7 @@ export default function FinancialAnalytics() {
       (acc, tx) => {
         const amount = Number(tx.amount ?? 0);
         if (tx.type === "PAYMENT") acc.paymentsTotal += amount;
-        if (tx.type === "WITHDRAWAL" || tx.type === "PAYOUT") acc.payoutTotal += amount;
+        if (tx.type === "WITHDRAWAL") acc.payoutTotal += amount;
         if (tx.type === "COMMISSION") acc.commissionTotal += amount;
         return acc;
       },
@@ -449,7 +449,7 @@ export default function FinancialAnalytics() {
               <CardContent>
                 <div className="space-y-4">
                   {recentTransactions.length === 0 && (
-                    <div className="text-sm text-gray-500 text-center py-4">Nenhuma transacao encontrada.</div>
+                    <div className="text-sm text-gray-500 text-center py-4">Nenhuma transação encontrada.</div>
                   )}
                   {recentTransactions.map((transaction, index) => {
                     const Icon = getTransactionIcon(transaction.type);
