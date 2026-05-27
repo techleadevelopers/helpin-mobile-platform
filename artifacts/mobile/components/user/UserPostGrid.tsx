@@ -19,7 +19,7 @@ export function UserPostGrid({ posts, onOpenPost, isResolved }: UserPostGridProp
     return (
       <View style={styles.emptyPosts}>
         <MaterialCommunityIcons name="image-off-outline" size={30} color="#A4AAA4" />
-        <Text style={styles.emptyPostsText}>Nenhuma publicacao nesta aba.</Text>
+        <Text style={styles.emptyPostsText}>Nenhuma publicação nesta aba.</Text>
       </View>
     );
   }
