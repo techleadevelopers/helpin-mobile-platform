@@ -4,7 +4,6 @@ import { AppState, Platform } from 'react-native';
 
 import { Post } from '@/constants/data';
 import { loadCachedFeed, saveCachedFeed } from '@/services/feedCache';
-import { getCurrentCoordsIfGranted } from '@/services/locationService';
 import { enqueuePost, listPendingPosts, markPendingPostAttempt, removePendingPost } from '@/services/postOutbox';
 import { enqueueRescueOperation, flushRescueOutbox, listPendingRescueOperations } from '@/services/rescueOutbox';
 import { registerRescueAlerts } from '@/services/rescueNotifications';
@@ -49,13 +48,18 @@ function mergePostImages(post: Post, fallback?: Post | string[]) {
   const currentImages = postImageList(post);
   const fallbackImages = Array.isArray(fallback) ? uniquePostImages(fallback) : fallback ? postImageList(fallback) : [];
   const bestImages = currentImages.length >= fallbackImages.length ? currentImages : fallbackImages;
+  const fallbackPost = !Array.isArray(fallback) ? fallback : undefined;
+  const fallbackAddress = fallbackPost?.locationAddress;
 
-  if (bestImages.length === 0) return post;
+  if (bestImages.length === 0 && !fallbackAddress) return post;
 
   return {
     ...post,
-    image: bestImages[0],
-    images: bestImages,
+    location: fallbackAddress ? fallbackPost.location : post.location,
+    neighborhood: fallbackAddress ? fallbackAddress.neighborhood : post.neighborhood,
+    locationAddress: fallbackAddress ?? post.locationAddress,
+    image: bestImages[0] ?? post.image,
+    images: bestImages.length > 0 ? bestImages : post.images,
   };
 }
 
@@ -837,16 +841,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!api) return;
     if (Date.now() < feedRetryAfterRef.current) return;
     try {
-      const coords = await getCurrentCoordsIfGranted().catch(() => null);
-      const feed = await api.feed(
-        coords
-          ? {
-              lat: coords.latitude,
-              lng: coords.longitude,
-              radiusKm: 30,
-            }
-          : undefined,
-      );
+      const feed = await api.feed();
       feedFailureCountRef.current = 0;
       feedRetryAfterRef.current = 0;
       const imageCache = await loadPostImagesCache();
