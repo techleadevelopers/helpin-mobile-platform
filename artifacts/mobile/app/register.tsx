@@ -26,12 +26,15 @@ type KybDocumentType = 'document_front' | 'document_back' | 'selfie_with_documen
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
+const ZOOHELP_REGISTER_LOGO =
+  'https://res.cloudinary.com/limpeja/image/upload/v1779564981/Gemini_Generated_Image_isin7wisin7wisin-removebg-preview_yx0k5g.png';
+
 const ONG_TYPES = [
-  { value: 'rescue', label: 'Resgate', icon: 'lifebuoy' as MCIcon },
-  { value: 'adoption', label: 'Adocao', icon: 'heart-outline' as MCIcon },
+  { value: 'rescue', label: 'Resgate animal', hint: 'Emergencias, captura e acolhimento', icon: 'lifebuoy' as MCIcon },
+  { value: 'adoption', label: 'Adoção responsavel', hint: 'Lar temporario, triagem e adoção', icon: 'heart-outline' as MCIcon },
   { value: 'vet', label: 'Veterinária', icon: 'medical-bag' as MCIcon },
-  { value: 'hospital', label: 'Hospital', icon: 'hospital-building' as MCIcon },
-  { value: 'welfare', label: 'Bem-estar', icon: 'paw' as MCIcon },
+  { value: 'hospital', label: 'Hospital parceiro', hint: 'Internação, exames e suporte medico', icon: 'hospital-building' as MCIcon },
+  { value: 'welfare', label: 'Proteção e bem-estar', hint: 'Denuncias, orientação e prevenção', icon: 'shield-heart-outline' as MCIcon },
 ];
 
 const KYB_DOCUMENTS: Array<{ type: KybDocumentType; label: string; icon: MCIcon }> = [
@@ -68,6 +71,7 @@ export default function RegisterScreen() {
   // ONG-specific fields
   const [ongName, setOngName] = useState('');
   const [ongType, setOngType] = useState('');
+  const [showOngTypeOptions, setShowOngTypeOptions] = useState(false);
   const [ongCnpj, setOngCnpj] = useState('');
   const [ongFoundationYear, setOngFoundationYear] = useState('');
   const [ongEmail, setOngEmail] = useState('');
@@ -93,7 +97,7 @@ export default function RegisterScreen() {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const lastCepLookupRef = useRef('');
 
-  const topPad = Platform.OS === 'web' ? 67 : insets.top;
+  const topPad = Platform.OS === 'web' ? 24 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
 
   const total = totalSteps(accountType);
@@ -160,12 +164,12 @@ export default function RegisterScreen() {
     if (accountType === 'ong') {
       if (step === 1) {
         if (!ongName.trim()) { Alert.alert('Campo obrigatório', 'Informe o nome da ONG.'); return; }
-        if (!ongType) { Alert.alert('Campo obrigatorio', 'Selecione o tipo de atuacao.'); return; }
+        if (!ongType) { Alert.alert('Campo obrigatorio', 'Selecione o tipo de atuação.'); return; }
         if (ongFoundationYear.trim()) {
           const year = Number(ongFoundationYear);
           const currentYear = new Date().getFullYear();
           if (!Number.isInteger(year) || year < 1900 || year > currentYear) {
-            Alert.alert('Ano invalido', 'Informe um ano de fundacao valido.');
+            Alert.alert('Ano invalido', 'Informe um ano de fundação valido.');
             return;
           }
         }
@@ -188,7 +192,7 @@ export default function RegisterScreen() {
         goNext(5);
       } else if (step === 5) {
         if (KYB_DOCUMENTS.some((doc) => !kybDocuments[doc.type])) {
-          Alert.alert('Verificacao obrigatoria', 'Envie frente e verso do RG e uma foto com o documento na mao.');
+          Alert.alert('Verificação obrigatoria', 'Envie frente e verso do RG e uma foto com o documento na mao.');
           return;
         }
         handleSubmit();
@@ -237,7 +241,7 @@ export default function RegisterScreen() {
       }
       Alert.alert(
         'Confirme seu e-mail',
-        'Enviamos um link de confirmacao para o e-mail cadastrado. Abra esse link para ativar a conta.',
+        'Enviamos um link de confirmação para o e-mail cadastrado. Abra esse link para ativar a conta.',
       );
       router.replace('/(tabs)');
     } catch (error) {
@@ -245,7 +249,7 @@ export default function RegisterScreen() {
       if (ongAccountCreated) {
         Alert.alert(
           'Conta criada',
-          'Nao foi possivel concluir o envio dos arquivos agora. Reenvie os documentos na tela de verificacao.',
+          'Nao foi possivel concluir o envio dos arquivos agora. Reenvie os documentos na tela de verificação.',
         );
         router.replace('/verification');
       } else {
@@ -341,17 +345,7 @@ export default function RegisterScreen() {
   }
 
   const cnpjComplete = ongCnpj.replace(/\D/g, '').length === 14;
-
-  const progressWidth = progressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
-
-  const stepLabel = step === 0
-    ? 'Tipo de conta'
-    : accountType === 'person'
-      ? (['', 'Seus dados', 'Sua senha'][step] ?? '')
-      : (['', 'Dados da ONG', 'Contato', 'Endereco', 'Acesso', 'Verificacao'][step] ?? '');
+  const selectedOngType = ONG_TYPES.find((item) => item.value === ongType);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f1f2f1' }}>
@@ -369,36 +363,27 @@ export default function RegisterScreen() {
             <TouchableOpacity onPress={goBack} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <MaterialCommunityIcons name="arrow-left" size={22} color="#1A1A2E" />
             </TouchableOpacity>
-            {step > 0 && (
-              <Text style={styles.stepLabel}>{stepLabel}</Text>
+            {step > 0 ? (
+              <Text style={styles.stepCounter}>{step} de {total - 1}</Text>
+            ) : (
+              <View style={{ width: 36 }} />
             )}
-            <View style={{ width: 36 }} />
           </View>
 
           {/* ── Progress bar ── */}
-          {step > 0 && (
-            <View style={styles.progressContainer}>
-              <View style={[styles.progressTrack, { backgroundColor: '#E8ECF0' }]}>
-                <Animated.View
-                  style={[styles.progressFill, { width: progressWidth, backgroundColor: '#2D6A4F' }]}
-                />
-              </View>
-              <Text style={styles.progressText}>{step} de {total - 1}</Text>
-            </View>
-          )}
-
           <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
 
             {/* ══════════════════════════════════
                 STEP 0 — Tipo de conta
             ══════════════════════════════════ */}
             {step === 0 && (
-  <View style={styles.section}>
-    <View style={styles.headingBlock}>
+  <View style={[styles.section, styles.accountTypeSection]}>
+    <View style={[styles.headingBlock, styles.accountTypeHeading]}>
       <Text style={styles.title}>Criar conta</Text>
       <Text style={styles.subtitle}>Selecione o tipo de perfil que melhor representa você</Text>
     </View>
 
+    <View style={styles.accountTypePanel}>
     <View style={styles.typeCards}>
       <TouchableOpacity
         style={[
@@ -413,9 +398,9 @@ export default function RegisterScreen() {
           accountType === 'person' && styles.typeIconWrapActive,
         ]}>
           <MaterialCommunityIcons
-            name="account-outline"
-            size={28}
-            color={accountType === 'person' ? '#FFFFFF' : '#6B7280'}
+            name="account-heart-outline"
+            size={22}
+            color={accountType === 'person' ? '#FFFFFF' : '#606864'}
           />
         </View>
         <View style={styles.typeContent}>
@@ -429,7 +414,7 @@ export default function RegisterScreen() {
         </View>
         {accountType === 'person' && (
           <View style={styles.typeCheck}>
-            <MaterialCommunityIcons name="check-circle" size={22} color="#2D6A4F" />
+            <MaterialCommunityIcons name="check-circle" size={21} color="#606864" />
           </View>
         )}
       </TouchableOpacity>
@@ -447,9 +432,9 @@ export default function RegisterScreen() {
           accountType === 'ong' && styles.typeIconWrapActive,
         ]}>
           <MaterialCommunityIcons
-            name="home-heart"
-            size={28}
-            color={accountType === 'ong' ? '#FFFFFF' : '#6B7280'}
+            name="hand-heart-outline"
+            size={22}
+            color={accountType === 'ong' ? '#FFFFFF' : '#606864'}
           />
         </View>
         <View style={styles.typeContent}>
@@ -463,7 +448,7 @@ export default function RegisterScreen() {
         </View>
         {accountType === 'ong' && (
           <View style={styles.typeCheck}>
-            <MaterialCommunityIcons name="check-circle" size={22} color="#2D6A4F" />
+            <MaterialCommunityIcons name="check-circle" size={21} color="#606864" />
           </View>
         )}
       </TouchableOpacity>
@@ -480,13 +465,12 @@ export default function RegisterScreen() {
     >
       <Text style={styles.primaryBtnText}>Continuar</Text>
     </TouchableOpacity>
+    </View>
 
-    <TouchableOpacity style={styles.loginBtn} onPress={() => router.back()} activeOpacity={0.7}>
-      <Text style={styles.loginText}>
-        Já tem conta?{' '}
-        <Text style={styles.loginLink}>Entrar</Text>
-      </Text>
-    </TouchableOpacity>
+    <View style={styles.bottomBrand}>
+      <Image source={{ uri: ZOOHELP_REGISTER_LOGO }} style={styles.bottomBrandLogo} contentFit="contain" />
+      <Text style={styles.bottomBrandText}>Helpin</Text>
+    </View>
   </View>
 )}
 
@@ -626,10 +610,10 @@ export default function RegisterScreen() {
               <View style={styles.section}>
                 <View style={styles.headingBlock}>
                   <Text style={styles.title}>Sua ONG</Text>
-                  <Text style={styles.subtitle}>Qual e o nome e o foco de atuacao?</Text>
+                  <Text style={styles.subtitle}>Qual e o nome e o foco de atuação?</Text>
                 </View>
 
-                <View style={styles.fields}>
+                <View style={[styles.fields, styles.ongStepPanel]}>
                   <TouchableOpacity style={styles.logoPickerRow} onPress={pickOngLogo} activeOpacity={0.82}>
                     <View style={styles.logoPickerPreview}>
                       {ongLogoUri ? (
@@ -650,7 +634,7 @@ export default function RegisterScreen() {
                   </TouchableOpacity>
 
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Nome da ONG / Organizacao</Text>
+                    <Text style={styles.fieldLabel}>Nome da ONG / Organização</Text>
                     <View style={[styles.inputRow, { borderColor: ongName ? '#2D6A4F' : '#E2E8F0' }]}>
                       <MaterialCommunityIcons name="home-heart" size={20} color={ongName ? '#2D6A4F' : '#A0AEC0'} />
                       <TextInput
@@ -665,23 +649,53 @@ export default function RegisterScreen() {
                   </View>
 
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Area de atuacao</Text>
-                    <View style={styles.ongTypeGrid}>
-                      {ONG_TYPES.map((t) => (
-                        <TouchableOpacity
-                          key={t.value}
-                          style={[
-                            styles.ongTypeChip,
-                            { borderColor: ongType === t.value ? '#2D6A4F' : '#E2E8F0', backgroundColor: ongType === t.value ? 'rgba(45, 106, 79, 0.10)' : '#FFFFFF' },
-                          ]}
-                          onPress={() => setOngType(t.value)}
-                          activeOpacity={0.8}
-                        >
-                          <MaterialCommunityIcons name={t.icon} size={16} color={ongType === t.value ? '#2D6A4F' : '#A0AEC0'} />
-                          <Text style={[styles.ongTypeLabel, { color: ongType === t.value ? '#2D6A4F' : '#1A1A2E' }]}>{t.label}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+                    <Text style={styles.fieldLabel}>Area de atuação</Text>
+                    <TouchableOpacity
+                      style={[styles.selectInput, showOngTypeOptions && styles.selectInputOpen]}
+                      onPress={() => setShowOngTypeOptions((value) => !value)}
+                      activeOpacity={0.82}
+                    >
+                      <MaterialCommunityIcons
+                        name={selectedOngType?.icon ?? 'heart-outline'}
+                        size={20}
+                        color={selectedOngType ? '#606864' : '#A0AEC0'}
+                        style={styles.inputLeadingIcon}
+                      />
+                      <View style={styles.selectTextWrap}>
+                        <Text style={[styles.selectValue, !selectedOngType && styles.selectPlaceholder]}>
+                          {selectedOngType?.label ?? 'Selecione a area principal'}
+                        </Text>
+                      </View>
+                      <MaterialCommunityIcons
+                        name={showOngTypeOptions ? 'chevron-up' : 'chevron-down'}
+                        size={20}
+                        color="#606864"
+                      />
+                    </TouchableOpacity>
+
+                    {showOngTypeOptions && (
+                      <View style={styles.selectOptions}>
+                        {ONG_TYPES.map((t) => {
+                          const active = ongType === t.value;
+
+                          return (
+                            <TouchableOpacity
+                              key={t.value}
+                              style={[styles.selectOption, active && styles.selectOptionActive]}
+                              onPress={() => {
+                                setOngType(t.value);
+                                setShowOngTypeOptions(false);
+                              }}
+                              activeOpacity={0.82}
+                            >
+                              <MaterialCommunityIcons name={t.icon} size={18} color={active ? '#606864' : '#8A94A6'} />
+                              <Text style={[styles.selectOptionText, active && styles.selectOptionTextActive]}>{t.label}</Text>
+                              {active && <MaterialCommunityIcons name="check" size={18} color="#606864" />}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
                   </View>
 
                   <View style={styles.fieldGroup}>
@@ -717,12 +731,12 @@ export default function RegisterScreen() {
                       )}
                     </View>
                     <Text style={styles.cnpjHint}>
-                      ONGs com CNPJ valido recebem o selo de verificacao no perfil.
+                      ONGs com CNPJ valido recebem o selo de verificação no perfil.
                     </Text>
                   </View>
 
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Ano de fundacao</Text>
+                    <Text style={styles.fieldLabel}>Ano de fundação</Text>
                     <View style={[styles.inputRow, { borderColor: ongFoundationYear ? '#2D6A4F' : '#E2E8F0' }]}>
                       <MaterialCommunityIcons name="calendar-heart" size={20} color={ongFoundationYear ? '#2D6A4F' : '#A0AEC0'} />
                       <TextInput
@@ -771,7 +785,7 @@ export default function RegisterScreen() {
                 ONG — Step 2: Contato
             ══════════════════════════════════ */}
             {accountType === 'ong' && step === 2 && (
-              <View style={styles.section}>
+              <View style={[styles.section, styles.contactStepSection]}>
                 <View style={styles.headingBlock}>
                   <Text style={styles.title}>Contato</Text>
                   <Text style={styles.subtitle}>Como adotantes e voluntários entram em contato?</Text>
@@ -781,7 +795,12 @@ export default function RegisterScreen() {
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>E-mail oficial</Text>
                     <View style={[styles.inputRow, { borderColor: ongEmail ? '#2D6A4F' : '#E2E8F0' }]}>
-                      <MaterialCommunityIcons name="email-outline" size={20} color={ongEmail ? '#2D6A4F' : '#A0AEC0'} />
+                      <MaterialCommunityIcons
+                        name="email-outline"
+                        size={20}
+                        color={ongEmail ? '#2D6A4F' : '#A0AEC0'}
+                        style={styles.inputLeadingIcon}
+                      />
                       <TextInput
                         style={styles.input}
                         placeholder="contato@suaong.org"
@@ -798,7 +817,12 @@ export default function RegisterScreen() {
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>WhatsApp / Telefone</Text>
                     <View style={[styles.inputRow, { borderColor: ongPhone ? '#2D6A4F' : '#E2E8F0' }]}>
-                      <MaterialCommunityIcons name="whatsapp" size={20} color={ongPhone ? '#2D6A4F' : '#A0AEC0'} />
+                      <MaterialCommunityIcons
+                        name="whatsapp"
+                        size={20}
+                        color={ongPhone ? '#2D6A4F' : '#A0AEC0'}
+                        style={styles.inputLeadingIcon}
+                      />
                       <TextInput
                         style={styles.input}
                         placeholder="(00) 00000-0000"
@@ -947,7 +971,7 @@ export default function RegisterScreen() {
             )}
 
             {accountType === 'ong' && step === 4 && (
-              <View style={styles.section}>
+              <View style={[styles.section, styles.accessStepSection]}>
                 <View style={styles.headingBlock}>
                   <Text style={styles.title}>Acesso seguro</Text>
                   <Text style={styles.subtitle}>Crie uma senha para acessar a conta da ONG</Text>
@@ -977,7 +1001,7 @@ export default function RegisterScreen() {
                   <View style={[styles.ongBadge, { backgroundColor: 'rgba(45, 106, 79, 0.10)' }]}>
                     <MaterialCommunityIcons name="shield-check-outline" size={18} color="#2D6A4F" />
                     <Text style={[styles.ongBadgeText, { color: '#2D6A4F' }]}>
-                      Sua ONG recebera um selo de verificacao apos analise da equipe ZooHelp
+                      Sua ONG recebera um selo de verificação apos analise da equipe ZooHelp
                     </Text>
                   </View>
                 </View>
@@ -1014,7 +1038,7 @@ export default function RegisterScreen() {
             {accountType === 'ong' && step === 5 && (
               <View style={styles.section}>
                 <View style={styles.headingBlock}>
-                  <Text style={styles.title}>Validacao da ONG</Text>
+                  <Text style={styles.title}>Validação da ONG</Text>
                   <Text style={styles.subtitle}>Envie os documentos do responsavel para analise da equipe ZooHelp</Text>
                 </View>
 
@@ -1125,11 +1149,11 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-  stepLabel: {
-    fontSize: 14,
+  stepCounter: {
+    fontSize: 13,
     fontFamily: 'Inter_600SemiBold',
-    color: '#8E8E93',
-    letterSpacing: 0.2,
+    color: '#606864',
+    letterSpacing: -0.1,
   },
 
   progressContainer: {
@@ -1160,10 +1184,36 @@ const styles = StyleSheet.create({
   section: {
     gap: 28,
   },
+  accountTypeSection: {
+    minHeight: 688,
+  },
+  accountTypePanel: {
+    gap: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(226,232,240,0.86)',
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.07,
+    shadowRadius: 24,
+    elevation: 3,
+  },
+  contactStepSection: {
+    paddingTop: 118,
+  },
+  accessStepSection: {
+    paddingTop: 56,
+  },
 
   headingBlock: {
     gap: 8,
     marginBottom: 8,
+  },
+  accountTypeHeading: {
+    paddingTop: 100,
   },
   title: {
     fontSize: 24,
@@ -1182,82 +1232,98 @@ const styles = StyleSheet.create({
   },
 
   typeCards: {
-    gap: 16,
-    marginTop: 8,
+    gap: 14,
+    marginTop: 0,
   },
   typeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
-    borderRadius: 24,
-    borderWidth: 1.5,
-    borderColor: '#E8ECF0',
+    minHeight: 70,
+    paddingVertical: 10,
+    paddingHorizontal: 17,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#EEF0F2',
     backgroundColor: '#FFFFFF',
-    gap: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    gap: 12,
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 4,
   },
   typeCardActive: {
-    borderColor: '#2D6A4F',
-    backgroundColor: 'rgba(45, 106, 79, 0.10)',
-    shadowColor: '#2D6A4F',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
+    borderColor: '#606864',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#606864',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.16,
+    shadowRadius: 20,
     elevation: 6,
   },
   typeIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
 
-    backgroundColor: '#F3F4F6',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    backgroundColor: '#F6F7F8',
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
   },
   typeIconWrapActive: {
-    backgroundColor: 'rgba(45, 106, 79, 0.88)',
-    shadowColor: '#2D6A4F',
+    backgroundColor: '#606864',
+    shadowColor: '#606864',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.24,
     shadowRadius: 8,
     elevation: 4,
   },
   typeContent: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   typeTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: 'Inter_700Bold',
-    color: '#1F2937',
+    color: '#111827',
     letterSpacing: -0.3,
   },
   typeTitleActive: {
-    color: '#2D6A4F',
+    color: '#111827',
   },
   typeDesc: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontFamily: 'Inter_400Regular',
-    color: '#9CA3AF',
-    lineHeight: 18,
+    color: '#8A94A6',
+    lineHeight: 16,
   },
   typeCheck: {
     position: 'absolute',
-    top: 16,
-    right: 16,
+    top: 12,
+    right: 14,
   },
 
   fields: {
     gap: 20,
+  },
+  ongStepPanel: {
+    gap: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(226,232,240,0.86)',
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.07,
+    shadowRadius: 24,
+    elevation: 3,
   },
   fieldGroup: {
     gap: 8,
@@ -1281,7 +1347,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 15,
     elevation: 0,
-    paddingLeft: 5,
+    paddingLeft: 7,
     paddingRight: 15,
     borderWidth: 0,
     borderColor: 'transparent',
@@ -1289,7 +1355,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   inputLeadingIcon: {
-    marginLeft: 12,
+    marginLeft: 8,
     marginRight: 2,
   },
   genderRow: {
@@ -1353,24 +1419,74 @@ const styles = StyleSheet.create({
     gap: 12,
   },
 
-  ongTypeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  ongTypeChip: {
+  selectInput: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 30,
-    borderWidth: 1.5,
     backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    height: 44,
+    marginBottom: 10,
+    paddingLeft: 5,
+    paddingRight: 15,
+    gap: 12,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: 'rgba(100, 100, 150, 0.15)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 15,
+    elevation: 0,
   },
-  ongTypeLabel: {
+  selectInputOpen: {
+    borderColor: '#606864',
+  },
+  selectTextWrap: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  selectValue: {
+    fontSize: 15,
+    fontFamily: 'Inter_500Medium',
+    color: '#2D3748',
+  },
+  selectPlaceholder: {
+    color: '#A0AEC0',
+    fontFamily: 'Inter_400Regular',
+  },
+  selectOptions: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E8ECF0',
+    marginTop: -2,
+    marginBottom: 10,
+    paddingVertical: 6,
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 4,
+  },
+  selectOption: {
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+  },
+  selectOptionActive: {
+    backgroundColor: '#F4F6F5',
+  },
+  selectOptionText: {
+    flex: 1,
     fontSize: 14,
     fontFamily: 'Inter_500Medium',
+    color: '#2D3748',
+  },
+  selectOptionTextActive: {
+    fontFamily: 'Inter_600SemiBold',
+    color: '#111827',
   },
 
   cnpjLabelRow: {
@@ -1422,7 +1538,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
-    marginBottom: 8,
+    marginBottom: 2,
   },
   logoPickerPreview: {
     width: 56,
@@ -1521,27 +1637,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#2D6A4F',
+    backgroundColor: '#606864',
     borderRadius: 28,
     paddingVertical: 8,
     paddingHorizontal: 24,
     marginTop: 10,
     marginBottom: Platform.OS === 'ios' ? 35 : 25,
     width: '100%',
-    shadowColor: '#2D6A4F',
+    shadowColor: '#606864',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 0,
   },
   primaryBtnActive: {
-    backgroundColor: '#2D6A4F',
-    shadowColor: '#2D6A4F',
+    backgroundColor: '#606864',
+    shadowColor: '#606864',
   },
   primaryBtnDisabled: {
-    backgroundColor: '#A0CFFF',
+    backgroundColor: '#606864',
     shadowOpacity: 0,
     elevation: 0,
+    opacity: 0.58,
   },
   primaryBtnText: {
     color: '#FFFFFF',
@@ -1551,9 +1668,10 @@ const styles = StyleSheet.create({
   },
 
   buttonDisabled: {
-    backgroundColor: '#A0CFFF',
+    backgroundColor: '#606864',
     elevation: 0,
     shadowOpacity: 0,
+    opacity: 0.58,
   },
 
   terms: {
@@ -1599,10 +1717,11 @@ const styles = StyleSheet.create({
   },
   loginBtn: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 32,
     backgroundColor: 'transparent',
+    marginTop: 18,
   },
   loginText: {
     fontSize: 14,
@@ -1611,8 +1730,35 @@ const styles = StyleSheet.create({
   },
   loginLink: {
     fontFamily: 'Inter_600SemiBold',
-    color: '#2D6A4F',
+    color: '#606864',
     fontWeight: '600',
     letterSpacing: -0.2,
+  },
+  bottomBrand: {
+    marginTop: 'auto',
+    paddingTop: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 0,
+  },
+  bottomBrandLogo: {
+    position: 'relative',
+    top: 10,
+    width: 36.9,
+    height: 36.9,
+    borderRadius: 8,
+  },
+  bottomBrandText: {
+    marginLeft: -1,
+    top: 10,
+    fontSize: 27.2,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#606864',
+    letterSpacing: -1,
+    lineHeight: 33.9,
+    textShadowColor: 'rgba(46,125,50,0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 });
