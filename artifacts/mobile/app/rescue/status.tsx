@@ -164,14 +164,14 @@ export default function RescueStatusScreen() {
         <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
           {active
-            ? 'GPS ativo, localizacao em atualizacao e chat pronto para coordenacao.'
+            ? 'GPS ativo, localização em atualização e chat pronto para coordenação.'
             : addressOnly
               ? 'Post urgente criado com endereço manual. No PC, o rastreamento GPS em tempo real fica desativado.'
             : pending
-              ? 'Sem confirmacao do servidor ainda. O pedido fica na fila local e sera reenviado.'
+              ? 'Sem confirmação do servidor ainda. O pedido fica na fila local e sera reenviado.'
               : failed
                 ? 'Nao foi possivel confirmar o alerta. Verifique GPS e conexao.'
-                : 'Confirmando localizacao e abrindo sessao operacional.'}
+                : 'Confirmando localização e abrindo sessao operacional.'}
         </Text>
       </View>
 
