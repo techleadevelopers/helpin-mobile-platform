@@ -202,7 +202,7 @@ function CaseCard({
           <Text style={styles.caseLocation} numberOfLines={1}>{post.neighborhood || post.location || 'Local nao informado'}</Text>
         </View>
       </View>
-      <Text style={styles.caseDescription} numberOfLines={2}>{post.description || 'Caso aguardando acao da ONG.'}</Text>
+      <Text style={styles.caseDescription} numberOfLines={2}>{post.description || 'Caso aguardando ação da ONG.'}</Text>
       <View style={styles.statusSurface}>
         <OperationalStatus post={post} variant="compact" />
       </View>
@@ -342,7 +342,7 @@ export function OngDashboard() {
             </View>
             <View style={styles.profileIdentity}>
               <Text style={styles.accountType}>ONG</Text>
-              <Text style={styles.ongName} numberOfLines={2}>{user?.name || 'Instituicao Resgate'}</Text>
+              <Text style={styles.ongName} numberOfLines={2}>{user?.name || 'Instituição Resgate'}</Text>
               <View style={styles.metaRow}>
                 <MaterialCommunityIcons name={user?.verified ? 'shield-check-outline' : 'clock-outline'} size={13} color={MUTED} />
                 <Text style={styles.metaText} numberOfLines={1}>{location} · {verificationLabel}</Text>
