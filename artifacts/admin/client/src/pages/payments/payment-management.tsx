@@ -153,7 +153,7 @@ const WithdrawalActionModal = ({
   const handleReject = () => {
     if (isLocked) return;
     if (!rejectionReason.trim()) {
-      onValidationError("Informe um motivo antes de rejeitar a solicitação.");
+      onValidationError("Informe um motivo antes de rejeitar a solicitaÃ§Ã£o.");
       return;
     }
     onReject(withdrawal.id, rejectionReason.trim());
@@ -164,11 +164,11 @@ const WithdrawalActionModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Detalhes da Solicitação de Saque</DialogTitle>
+          <DialogTitle>Detalhes da SolicitaÃ§Ã£o de Saque</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <p>
-            <strong>ONG/Cl�nica:</strong> {withdrawal.provider?.fullName || withdrawal.provider?.name || "N/A"}
+            <strong>ONG/Clínica:</strong> {withdrawal.provider?.fullName || withdrawal.provider?.name || "N/A"}
           </p>
           <p>
             <strong>Valor:</strong>{" "}
@@ -187,12 +187,12 @@ const WithdrawalActionModal = ({
           {withdrawal.status === "PENDING" && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="rejectionReason">Motivo da Rejeição (opcional)</Label>
+                <Label htmlFor="rejectionReason">Motivo da RejeiÃ§Ã£o (opcional)</Label>
                 <Input
                   id="rejectionReason"
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="Ex: Documentação incompleta"
+                  placeholder="Ex: DocumentaÃ§Ã£o incompleta"
                   disabled={isLocked}
                 />
               </div>
@@ -322,7 +322,7 @@ export default function PaymentManagementPage() {
   const showValidationDialog = (message: string) => {
     setConfirmationDialog({
       open: true,
-      title: "Atenção",
+      title: "AtenÃ§Ã£o",
       description: message,
       confirmLabel: "Fechar",
       hideCancel: true,
@@ -397,7 +397,7 @@ export default function PaymentManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/payments/withdrawals"] });
-      toast({ title: "Sucesso!", description: "Solicitação de saque aprovada." });
+      toast({ title: "Sucesso!", description: "SolicitaÃ§Ã£o de saque aprovada." });
     },
     onSettled: () => {
       setIsActionLocked(false);
@@ -424,7 +424,7 @@ export default function PaymentManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/payments/withdrawals"] });
-      toast({ title: "Sucesso!", description: "Solicitação de saque rejeitada." });
+      toast({ title: "Sucesso!", description: "SolicitaÃ§Ã£o de saque rejeitada." });
     },
     onSettled: () => {
       setIsActionLocked(false);
@@ -454,7 +454,7 @@ export default function PaymentManagementPage() {
     setConfirmationDialog({
       open: true,
       title: "Confirmar reembolso",
-      description: "Deseja iniciar o reembolso desta transação?",
+      description: "Deseja iniciar o reembolso desta transaÃ§Ã£o?",
       confirmLabel: "Iniciar reembolso",
       cancelLabel: "Cancelar",
       isDestructive: true,
@@ -523,14 +523,14 @@ export default function PaymentManagementPage() {
     );
   }, [withdrawalRequests, withdrawalSearchTerm, withdrawalStatusFilter]);
 
-  const transactionsVirtualizer = useVirtualizer<HTMLDivElement>({
+  const transactionsVirtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
     count: filteredTransactions.length,
     getScrollElement: () => transactionsParentRef.current,
     estimateSize: () => 80,
     overscan: 5,
   });
 
-  const withdrawalsVirtualizer = useVirtualizer<HTMLDivElement>({
+  const withdrawalsVirtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
     count: filteredWithdrawalRequests.length,
     getScrollElement: () => withdrawalsParentRef.current,
     estimateSize: () => 80,
@@ -560,8 +560,8 @@ export default function PaymentManagementPage() {
 
       <div className="flex-1 ml-72 overflow-hidden">
         <Header
-          title="Gerenciamento de Doa��os"
-          subtitle="Monitore transações, gerencie payouts e visualize o fluxo financeiro."
+          title="Gerenciamento de Doaçãos"
+          subtitle="Monitore transaÃ§Ãµes, gerencie payouts e visualize o fluxo financeiro."
         />
 
         <main className="flex-1 overflow-y-auto p-8">
@@ -634,7 +634,7 @@ export default function PaymentManagementPage() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Comissão da Plataforma</p>
+                      <p className="text-sm font-medium text-gray-600">ComissÃ£o da Plataforma</p>
                       <p className="text-2xl font-bold text-gray-900">
                         R${" "}
                         {platformCommission.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
@@ -653,12 +653,12 @@ export default function PaymentManagementPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-4">
               <TabsList className="grid w-full grid-cols-2 bg-white shadow-floating border-0">
-                <TabsTrigger value="transactions">Transações</TabsTrigger>
-                <TabsTrigger value="withdrawals">Solicitações de Saque</TabsTrigger>
+                <TabsTrigger value="transactions">TransaÃ§Ãµes</TabsTrigger>
+                <TabsTrigger value="withdrawals">SolicitaÃ§Ãµes de Saque</TabsTrigger>
               </TabsList>
               {isActionLocked && (
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">
-                  Sincronizando ações...
+                  Sincronizando aÃ§Ãµes...
                 </span>
               )}
             </div>
@@ -668,12 +668,12 @@ export default function PaymentManagementPage() {
             <Card className="shadow-floating border-0">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>Histórico de Transações</CardTitle>
+                  <CardTitle>HistÃ³rico de TransaÃ§Ãµes</CardTitle>
                   <div className="flex items-center space-x-2">
                     <div className="relative">
                       <Input
                         type="text"
-                        placeholder="Buscar transação..."
+                        placeholder="Buscar transaÃ§Ã£o..."
                         value={transactionSearchTerm}
                         onChange={(e) => updateQueryParam("txSearch", e.target.value || null)}
                         className="pl-10"
@@ -691,9 +691,9 @@ export default function PaymentManagementPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Todos os Tipos</SelectItem>
-                        <SelectItem value={TransactionType.PAYMENT}>Doa��o</SelectItem>
+                        <SelectItem value={TransactionType.PAYMENT}>Doação</SelectItem>
                         <SelectItem value={TransactionType.WITHDRAWAL}>Saque</SelectItem>
-                        <SelectItem value={TransactionType.COMMISSION}>Comissão</SelectItem>
+                        <SelectItem value={TransactionType.COMMISSION}>ComissÃ£o</SelectItem>
                         <SelectItem value={TransactionType.REFUND}>Reembolso</SelectItem>
                       </SelectContent>
                     </Select>
@@ -734,12 +734,12 @@ export default function PaymentManagementPage() {
                   </div>
                 ) : isErrorTransactions ? (
                   <div className="text-center py-12 text-red-600">
-                    <p>Erro ao carregar transações: {errorTransactions?.message}</p>
+                    <p>Erro ao carregar transaÃ§Ãµes: {errorTransactions?.message}</p>
                   </div>
                 ) : filteredTransactions.length === 0 ? (
                   <div className="text-center py-12">
                     <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma transação encontrada</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma transaÃ§Ã£o encontrada</h3>
                     <p className="text-gray-500">Experimente ajustar os filtros ou a busca.</p>
                   </div>
                 ) : (
@@ -759,7 +759,7 @@ export default function PaymentManagementPage() {
                             </div>
                             <div>
                                 <p className="font-medium text-gray-900">
-                                  {transaction.description || `Transação ${transaction.type}`}
+                                  {transaction.description || `TransaÃ§Ã£o ${transaction.type}`}
                                 </p>
                                 {transaction.fullName && (
                                   <p className="text-xs text-gray-500 mt-1">{transaction.fullName}</p>
@@ -814,12 +814,12 @@ export default function PaymentManagementPage() {
             <Card className="shadow-floating border-0">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>Solicitações de Saque</CardTitle>
+                  <CardTitle>SolicitaÃ§Ãµes de Saque</CardTitle>
                   <div className="flex items-center space-x-2">
                     <div className="relative">
                       <Input
                         type="text"
-                        placeholder="Buscar solicitação..."
+                        placeholder="Buscar solicitaÃ§Ã£o..."
                         value={withdrawalSearchTerm}
                         onChange={(e) => updateQueryParam("withdrawalSearch", e.target.value || null)}
                         className="pl-10"
@@ -863,15 +863,15 @@ export default function PaymentManagementPage() {
                   </div>
                 ) : isErrorWithdrawals ? (
                   <div className="text-center py-12 text-red-600">
-                    <p>Erro ao carregar solicitações de saque: {errorWithdrawals?.message}</p>
+                    <p>Erro ao carregar solicitaÃ§Ãµes de saque: {errorWithdrawals?.message}</p>
                   </div>
                 ) : filteredWithdrawalRequests.length === 0 ? (
                   <div className="text-center py-12">
                     <Wallet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Nenhuma solicitação de saque encontrada
+                      Nenhuma solicitaÃ§Ã£o de saque encontrada
                     </h3>
-                    <p className="text-gray-500">Experimente limpar a busca ou expandir o período monitorado.</p>
+                    <p className="text-gray-500">Experimente limpar a busca ou expandir o perÃ­odo monitorado.</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -902,7 +902,7 @@ export default function PaymentManagementPage() {
                             </div>
                             <div>
                               <p className="font-medium text-gray-900">
-                                  Saque de {request.provider?.fullName || request.provider?.name || "ONG/Cl�nica Desconhecido"}
+                                  Saque de {request.provider?.fullName || request.provider?.name || "ONG/Clínica Desconhecido"}
                               </p>
                               <div className="flex items-center gap-2 mt-1">
                                 <Badge className={`text-xs px-2 py-1 border-0 ${statusBadgeClass}`}>
