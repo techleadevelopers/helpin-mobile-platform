@@ -42,12 +42,12 @@ export default function ReviewManagementPage() {
   const respondMutation = useMutation({
     mutationFn: (vars: { id: string; message: string }) => respondToReview(vars.id, vars.message),
     onSuccess: () => {
-      toast({ title: 'Resposta enviada', description: 'O cliente verá sua resposta em breve.' });
+      toast({ title: 'Resposta enviada', description: 'O cliente verÃ¡ sua resposta em breve.' });
       setRespondDialog({ id: '', open: false });
       setResponseText('');
       queryClient.invalidateQueries({ queryKey: ['reviews'] });
     },
-    onError: (err: any) => toast({ title: 'Erro', description: err?.message ?? 'Falha ao responder avaliação', variant: 'destructive' }),
+    onError: (err: any) => toast({ title: 'Erro', description: err?.message ?? 'Falha ao responder avaliaÃ§Ã£o', variant: 'destructive' }),
   });
 
   const filtered = useMemo(() => {
@@ -61,12 +61,12 @@ export default function ReviewManagementPage() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <Header title="Avaliações" subtitle="Gerencie avaliações, responda usu�rios e acompanhe qualidade." />
+        <Header title="AvaliaÃ§Ãµes" subtitle="Gerencie avaliaÃ§Ãµes, responda usuários e acompanhe qualidade." />
         <main className="p-6 space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle>Lista de Avaliações</CardTitle>
+                <CardTitle>Lista de AvaliaÃ§Ãµes</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-3 mb-4">
@@ -91,17 +91,17 @@ export default function ReviewManagementPage() {
                           <div className="flex items-center gap-2">
                             <Star className="text-yellow-500" size={16} />
                             <span className="font-semibold">{r.rating.toFixed(1)}</span>
-                            <span className="text-gray-500 text-sm">• {new Date(r.createdAt).toLocaleString('pt-BR')}</span>
+                            <span className="text-gray-500 text-sm">â€¢ {new Date(r.createdAt).toLocaleString('pt-BR')}</span>
                           </div>
                           <Button variant="outline" size="sm" onClick={() => setRespondDialog({ id: r.id, open: true })}>
                             <Reply size={14} className="mr-2" /> Responder
                           </Button>
                         </div>
-                        <p className="text-sm text-gray-700 mt-2 whitespace-pre-line">{r.comment || '—'}</p>
+                        <p className="text-sm text-gray-700 mt-2 whitespace-pre-line">{r.comment || 'â€”'}</p>
                       </div>
                     ))}
                     {filtered.length === 0 && (
-                      <div className="text-center text-gray-500 py-10">Nenhuma avaliação encontrada.</div>
+                      <div className="text-center text-gray-500 py-10">Nenhuma avaliaÃ§Ã£o encontrada.</div>
                     )}
                   </div>
                 )}
@@ -116,30 +116,36 @@ export default function ReviewManagementPage() {
                 <Tabs defaultValue="breakdown">
                   <TabsList className="grid grid-cols-2 w-full">
                     <TabsTrigger value="breakdown">Notas</TabsTrigger>
-                    <TabsTrigger value="suggestions">Sugestões</TabsTrigger>
+                    <TabsTrigger value="suggestions">SugestÃµes</TabsTrigger>
                   </TabsList>
                   <TabsContent value="breakdown" className="mt-4">
                     {!breakdown ? (
                       <div className="text-sm text-gray-500">Selecione um provider para ver o detalhamento.</div>
                     ) : (
                       <div className="space-y-2 text-sm">
-                        {Object.entries(breakdown.byStars).map(([k, v]) => (
+                        {[
+                          ['5', breakdown.fiveStar.count],
+                          ['4', breakdown.fourStar.count],
+                          ['3', breakdown.threeStar.count],
+                          ['2', breakdown.twoStar.count],
+                          ['1', breakdown.oneStar.count],
+                        ].map(([k, v]) => (
                           <div key={k} className="flex items-center justify-between">
                             <span>{k} estrelas</span>
                             <span className="font-medium">{v}</span>
                           </div>
                         ))}
-                        <div className="pt-2 border-t text-gray-700">Média: <span className="font-semibold">{breakdown.average.toFixed(2)}</span></div>
+                        <div className="pt-2 border-t text-gray-700">MÃ©dia: <span className="font-semibold">{breakdown.averageRating.toFixed(2)}</span></div>
                       </div>
                     )}
                   </TabsContent>
                   <TabsContent value="suggestions" className="mt-4">
                     {!suggestions || suggestions.length === 0 ? (
-                      <div className="text-sm text-gray-500">Sem sugestões para este provider.</div>
+                      <div className="text-sm text-gray-500">Sem sugestÃµes para este provider.</div>
                     ) : (
                       <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
                         {suggestions.map((s, i) => (
-                          <li key={i}>{s.text}</li>
+                          <li key={i}>{s.description}</li>
                         ))}
                       </ul>
                     )}
@@ -152,7 +158,7 @@ export default function ReviewManagementPage() {
           <Dialog open={respondDialog.open} onOpenChange={(open) => setRespondDialog({ id: respondDialog.id, open })}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Responder avaliação</DialogTitle>
+                <DialogTitle>Responder avaliaÃ§Ã£o</DialogTitle>
               </DialogHeader>
               <div className="space-y-3">
                 <Textarea placeholder="Escreva sua resposta ao cliente..." value={responseText} onChange={(e) => setResponseText(e.target.value)} />
