@@ -25,14 +25,14 @@ export default function Dashboard() {
       <div className="ml-72 flex-1 overflow-hidden">
         <Header
           title="ZooHelp Ops Center"
-          subtitle="Operacao, trust, resgates e sistema em tempo real."
+          subtitle="Operação, trust, resgates e sistema em tempo real."
         />
 
         <main className="flex-1 overflow-y-auto bg-slate-50/70 p-6">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Tempo real</p>
-              <h2 className="mt-1 text-sm font-semibold text-gray-900">Operacao do app</h2>
+              <h2 className="mt-1 text-sm font-semibold text-gray-900">Operação do app</h2>
             </div>
             <div className="flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-3 py-1.5 text-xs font-medium text-emerald-700 shadow-sm">
               <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]" />
