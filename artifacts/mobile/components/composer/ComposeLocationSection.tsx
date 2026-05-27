@@ -20,12 +20,14 @@ type ComposeLocationSectionProps = {
   colors: ComposerColors;
   currentType: ComposerPostType;
   contact: string;
+  locationPrecision: 'none' | 'city' | 'address' | 'gps';
   onChangeLocation: (value: string) => void;
   onChangeManualNumber: (value: string) => void;
   onChangeManualNeighborhood: (value: string) => void;
   onChangeManualCity: (value: string) => void;
   onChangeManualState: (value: string) => void;
   onChangeContact: (value: string) => void;
+  onUseGps: () => void;
   onFocusSuggestions: () => void;
   onBlurSuggestions: () => void;
   onSelectSuggestion: (placeId: string, description: string) => void;
@@ -46,19 +48,21 @@ export function ComposeLocationSection({
   colors,
   currentType,
   contact,
+  locationPrecision,
   onChangeLocation,
   onChangeManualNumber,
   onChangeManualNeighborhood,
   onChangeManualCity,
   onChangeManualState,
   onChangeContact,
+  onUseGps,
   onFocusSuggestions,
   onBlurSuggestions,
   onSelectSuggestion,
 }: ComposeLocationSectionProps) {
   const hasLocationDraft = location.trim().length >= 3;
-  const shouldOfferManualEntry = hasLocationDraft || addressLookupFailed || addressManualFallbackVisible;
-  const showManualFields = hasLocationDraft && !addressResult && shouldOfferManualEntry;
+  const showManualFields = hasLocationDraft || addressLookupFailed || addressManualFallbackVisible;
+  const gpsActive = locationPrecision === 'gps';
 
   return (
     <ComposerSection>
@@ -68,7 +72,7 @@ export function ComposeLocationSection({
         </View>
         <View style={styles.headerCopy}>
           <Text style={sectionStyles.title}>Onde precisa de ajuda?</Text>
-          <Text style={sectionStyles.support}>Aproxima usuários e ONGs disponíveis na região.</Text>
+          <Text style={sectionStyles.support}>Use GPS ou preencha o endereco completo do caso.</Text>
         </View>
       </View>
 
@@ -79,7 +83,7 @@ export function ComposeLocationSection({
           </View>
           <TextInput
             style={styles.searchInputText}
-            placeholder="Digite rua, número e cidade"
+            placeholder="Rua, numero, bairro e cidade"
             placeholderTextColor="#8A928B"
             value={location}
             onChangeText={onChangeLocation}
@@ -87,42 +91,63 @@ export function ComposeLocationSection({
             onBlur={onBlurSuggestions}
             onFocus={onFocusSuggestions}
           />
-          {showManualFields && (
-            <TextInput
-              style={styles.manualNumberInput}
-              value={manualNumber}
-              onChangeText={onChangeManualNumber}
-              placeholder="Nº"
-              placeholderTextColor="#8A928B"
-              keyboardType="numbers-and-punctuation"
+          <TouchableOpacity
+            style={[styles.gpsButton, gpsActive && { backgroundColor: currentType.color }]}
+            onPress={onUseGps}
+            activeOpacity={0.82}
+          >
+            <MaterialCommunityIcons
+              name={gpsActive ? 'crosshairs-gps' : 'crosshairs'}
+              size={16}
+              color={gpsActive ? '#FFFFFF' : currentType.color}
             />
-          )}
+          </TouchableOpacity>
         </View>
+
         {showManualFields && (
-          <View style={styles.manualLocationRow}>
-            <TextInput
-              style={[styles.manualLocationInput, styles.manualNeighborhoodInput]}
-              value={manualNeighborhood}
-              onChangeText={onChangeManualNeighborhood}
-              placeholder="Bairro"
-              placeholderTextColor="#8A928B"
-            />
-            <TextInput
-              style={[styles.manualLocationInput, styles.manualCityInput]}
-              value={manualCity}
-              onChangeText={onChangeManualCity}
-              placeholder="Cidade"
-              placeholderTextColor="#8A928B"
-            />
-            <TextInput
-              style={[styles.manualLocationInput, styles.manualStateInput]}
-              value={manualState}
-              onChangeText={(value) => onChangeManualState(value.toUpperCase())}
-              placeholder="UF"
-              placeholderTextColor="#8A928B"
-              maxLength={2}
-              autoCapitalize="characters"
-            />
+          <View style={styles.manualFieldsBlock}>
+            <View style={styles.manualNumberRow}>
+              <TextInput
+                style={[styles.manualLocationInput, styles.manualStreetInput]}
+                value={location}
+                onChangeText={onChangeLocation}
+                placeholder="Rua ou avenida"
+                placeholderTextColor="#8A928B"
+              />
+              <TextInput
+                style={styles.manualNumberInput}
+                value={manualNumber}
+                onChangeText={onChangeManualNumber}
+                placeholder="No."
+                placeholderTextColor="#8A928B"
+                keyboardType="numbers-and-punctuation"
+              />
+            </View>
+            <View style={styles.manualLocationRow}>
+              <TextInput
+                style={[styles.manualLocationInput, styles.manualNeighborhoodInput]}
+                value={manualNeighborhood}
+                onChangeText={onChangeManualNeighborhood}
+                placeholder="Bairro"
+                placeholderTextColor="#8A928B"
+              />
+              <TextInput
+                style={[styles.manualLocationInput, styles.manualCityInput]}
+                value={manualCity}
+                onChangeText={onChangeManualCity}
+                placeholder="Cidade"
+                placeholderTextColor="#8A928B"
+              />
+              <TextInput
+                style={[styles.manualLocationInput, styles.manualStateInput]}
+                value={manualState}
+                onChangeText={(value) => onChangeManualState(value.toUpperCase())}
+                placeholder="UF"
+                placeholderTextColor="#8A928B"
+                maxLength={2}
+                autoCapitalize="characters"
+              />
+            </View>
           </View>
         )}
 
@@ -171,7 +196,7 @@ export function ComposeLocationSection({
       {addressSearching && (
         <View style={styles.addressStatus}>
           <MaterialCommunityIcons name="radar" size={14} color="#277A55" />
-          <Text style={[styles.addressStatusText, { color: colors.mutedForeground }]}>Buscando endereço...</Text>
+          <Text style={[styles.addressStatusText, { color: colors.mutedForeground }]}>Buscando endereco...</Text>
         </View>
       )}
 
@@ -187,7 +212,7 @@ export function ComposeLocationSection({
       {!addressResult && !addressSearching && (
         <View style={styles.locationBenefit}>
           <MaterialCommunityIcons name="shield-check-outline" size={13} color="#277A55" />
-          <Text style={styles.locationBenefitText}>A localização melhora o direcionamento do resgate.</Text>
+          <Text style={styles.locationBenefitText}>Rua, numero, bairro, cidade e UF aparecem no post publicado.</Text>
         </View>
       )}
     </ComposerSection>
@@ -236,11 +261,29 @@ const styles = StyleSheet.create({
     color: '#1D2A20',
     padding: 0,
   },
+  gpsButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DDE8E1',
+  },
+  manualFieldsBlock: {
+    gap: 8,
+    marginTop: 8,
+  },
+  manualNumberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   manualLocationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    marginTop: 8,
     width: '100%',
     overflow: 'hidden',
   },
@@ -249,8 +292,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   manualNumberInput: {
-    width: 42,
-    height: 26,
+    width: 56,
+    height: 34,
     borderWidth: 1,
     borderColor: '#E4EAE5',
     borderRadius: 10,
@@ -265,7 +308,7 @@ const styles = StyleSheet.create({
   manualLocationInput: {
     flex: 1,
     minWidth: 0,
-    height: 30,
+    height: 34,
     borderWidth: 1,
     borderColor: '#E4EAE5',
     borderRadius: 11,
@@ -276,13 +319,16 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_500Medium',
     color: '#1D2A20',
   },
+  manualStreetInput: {
+    flex: 1,
+  },
   manualStateInput: {
     flex: 0,
-    width: 68,
+    width: 52,
     textAlign: 'center',
   },
   manualNeighborhoodInput: {
-    flex: 0.46,
+    flex: 0.52,
   },
   manualCityInput: {
     flex: 0.62,
