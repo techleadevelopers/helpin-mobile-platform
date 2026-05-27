@@ -40,7 +40,7 @@ export function ZooHelpHeader({ onBack }: ZooHelpHeaderProps = {}) {
       <View pointerEvents="none" style={styles.logoCenter}>
         <View style={styles.logoRow}>
           <Image source={{ uri: ZOOHELP_HEADER_LOGO }} style={styles.logoIcon} contentFit="contain" />
-          <Text style={[styles.logoText, { color: colors.primary }]}>ZooHelp</Text>
+          <Text style={[styles.logoText, { color: colors.primary }]}>Helpin</Text>
         </View>
       </View>
       <View style={styles.headerSideSpacer} />
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   headerSideSpacer: { width: 40, height: 40 },
   logoCenter: {
     position: 'absolute',
-    left: -12,
+    left: -20,
     right: 0,
     bottom: 13,
     height: 36,
@@ -77,12 +77,12 @@ const styles = StyleSheet.create({
     gap: 0,
   },
   logoIcon: {
-    width: 28.5,
-    height: 28.5,
+    width: 30.5,
+    height: 30.5,
     borderRadius: 8,
   },
   logoText: {
-    marginLeft: 2,
+    marginLeft: -1,
     top: 2,
     fontSize: 22.5,
     fontFamily: 'Montserrat_700Bold',
