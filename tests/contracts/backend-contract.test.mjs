@@ -40,7 +40,7 @@ const sampleOng = {
   id: "o1",
   name: "Instituto Amigos dos Animais",
   shortName: "IAA",
-  description: "Rede de protecao animal.",
+  description: "Rede de proteção animal.",
   mission: "Resgatar e recolocar animais em lares responsaveis.",
   location: "Vila Mariana, Sao Paulo, SP",
   city: "Sao Paulo",
@@ -54,7 +54,7 @@ const sampleOng = {
   since: "2016",
   cnpj: "00.000.000/0001-00",
   contact: "(11) 99999-0001",
-  cause: "Adocao responsavel e resgate urbano",
+  cause: "Adoção responsavel e resgate urbano",
 };
 
 function expectString(value, field) {
@@ -376,7 +376,7 @@ test("live backend contract, when ZOOHELP_BACKEND_URL is provided", async (t) =>
       name: "Teste contrato",
       postType: "adoption",
       animalType: "dog",
-      description: "Animal vacinado para adocao responsavel.",
+      description: "Animal vacinado para adoção responsavel.",
       location: "Sao Paulo, SP",
       neighborhood: "Vila Mariana",
       contact: "(11) 99999-0001",
