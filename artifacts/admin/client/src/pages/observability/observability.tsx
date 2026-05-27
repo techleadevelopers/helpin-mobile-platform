@@ -226,7 +226,7 @@ export default function ObservabilityPage() {
               value={String(data?.queues?.deadLetterPushJobs ?? 0)}
               lines={[
                 `Push queued: ${data?.queues?.queuedPushJobs ?? 0}`,
-                `Moderacao queued: ${data?.queues?.queuedModerationJobs ?? 0}`,
+                `Moderação queued: ${data?.queues?.queuedModerationJobs ?? 0}`,
                 "Valor principal: Push DLQ",
               ]}
             />
