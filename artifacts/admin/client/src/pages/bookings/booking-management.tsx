@@ -40,7 +40,7 @@ const getStatusBadgeClass = (status: BookingStatus) => {
   }
 };
 
-// Componente de Modal para Detalhes e Ações do Caso
+// Componente de Modal para Detalhes e AÃ§Ãµes do Caso
 interface BookingDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -86,16 +86,16 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/bookings'] });
       queryClient.invalidateQueries({ queryKey: ['/bookings', bookingId] });
-      toast({ title: "Ação executada", description: "Estorno forçado concluído com sucesso." });
+      toast({ title: "AÃ§Ã£o executada", description: "Estorno forÃ§ado concluÃ­do com sucesso." });
     },
     onError: (error: any) => {
-      toast({ title: "Erro", description: `Não foi possível forçar o cancelamento: ${error.message}`, variant: "destructive" });
+      toast({ title: "Erro", description: `NÃ£o foi possÃ­vel forÃ§ar o cancelamento: ${error.message}`, variant: "destructive" });
     },
   });
 
   const handleForceRefund = () => {
     if (!bookingId) return;
-    if (!window.confirm("Tem certeza que deseja forçar o cancelamento e estorno deste caso? Esta ação notificará o backend imediatamente.")) {
+    if (!window.confirm("Tem certeza que deseja forÃ§ar o cancelamento e estorno deste caso? Esta aÃ§Ã£o notificarÃ¡ o backend imediatamente.")) {
       return;
     }
     forceRefundMutation.mutate({ id: bookingId, reason: adminNotes || undefined });
@@ -106,12 +106,12 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/bookings'] });
       queryClient.invalidateQueries({ queryKey: ['/bookings', bookingId] });
-      toast({ title: "Doa��o confirmado", description: "Confirmação manual do PIX concluída." });
+      toast({ title: "Doação confirmado", description: "ConfirmaÃ§Ã£o manual do PIX concluÃ­da." });
     },
     onError: (error: any) => {
       toast({
         title: "Erro",
-        description: `Não foi possível confirmar o PIX manualmente: ${error.message}`,
+        description: `NÃ£o foi possÃ­vel confirmar o PIX manualmente: ${error.message}`,
         variant: "destructive",
       });
     },
@@ -156,11 +156,11 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
                 <p className="font-medium">{booking.client?.fullName || booking.client?.name || 'N/A'} (ID: {booking.clientId.substring(0, 8)}...)</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">ONG/Cl�nica</p>
+                <p className="text-sm text-gray-500">ONG/Clínica</p>
                 <p className="font-medium">{booking.provider?.fullName || booking.provider?.name || 'N/A'} (ID: {booking.providerId.substring(0, 8)}...)</p>
               </div>
               <div className="col-span-2">
-                <p className="text-sm text-gray-500">Serviço</p>
+                <p className="text-sm text-gray-500">ServiÃ§o</p>
                 <p className="font-medium">{booking.service?.name || 'N/A'} (ID: {booking.providerServiceId.substring(0, 8)}...)</p>
               </div>
               <div>
@@ -172,12 +172,12 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
                 <p className="font-medium">{booking.scheduledTime}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Preço Total</p>
+                <p className="text-sm text-gray-500">PreÃ§o Total</p>
                 <p className="font-medium">R$ {booking.totalPrice.toFixed(2)}</p>
               </div>
               {booking.address && (
                 <div className="col-span-2">
-                  <p className="text-sm text-gray-500">Endereço</p>
+                  <p className="text-sm text-gray-500">EndereÃ§o</p>
                   <p className="font-medium">
                     {booking.address.street}, {booking.address.number} - {booking.address.neighborhood}, {booking.address.city} - {booking.address.state}
                   </p>
@@ -191,7 +191,7 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
               )}
             </div>
 
-            {/* Seção de Atualização de Status */}
+            {/* SeÃ§Ã£o de AtualizaÃ§Ã£o de Status */}
             <Card className="border-0 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Atualizar Status do Caso</CardTitle>
@@ -219,7 +219,7 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
                       id="notes"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Adicione notas sobre a atualização"
+                      placeholder="Adicione notas sobre a atualizaÃ§Ã£o"
                     />
                   </div>
                 </div>
@@ -235,12 +235,12 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
               </CardContent>
             </Card>
 
-            {/* Ação de Suporte */}
+            {/* AÃ§Ã£o de Suporte */}
             <Card className="border-0 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <LifeBuoy size={20} />
-                  Ação de Suporte
+                  AÃ§Ã£o de Suporte
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -250,7 +250,7 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
                     id="adminNotes"
                     value={adminNotes}
                     onChange={(e) => setAdminNotes(e.target.value)}
-                    placeholder="Registre observações, incidentes ou instruções que só o time administrativo verá."
+                    placeholder="Registre observaÃ§Ãµes, incidentes ou instruÃ§Ãµes que sÃ³ o time administrativo verÃ¡."
                     className="min-h-[120px]"
                   />
                 </div>
@@ -260,12 +260,12 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
                       className="border-medium-blue text-medium-blue hover:bg-medium-blue/10"
                       onClick={() => {
                       const rawNumber = (booking?.provider?.phone || booking?.client?.phone || "+5519993223932").replace(/\D/g, "");
-                      const message = encodeURIComponent(`ZooHelp Admin Chat — caso ${booking?.id}`);
+                      const message = encodeURIComponent(`ZooHelp Admin Chat â€” caso ${booking?.id}`);
                       window.open(`https://wa.me/${rawNumber}?text=${message}`, "_blank");
                     }}
                   >
                     <MessageSquare size={16} className="mr-2" />
-                    Chat de Emergência
+                    Chat de EmergÃªncia
                     </Button>
                     <Button
                       variant="outline"
@@ -281,7 +281,7 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
                       onClick={handleForceRefund}
                       disabled={forceRefundMutation.isPending}
                     >
-                    Forçar Estorno/Cancelamento
+                    ForÃ§ar Estorno/Cancelamento
                   </Button>
                 </div>
               </CardContent>
@@ -309,17 +309,17 @@ export default function BookingManagement() {
     hasNextPage,
     isFetchingNextPage,
     isFetching,
-  } = useInfiniteQuery<BookingPage, Error>({
+  } = useInfiniteQuery<BookingPage, Error, { pages: BookingPage[]; pageParams: unknown[] }, readonly unknown[], string | undefined>({
     queryKey: ['admin-bookings', statusFilter, debouncedSearchTerm],
     queryFn: ({ pageParam }) =>
       fetchBookingsPage({
-        cursor: pageParam ?? undefined,
+        cursor: pageParam,
         limit: 20,
         status: statusFilter !== 'all' ? statusFilter : undefined,
         search: debouncedSearchTerm || undefined,
       }),
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    keepPreviousData: false,
+    initialPageParam: undefined,
   });
 
   const bookings = useMemo(
@@ -363,7 +363,7 @@ export default function BookingManagement() {
       <div className="flex-1 ml-72 overflow-hidden">
         <Header 
           title="Gerenciamento de Casos"
-          subtitle="Monitore e gerencie todos os casos de serviços na plataforma LimpeJá."
+          subtitle="Monitore e gerencie todos os casos de serviÃ§os na plataforma LimpeJÃ¡."
         />
         
         <main className="flex-1 overflow-y-auto p-8">
@@ -412,7 +412,7 @@ export default function BookingManagement() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Concluídos</p>
+                    <p className="text-sm font-medium text-gray-600">ConcluÃ­dos</p>
                     <p className="text-2xl font-bold text-gray-900">{resolvedStatusCounts.completed}</p>
                   </div>
                   <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
@@ -444,7 +444,7 @@ export default function BookingManagement() {
                   <div className="relative flex-1 max-w-md">
                     <Input
                       type="text"
-                      placeholder="Buscar casos por ID, cliente ou ONG ou cl�nica..."
+                      placeholder="Buscar casos por ID, cliente ou ONG ou clínica..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10 border-gray-200 rounded-xl focus:ring-2 focus:ring-light-blue focus:border-transparent"
@@ -544,15 +544,15 @@ export default function BookingManagement() {
                                       Cliente: {booking.client?.fullName || `ID: ${booking.clientId.substring(0, 8)}...`}
                                     </span>
                                     <span>
-                                      ONG/Cl�nica: {booking.provider?.fullName || `ID: ${booking.providerId.substring(0, 8)}...`}
+                                      ONG/Clínica: {booking.provider?.fullName || `ID: ${booking.providerId.substring(0, 8)}...`}
                                     </span>
                                     <span>
-                                      Serviço: {booking.service?.name || `ID: ${booking.providerServiceId.substring(0, 8)}...`}
+                                      ServiÃ§o: {booking.service?.name || `ID: ${booking.providerServiceId.substring(0, 8)}...`}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
                                     <span>
-                                      Data: {new Date(booking.scheduledDate).toLocaleDateString()} às {booking.scheduledTime ?? "—"}
+                                      Data: {new Date(booking.scheduledDate).toLocaleDateString()} Ã s {booking.scheduledTime ?? "â€”"}
                                     </span>
                                     <span>Total: R$ {booking.totalPrice.toFixed(2)}</span>
                                   </div>
