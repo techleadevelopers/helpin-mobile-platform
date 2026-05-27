@@ -234,7 +234,12 @@ export default function SubscriptionManagementPage() {
                     />
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
                   </div>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <Select
+                    value={statusFilter}
+                    onValueChange={(value) =>
+                      setStatusFilter(value as 'all' | 'active' | 'inactive' | 'paused')
+                    }
+                  >
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Filtrar por status" />
                     </SelectTrigger>
