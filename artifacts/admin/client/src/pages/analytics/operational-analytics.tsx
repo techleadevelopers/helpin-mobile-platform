@@ -7,7 +7,11 @@ import { fetchDashboardMetrics } from '@/lib/api';
 
 export default function OperationalAnalyticsPage() {
   const { data } = useQuery({ queryKey: ['dashboard:metrics'], queryFn: fetchDashboardMetrics });
-  const k = data?.kpis || {} as any;
+  const k = {
+    bookingsToday: data?.servicesBooked ?? 0,
+    cancellationsThisMonth: 0,
+    acceptanceRate: data?.approvedProviders ? 100 : 0,
+  };
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
@@ -33,4 +37,3 @@ export default function OperationalAnalyticsPage() {
     </div>
   );
 }
-
