@@ -167,7 +167,7 @@ export default function VerificationModal({
   const approveMutation = useMutation({
     mutationFn: (providerId: string) => updateProviderStatus(providerId, VerificationStatus.APPROVED),
     onSuccess: (updatedProvider) => {
-      toast({ title: "ONG aprovada", description: "A validacao foi concluida.", variant: "success" });
+      toast({ title: "ONG aprovada", description: "A validação foi concluida.", variant: "success" });
       queryClient.invalidateQueries({ queryKey: ["/verification/pending-queue"] });
       queryClient.invalidateQueries({ queryKey: ["/providers"] });
       onProviderUpdated?.(updatedProvider);
@@ -209,7 +209,7 @@ export default function VerificationModal({
             <div className="flex flex-wrap items-start justify-between gap-4 pr-8">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">Dossie operacional</p>
-                <DialogTitle className="mt-2 text-2xl font-semibold text-slate-950">Verificacao de ONG</DialogTitle>
+                <DialogTitle className="mt-2 text-2xl font-semibold text-slate-950">Verificação de ONG</DialogTitle>
                 <p className="mt-1 text-sm text-slate-500">Identidade do responsavel, cadastro institucional e decisao manual.</p>
               </div>
               <Badge className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
@@ -275,7 +275,7 @@ export default function VerificationModal({
                 </div>
                 <div className="mt-4 flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-3 text-xs text-slate-600">
                   <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
-                  As imagens exibidas sao os arquivos reais vinculados ao cadastro e devem ser tratadas como informacao restrita.
+                  As imagens exibidas sao os arquivos reais vinculados ao cadastro e devem ser tratadas como informação restrita.
                 </div>
               </section>
 
@@ -283,10 +283,10 @@ export default function VerificationModal({
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Cadastro institucional</p>
                 <h4 className="mt-1 text-base font-semibold text-slate-950">Dados declarados</h4>
                 <div className="mt-4 grid grid-cols-2 gap-2.5">
-                  <RegistrationItem label="Nome da instituicao" value={provider.legalName || provider.fullName} />
+                  <RegistrationItem label="Nome da instituição" value={provider.legalName || provider.fullName} />
                   <RegistrationItem label="CNPJ" value={provider.cnpj} />
-                  <RegistrationItem label="Area de atuacao" value={provider.ongType} />
-                  <RegistrationItem label="Fundacao" value={provider.foundationYear} />
+                  <RegistrationItem label="Area de atuação" value={provider.ongType} />
+                  <RegistrationItem label="Fundação" value={provider.foundationYear} />
                   <RegistrationItem label="Telefone" value={provider.phone || provider.userPhone} />
                   <RegistrationItem label="Email" value={provider.email} />
                 </div>
@@ -306,7 +306,7 @@ export default function VerificationModal({
                 <ShieldAlert className="h-5 w-5 text-slate-500" />
                 <div>
                   <p className="text-sm font-semibold text-slate-900">Decisao administrativa</p>
-                  <p className="text-xs text-slate-500">A aprovacao libera o selo da instituicao na rede.</p>
+                  <p className="text-xs text-slate-500">A aprovação libera o selo da instituição na rede.</p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
