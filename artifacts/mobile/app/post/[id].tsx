@@ -13,12 +13,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ZooHelpHeader } from '@/components/ZooHelpHeader';
 import {
-  PostActionsRow,
   PostAuthorCard,
   PostContactSheet,
   PostImageModal,
-  PostMapCard,
 } from '@/components/post';
 import { UserBottomNav } from '@/components/UserBottomNav';
 import type { Post } from '@/constants/data';
@@ -63,26 +62,88 @@ function formatPostTime(value: string) {
 function normalizeLocationPart(value: string) {
   return value
     .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/\s+/g, ' ')
     .replace(/\s*,\s*/g, ', ')
     .toLowerCase();
 }
 
-function formatLocationLine(neighborhood: string, location: string) {
-  const parts = [neighborhood, location]
+function cityStateKey(city: string, state: string) {
+  const normalizedCity = normalizeLocationPart(city);
+  const normalizedState = normalizeLocationPart(state).toUpperCase();
+  if (!normalizedCity || !/^[A-Z]{2}$/.test(normalizedState)) return null;
+  return `${normalizedCity}-${normalizedState}`;
+}
+
+function cityStateKeyFromPart(value: string) {
+  const normalized = normalizeLocationPart(value);
+  const match = normalized.match(/^(.+?)\s*-\s*([a-z]{2})$/i);
+  if (!match) return null;
+  return cityStateKey(match[1], match[2]);
+}
+
+function collapseRepeatedAddress(value: string) {
+  const locationParts = value
+    .split(',')
     .map((part) => part.trim())
     .filter(Boolean);
 
-  return parts
-    .filter((part, index) => {
-      const current = normalizeLocationPart(part);
-      return !parts.some((other, otherIndex) => {
-        if (otherIndex >= index) return false;
-        const previous = normalizeLocationPart(other);
-        return previous === current || previous.includes(current) || current.includes(previous);
-      });
-    })
-    .join(', ');
+  if (locationParts.length % 2 === 0) {
+    const half = locationParts.length / 2;
+    const firstHalf = locationParts.slice(0, half).map(normalizeLocationPart).join('|');
+    const secondHalf = locationParts.slice(half).map(normalizeLocationPart).join('|');
+    if (firstHalf === secondHalf) {
+      return locationParts.slice(0, half);
+    }
+  }
+
+  return locationParts;
+}
+
+function formatLocationLine(neighborhood: string, location: string) {
+  const locationParts = collapseRepeatedAddress(location);
+  const collapsedLocation = locationParts.join(', ');
+  const normalizedLocation = normalizeLocationPart(collapsedLocation);
+  const normalizedNeighborhood = normalizeLocationPart(neighborhood);
+  if (normalizedNeighborhood && normalizedNeighborhood === normalizedLocation) {
+    return collapsedLocation;
+  }
+
+  const alreadyHasNeighborhood = Boolean(
+    normalizedNeighborhood &&
+      locationParts.some((part) => normalizeLocationPart(part) === normalizedNeighborhood)
+  );
+  const parts = [
+    ...(!alreadyHasNeighborhood && neighborhood.trim() ? [neighborhood.trim()] : []),
+    ...locationParts,
+  ];
+  const seen = new Set<string>();
+  const seenCityStates = new Set<string>();
+  const output: string[] = [];
+
+  for (let index = 0; index < parts.length; index += 1) {
+    const part = parts[index];
+    const normalized = normalizeLocationPart(part);
+    if (!normalized || seen.has(normalized)) continue;
+
+    const nextPart = parts[index + 1];
+    const splitCityStateKey = nextPart ? cityStateKey(part, nextPart) : null;
+    if (splitCityStateKey && seenCityStates.has(splitCityStateKey)) {
+      seen.add(normalized);
+      seen.add(normalizeLocationPart(nextPart));
+      index += 1;
+      continue;
+    }
+
+    const compactCityStateKey = cityStateKeyFromPart(part);
+    if (compactCityStateKey) seenCityStates.add(compactCityStateKey);
+
+    seen.add(normalized);
+    output.push(part);
+  }
+
+  return output.join(', ');
 }
 
 export default function PostDetailScreen() {
@@ -90,7 +151,7 @@ export default function PostDetailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { posts } = useApp();
+  const { posts, user } = useApp();
   const [remotePost, setRemotePost] = useState<Post | null>(null);
   const [followingAuthor, setFollowingAuthor] = useState(false);
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
@@ -202,30 +263,30 @@ export default function PostDetailScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: '#f5f7f200' }]}>
+      <ZooHelpHeader onBack={() => router.back()} />
       <ScrollView showsVerticalScrollIndicator={false} bounces>
-        <View style={[styles.content, { backgroundColor: colors.background }]}>
+        <View style={styles.content}>
           <PostAuthorCard
             post={post}
             colors={colors}
             followingAuthor={followingAuthor}
+            isOwnPost={user?.id === post.author.id}
             imageUris={imageUris}
             isResolved={isResolved}
             breedAgeParts={breedAgeParts}
             locationDisplay={locationDisplay}
             timeDisplay={timeDisplay}
             contactDisplay={contactDisplay}
+            mapLatitude={mapCoords.lat}
+            mapLongitude={mapCoords.lng}
             onPressAuthor={() => router.push({ pathname: '/(tabs)/user/[id]', params: { id: post.author.id } })}
             onToggleFollowing={() => setFollowingAuthor((current) => !current)}
-            onPressTrust={() => Alert.alert('Protecao ativa', 'A ZooHelp usa sinais do perfil, contexto e localizacao para ajudar a coordenar respostas mais seguras.')}
+            onPressRoute={handleRoute}
             onSelectImage={setSelectedImageUri}
             onPressMessage={handleOpenChat}
             onPressContact={handleContact}
           />
-
-          <PostMapCard latitude={mapCoords.lat} longitude={mapCoords.lng} onPress={handleRoute} />
-
-          <PostActionsRow onRoute={handleRoute} onChat={handleOpenChat} onContact={handleContact} />
 
           <View style={{ height: bottomPad + 92 }} />
         </View>
@@ -254,13 +315,13 @@ export default function PostDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: '#f5f7f200' },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  content: { padding: 18, paddingTop: 1, gap: 14, bottom: 12, },
+  content: { padding: 14, paddingTop: 12, gap: 12,  },
   errorText: { fontSize: 14, fontFamily: 'Montserrat_400Regular', marginTop: 10 },
   bottomNavHost: {
     position: 'absolute',
