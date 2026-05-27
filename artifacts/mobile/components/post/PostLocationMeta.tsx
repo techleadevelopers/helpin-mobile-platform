@@ -1,16 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { PostContactCard } from './PostContactCard';
 
-const FEED_TIME_ICON =
-  'https://res.cloudinary.com/limpeja/image/upload/v1779576484/pngtree-vector-clock-icon-png-image_4152707_bfoxlj.jpg';
-
 export function PostLocationMeta({
   locationDisplay,
-  timeDisplay,
   contactDisplay,
   mutedColor,
   onPressMessage,
@@ -26,16 +21,10 @@ export function PostLocationMeta({
   return (
     <View style={styles.metaPanel}>
       <View style={styles.locationRow}>
-        <MaterialCommunityIcons name="map-marker-outline" size={12} color={mutedColor} />
+        <MaterialCommunityIcons name="map-marker-outline" size={14} color={mutedColor} />
         <Text style={[styles.locationText, { color: mutedColor }]}>
           {locationDisplay}
         </Text>
-        <View style={styles.feedTimeRow}>
-          <Image source={{ uri: FEED_TIME_ICON }} style={styles.feedTimeIcon} contentFit="contain" />
-          <Text style={[styles.feedTimeText, { color: mutedColor }]} numberOfLines={1}>
-            {timeDisplay}
-          </Text>
-        </View>
       </View>
       <TouchableOpacity style={styles.messageButton} onPress={onPressMessage} activeOpacity={0.8}>
         <MaterialCommunityIcons name="message-outline" size={14} color="#216C55" />
@@ -48,42 +37,36 @@ export function PostLocationMeta({
 
 const styles = StyleSheet.create({
   metaPanel: {
-    borderRadius: 18,
-    padding: 9,
-    marginTop: 7,
-    marginLeft: -20,
-    left: -13,
-    marginRight: -4,
+    gap: 10,
+    paddingTop: 2,
   },
   locationRow: {
-    minHeight: 34,
+    minHeight: 24,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 3,
+    left: -17,
+    marginRight: -17,
   },
-  locationText: { flex: 1, flexShrink: 1, fontSize: 10.5, lineHeight: 16, fontFamily: 'Montserrat_600SemiBold' },
-  feedTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  feedTimeIcon: { width: 13, height: 13, opacity: 0.72 },
-  feedTimeText: { fontSize: 10, fontFamily: 'Montserrat_600SemiBold' },
+  locationText: { flex: 1, flexShrink: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Montserrat_600SemiBold' },
   messageButton: {
     width: '100%',
-    height: 30,
+    height: 38,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
-    borderRadius: 18,
+    borderRadius: 19,
     borderWidth: 1,
     borderColor: '#D3E2DB',
-    marginTop: 12,
     paddingHorizontal: 20,
     backgroundColor: '#FFFFFF',
+    left: -17,
     shadowColor: '#163C2D',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 5,
     elevation: 1,
   },
-  messageText: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#216C55' },
+  messageText: { fontSize: 12.5, fontFamily: 'Montserrat_700Bold', color: '#216C55' },
 });
