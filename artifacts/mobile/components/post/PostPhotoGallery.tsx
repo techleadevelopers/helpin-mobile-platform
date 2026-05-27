@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import React from 'react';
+import React, { type ReactNode } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { StatusBadge } from '@/components/StatusBadge';
@@ -11,17 +11,23 @@ export function PostPhotoGallery({
   isResolved,
   borderColor,
   onSelectImage,
+  header,
+  children,
 }: {
   post: Post;
   imageUris: string[];
   isResolved: boolean;
   borderColor: string;
   onSelectImage: (uri: string) => void;
+  header?: ReactNode;
+  children?: ReactNode;
 }) {
   if (imageUris.length === 0) return null;
 
   return (
     <View style={styles.photoSection}>
+      {header}
+
       <View style={styles.photoBadgesOverlay}>
         <StatusBadge
           type={post.type}
@@ -99,43 +105,43 @@ export function PostPhotoGallery({
           ))}
         </View>
       )}
+
+      {children}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   photoSection: {
-    marginTop: -1,
     position: 'relative',
-    borderRadius: 22,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: '#FBFDF9',
-    shadowColor: '#183F2A',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.045,
-    shadowRadius: 13,
-    elevation: 2,
+    backgroundColor: '#ffffffab',
+    marginHorizontal: 10,
+    marginTop: 10,
+    padding: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E5ECE7',
+    overflow: 'hidden',
   },
   photoBadgesOverlay: {
     position: 'absolute',
-    top: 8,
-    left: 8,
+    top: 10,
+    left: 10,
     zIndex: 2,
   },
-  postPhotoGrid: { flexDirection: 'row', gap: 8 },
-  postPhotoGridWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  postPhotoGrid: { flexDirection: 'row', gap: 2 },
+  postPhotoGridWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 2 },
   postPhotoTile: {
-    borderRadius: 16,
+    borderRadius: 15,
     overflow: 'hidden',
     backgroundColor: '#E8ECF0',
   },
-  postPhotoSingle: { width: '100%', height: 184 },
-  postPhotoHalf: { flex: 1, height: 124 },
-  postPhotoFeature: { flex: 1.35, height: 170 },
-  postPhotoSideStack: { flex: 1, gap: 8 },
-  postPhotoStacked: { height: 81 },
-  postPhotoQuarter: { width: '48.8%', height: 112 },
+  postPhotoSingle: { width: '100%', height: 286 },
+  postPhotoHalf: { flex: 1, height: 232 },
+  postPhotoFeature: { flex: 1.35, height: 270 },
+  postPhotoSideStack: { flex: 1, gap: 2 },
+  postPhotoStacked: { height: 134 },
+  postPhotoQuarter: { width: '49.7%', height: 164 },
   postPhotoThumb: { width: '100%', height: '100%' },
   postPhotoMoreOverlay: {
     ...StyleSheet.absoluteFillObject,
