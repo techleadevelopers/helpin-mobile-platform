@@ -19,7 +19,7 @@ export default function ResetPasswordScreen() {
   async function submit() {
     const cleanToken = token?.trim();
     if (!cleanToken) {
-      Alert.alert('Link invalido', 'Solicite um novo link de redefinicao de senha.');
+      Alert.alert('Link invalido', 'Solicite um novo link de redefinição de senha.');
       return;
     }
     if (password.length < 8) {
