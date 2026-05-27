@@ -15,6 +15,11 @@ export interface RescueOperationalSummary {
   operationalLabel: string;
 }
 
+export interface RescueFinalReportPublic {
+  status: string;
+  publicUpdate: string;
+}
+
 export interface Post {
   id: string;
   type: PostType;
@@ -36,6 +41,7 @@ export interface Post {
   urgent: boolean;
   rescueStatus?: 'open' | 'active' | 'resolved' | 'cancelled' | string;
   rescueOperational?: RescueOperationalSummary | null;
+  rescueFinalReport?: RescueFinalReportPublic | null;
   resolvedAt?: string | null;
   createdAt: string;
   contact: string;
@@ -233,7 +239,7 @@ export const MOCK_POSTS: Post[] = [
     name: 'Cachorro ferido',
     breed: 'Sem raca definida',
     age: 'Adulto',
-    description: 'Encontrei esse cachorro mancando perto da praca. Ele esta assustado, aceita agua, mas precisa de transporte e avaliacao veterinaria urgente.',
+    description: 'Encontrei esse cachorro mancando perto da praca. Ele esta assustado, aceita agua, mas precisa de transporte e avaliação veterinaria urgente.',
     location: 'Sao Paulo, SP',
     neighborhood: 'Vila Mariana',
     image: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=900&q=85',
