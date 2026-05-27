@@ -4,7 +4,7 @@ import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'reac
 
 import { Avatar } from '@/components/Avatar';
 import type { PostType } from '@/constants/data';
-import { ComposerSection, sectionStyles } from './ComposerSection';
+import { ComposerSection } from './ComposerSection';
 import type { ComposerColors, ComposerPostType } from './types';
 
 type ComposerUser = {
@@ -67,24 +67,38 @@ export function ComposeTypeSelector({
               </View>
               <View style={styles.audienceBadge}>
                 <MaterialCommunityIcons name="earth" size={10} color="#718077" />
-                <Text style={styles.audienceText}>Público</Text>
+                <Text style={styles.audienceText}>Publico</Text>
               </View>
             </View>
             <Text style={styles.publisherSupport} numberOfLines={1}>
-              Publicação vinculada ao perfil institucional.
+              Publicação vinculada ao perfil.
             </Text>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.compactSelector} onPress={() => setPickerVisible(true)} activeOpacity={0.84}>
+        <TouchableOpacity
+          style={[styles.compactSelector, { borderColor: selectedItem.color + '28' }]}
+          onPress={() => setPickerVisible(true)}
+          activeOpacity={0.84}
+        >
           <View style={[styles.selectedIcon, { backgroundColor: selectedItem.light }]}>
-            <MaterialCommunityIcons name={selectedItem.icon} size={16} color={selectedItem.color} />
+            <MaterialCommunityIcons name={selectedItem.icon} size={17} color={selectedItem.color} />
           </View>
+
           <View style={styles.compactCopy}>
-            <Text style={[sectionStyles.label, { color: '#2f3230' }]}>Qual é a situação?</Text>
+            <View style={styles.compactTopLine}>
+              <Text style={styles.compactLabelText}>SITUAção</Text>
+              <View style={[styles.typePill, { backgroundColor: selectedItem.light }]}>
+                <Text style={[styles.typePillText, { color: selectedItem.color }]}>ativo</Text>
+              </View>
+            </View>
             <Text style={styles.compactValue}>{selectedItem.label}</Text>
           </View>
-          <MaterialCommunityIcons name="chevron-down" size={18} color="#66746B" />
+
+          <View style={styles.changeAction}>
+            <Text style={styles.changeActionText}>Trocar</Text>
+            <MaterialCommunityIcons name="chevron-down" size={16} color="#5D6A61" />
+          </View>
         </TouchableOpacity>
       </ComposerSection>
 
@@ -93,8 +107,8 @@ export function ComposeTypeSelector({
           <Pressable style={styles.modalBackdrop} onPress={() => setPickerVisible(false)} />
           <View style={styles.sheet}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetEyebrow}>PUBLICAÇÃO</Text>
-            <Text style={styles.sheetTitle}>Qual é a situação?</Text>
+            <Text style={styles.sheetEyebrow}>PUBLICAção</Text>
+            <Text style={styles.sheetTitle}>Qual e a situação?</Text>
             <Text style={styles.sheetSupport}>Escolha a categoria que melhor organiza o pedido.</Text>
 
             <View style={styles.optionsList}>
@@ -171,34 +185,76 @@ const styles = StyleSheet.create({
     lineHeight: 13,
   },
   compactSelector: {
-    minHeight: 50,
-    borderRadius: 16,
+    minHeight: 52,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E6ECE8',
-    backgroundColor: '#F8FAF8',
+    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
-    paddingHorizontal: 9,
+    gap: 10,
+    paddingHorizontal: 10,
     paddingVertical: 8,
+    shadowColor: '#183F2A',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.055,
+    shadowRadius: 12,
+    elevation: 2,
   },
   selectedIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  compactCopy: { flex: 1, gap: 1 },
-  compactValue: {
-    fontSize: 12,
+  compactCopy: { flex: 1, gap: 2 },
+  compactTopLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  compactLabelText: {
+    fontSize: 8,
     fontFamily: 'Montserrat_700Bold',
-    color: '#263129',
+    color: '#6D7B72',
+    letterSpacing: 0.75,
   },
-  modalRoot: {
-    flex: 1,
-    justifyContent: 'flex-end',
+  typePill: {
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  typePillText: {
+    fontSize: 7.5,
+    fontFamily: 'Montserrat_700Bold',
+    textTransform: 'uppercase',
+  },
+  compactValue: {
+    fontSize: 13,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#1D2A20',
+    letterSpacing: 0,
+  },
+  changeAction: {
+    height: 32,
+    borderRadius: 16,
+    paddingLeft: 11,
+    paddingRight: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#F2F6F3',
+    borderWidth: 1,
+    borderColor: '#E1EAE4',
+  },
+  changeActionText: {
+    fontSize: 10,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#5D6A61',
+  },
+  modalRoot: { flex: 1, justifyContent: 'flex-end' },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(20,28,22,0.26)',
