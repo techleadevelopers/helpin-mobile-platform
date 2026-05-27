@@ -226,7 +226,7 @@ export default function FeedScreen() {
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,
     });
-    setQuickLocation('Localizacao atual');
+    setQuickLocation('Localização atual');
     setAddressLookupFailed(false);
   }
 
@@ -234,7 +234,7 @@ export default function FeedScreen() {
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
-        Alert.alert('Permissao de localizacao', 'Ative a localizacao para alertar ONGs e pessoas proximas.');
+        Alert.alert('Permissao de localização', 'Ative a localização para alertar ONGs e pessoas proximas.');
         return null;
       }
 
@@ -243,13 +243,13 @@ export default function FeedScreen() {
       });
     } catch {
       if (Platform.OS !== 'web') {
-        Alert.alert('Localizacao indisponivel', 'Nao foi possivel capturar sua localizacao agora.');
+        Alert.alert('Localização indisponivel', 'Nao foi possivel capturar sua localização agora.');
         return null;
       }
 
       const geolocation = globalThis.navigator?.geolocation;
       if (!geolocation) {
-        Alert.alert('Localizacao indisponivel', 'Seu navegador nao liberou o GPS. Use um endereco validado pelo mapa.');
+        Alert.alert('Localização indisponivel', 'Seu navegador nao liberou o GPS. Use um endereco validado pelo mapa.');
         return null;
       }
 
@@ -270,7 +270,7 @@ export default function FeedScreen() {
             });
           },
           () => {
-            Alert.alert('Permissao de localizacao', 'Ative a localizacao do navegador ou use uma sugestao validada pelo mapa.');
+            Alert.alert('Permissao de localização', 'Ative a localização do navegador ou use uma sugestao validada pelo mapa.');
             resolve(null);
           },
           { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
@@ -439,7 +439,7 @@ export default function FeedScreen() {
       if (!coords && Platform.OS === 'web' && !location) {
         const message = 'Digite rua, bairro, cidade e estado para publicar.';
         setQuickError(message);
-        Alert.alert('Localizacao obrigatoria', message);
+        Alert.alert('Localização obrigatoria', message);
         return;
       }
 
@@ -448,7 +448,7 @@ export default function FeedScreen() {
         if (!position) {
           const message = 'Para pedir ajuda real, permita o GPS. Assim o sistema alerta pessoas e ONGs proximas.';
           setQuickError(message);
-          Alert.alert('Localizacao obrigatoria', message);
+          Alert.alert('Localização obrigatoria', message);
           return;
         }
         coords = {
@@ -456,7 +456,7 @@ export default function FeedScreen() {
           longitude: position.coords.longitude,
         };
         setQuickCoords(coords);
-        location = 'Localizacao atual';
+        location = 'Localização atual';
         setQuickLocation(location);
       }
 
@@ -475,11 +475,11 @@ export default function FeedScreen() {
         setAddressLookupFailed(true);
         setAddressManualFallbackVisible(true);
         setQuickError(message);
-        Alert.alert('Localizacao obrigatoria', message);
+        Alert.alert('Localização obrigatoria', message);
         return;
       }
 
-      location = location || 'Localizacao atual';
+      location = location || 'Localização atual';
       const post: Post = {
       id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
       type: webAddressOnlyPost ? 'post' : 'emergency',
@@ -558,7 +558,7 @@ export default function FeedScreen() {
                 style={styles.logoIcon}
                 resizeMode="contain"
               />
-              <Text style={[styles.logoText, { color: colors.primary }]}>ZooHelp</Text>
+              <Text style={[styles.logoText, { color: colors.primary }]}>Helpin</Text>
             </View>
             <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
               Ajude animais perto de você
@@ -942,7 +942,7 @@ export default function FeedScreen() {
       <View style={[styles.emergencyDock, { paddingBottom: insets.bottom + 12 }]}>
         <TouchableOpacity
           style={styles.emergencyButton}
-          onPress={() => router.push('/composer?intent=help&type=emergency&rescue=1')}
+          onPress={() => router.push('/composer?intent=help&type=emergency&Helpin=1')}
           activeOpacity={0.88}
         >
           <View style={styles.emergencyIcon}>
@@ -987,8 +987,8 @@ const styles = StyleSheet.create({
     
   },
   logoIcon: {
-    width: 38.25,
-    height: 38.25,
+    width: 32.25,
+    height: 32.25,
     borderRadius: 8,
     paddingLeft: 8,
     paddingRight: 8,
