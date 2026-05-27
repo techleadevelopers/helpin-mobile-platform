@@ -471,8 +471,8 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     gap: 12,
   },
-  headerLeft: { flex: 1, gap: 2 },
-  title: { fontSize: 15, fontFamily: 'Montserrat_700Bold' },
+  headerLeft: { flex: 1, gap: 2, marginBottom: 8, marginTop: 10, },
+  title: { fontSize: 18, fontFamily: 'Montserrat_700Bold' },
   subtitle: { fontSize: 11, fontFamily: 'Montserrat_500Medium', marginTop: 1 },
   locationBadge: {
     flexDirection: 'row',
