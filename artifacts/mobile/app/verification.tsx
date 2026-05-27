@@ -145,8 +145,8 @@ export default function VerificationScreen() {
           </View>
           <View style={styles.titleCopy}>
             <Text style={styles.eyebrow}>Conta ONG</Text>
-            <Text style={styles.title}>Verificacao de conta</Text>
-            <Text style={styles.subtitle}>Validacao documental para o selo ZooHelp</Text>
+            <Text style={styles.title}>Verificação de conta</Text>
+            <Text style={styles.subtitle}>Validação documental para o selo ZooHelp</Text>
           </View>
         </View>
 
