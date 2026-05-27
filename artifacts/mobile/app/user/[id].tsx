@@ -96,9 +96,9 @@ function getAuthorLocation(posts: Post[]) {
 function getAuthorBio(author: Author, posts: Post[]) {
   const ong = MOCK_ONGS.find((item) => item.id === AUTHOR_TO_ONG[author.id]);
   if (ong) return ong.description;
-  if (author.type === 'vet') return 'Atendimento, orientacao e apoio veterinario para casos que precisam de resposta rapida.';
+  if (author.type === 'vet') return 'Atendimento, orientação e apoio veterinario para casos que precisam de resposta rapida.';
   if (posts.some((post) => post.urgent)) return 'Protetor ativo na rede ZooHelp, compartilhando casos urgentes e pedidos de apoio.';
-  return 'Perfil da comunidade ZooHelp, com publicacoes sobre resgate, adocao e cuidado animal.';
+  return 'Perfil da comunidade ZooHelp, com publicacoes sobre resgate, adoção e cuidado animal.';
 }
 
 export default function PublicUserProfileScreen() {
