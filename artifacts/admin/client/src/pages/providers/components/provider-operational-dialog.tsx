@@ -97,8 +97,8 @@ export function ProviderOperationalDialog({
               <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Trust</h3>
               <div className="mt-3 space-y-2 text-sm text-gray-700">
                 <InfoLine label="CNPJ" value={provider.cnpj || "Nao informado"} />
-                <InfoLine label="Tipo" value={provider.ongType || "Protecao animal"} />
-                <InfoLine label="Fundacao" value={provider.foundationYear ? String(provider.foundationYear) : "Nao informado"} />
+                <InfoLine label="Tipo" value={provider.ongType || "Proteção animal"} />
+                <InfoLine label="Fundação" value={provider.foundationYear ? String(provider.foundationYear) : "Nao informado"} />
               </div>
             </section>
           </aside>
