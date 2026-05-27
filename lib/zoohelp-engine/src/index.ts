@@ -213,14 +213,14 @@ export interface MarketplaceItemContract {
 
 export const CORE_CAPABILITIES: CoreCapability[] = [
   { domain: "api", owner: "rust", reason: "baixa latencia e contratos publicos" },
-  { domain: "auth", owner: "rust", reason: "seguranca, sessao e autorizacao" },
+  { domain: "auth", owner: "rust", reason: "seguranca, sessao e autorização" },
   { domain: "feed", owner: "rust", reason: "alto volume de leitura" },
-  { domain: "posts", owner: "rust", reason: "validacao, transacao e fan-out" },
+  { domain: "posts", owner: "rust", reason: "validação, transação e fan-out" },
   { domain: "chat", owner: "rust", reason: "realtime e concorrencia" },
   { domain: "geo", owner: "rust", reason: "PostGIS e busca proxima" },
   { domain: "trust", owner: "rust", reason: "score usado em fluxo critico" },
   { domain: "ai-moderation", owner: "python", reason: "modelos de visao computacional" },
-  { domain: "nlp", owner: "python", reason: "classificacao e experimentacao" },
+  { domain: "nlp", owner: "python", reason: "classificação e experimentação" },
   { domain: "advanced-fraud-models", owner: "python", reason: "ML offline/assincrono" },
 ];
 
