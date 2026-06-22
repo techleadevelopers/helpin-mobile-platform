@@ -84,6 +84,7 @@ export default function FeedScreen() {
   const [manualCity, setManualCity] = useState('');
   const [manualState, setManualState] = useState('');
   const [quickContact, setQuickContact] = useState('');
+  const [emergencyCompact, setEmergencyCompact] = useState(false);
   const quickInputRef = useRef<TextInput>(null);
   const addressInputRef = useRef<TextInput>(null);
   const contactInputRef = useRef<TextInput>(null);
@@ -93,6 +94,9 @@ export default function FeedScreen() {
   useFocusEffect(
     useCallback(() => {
       scrollY.value = 0;
+      setEmergencyCompact(false);
+      const timer = setTimeout(() => setEmergencyCompact(true), 3000);
+      return () => clearTimeout(timer);
     }, [])
   );
 
@@ -604,6 +608,8 @@ export default function FeedScreen() {
           </View>
         </Animated.View>
 
+        {false && (
+        <>
         {/* Quick help composer */}
         <View
           style={[
@@ -617,6 +623,18 @@ export default function FeedScreen() {
         >
           <View style={styles.quickPostTop}>
             <View style={[styles.quickInputShell, { backgroundColor: colors.muted }]}>
+              <TouchableOpacity
+                style={[
+                  styles.quickTool,
+                  styles.quickInputPhotoTool,
+                  { backgroundColor: quickImages.length ? colors.primary + '18' : colors.card },
+                ]}
+                onPress={pickQuickImage}
+                activeOpacity={0.75}
+                accessibilityLabel="Adicionar foto"
+              >
+                <MaterialCommunityIcons name="image-outline" size={16} color={quickImages.length ? colors.primary : colors.mutedForeground} />
+              </TouchableOpacity>
               <TextInput
                 ref={quickInputRef}
                 style={[styles.quickInput, { color: colors.foreground }]}
@@ -661,13 +679,6 @@ export default function FeedScreen() {
 
           <View style={styles.quickPostBottom}>
             <View style={styles.quickPostTools}>
-              <TouchableOpacity
-                style={[styles.quickTool, { backgroundColor: quickImages.length ? colors.primary + '18' : colors.muted }]}
-                onPress={pickQuickImage}
-                activeOpacity={0.75}
-              >
-                <MaterialCommunityIcons name="image-outline" size={16} color={quickImages.length ? colors.primary : colors.mutedForeground} />
-              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.quickLabelTool, { backgroundColor: quickLocation ? colors.primary + '18' : colors.muted }]}
                 onPress={() => {
@@ -806,13 +817,16 @@ export default function FeedScreen() {
                 <TouchableOpacity style={styles.addressResult} onPress={applyAddressResult} activeOpacity={0.82}>
                   <MaterialCommunityIcons name="check-circle-outline" size={15} color={colors.primary} />
                   <Text style={[styles.addressResultText, { color: colors.foreground }]} numberOfLines={2}>
-                    {addressResult.label}
+                    {addressResult?.label}
                   </Text>
                 </TouchableOpacity>
               )}
             </View>
           )}
         </View>
+
+        </>
+        )}
       </View>
 
       {/* ── Filter chips ── */}
@@ -939,20 +953,31 @@ export default function FeedScreen() {
           />
         }
       />
-      <View style={[styles.emergencyDock, { paddingBottom: insets.bottom + 12 }]}>
+      <View
+        style={[
+          styles.emergencyDock,
+          emergencyCompact ? styles.emergencyDockCompact : styles.emergencyDockFull,
+          { paddingBottom: insets.bottom + 12 },
+        ]}
+      >
         <TouchableOpacity
-          style={styles.emergencyButton}
+          style={[styles.emergencyButton, emergencyCompact && styles.emergencyButtonCompact]}
           onPress={() => router.push('/composer?intent=help&type=emergency&Helpin=1')}
           activeOpacity={0.88}
+          accessibilityLabel="Acionar resgate agora"
         >
-          <View style={styles.emergencyIcon}>
+          <View style={[styles.emergencyIcon, emergencyCompact && styles.emergencyIconCompact]}>
             <MaterialCommunityIcons name="alarm-light" size={20} color="#FFFFFF" />
           </View>
-          <View style={styles.emergencyTextWrap}>
-            <Text style={styles.emergencyTitle}>Acionar resgate agora</Text>
-            <Text style={styles.emergencySubtitle}>GPS, foto e alerta imediato</Text>
-          </View>
-          <MaterialCommunityIcons name="chevron-right" size={18} color="#FFFFFF" />
+          {!emergencyCompact && (
+            <>
+              <View style={styles.emergencyTextWrap}>
+                <Text style={styles.emergencyTitle}>Acionar resgate agora</Text>
+                <Text style={styles.emergencySubtitle}>GPS, foto e alerta imediato</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={18} color="#FFFFFF" />
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -1075,11 +1100,11 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 44,
     borderRadius: 22,
-    paddingLeft: 14,
+    paddingLeft: 4,
     paddingRight: 6,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   quickInput: {
     flex: 1,
@@ -1154,6 +1179,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  quickInputPhotoTool: {
+    flexShrink: 0,
   },
   quickUrgentTool: {
     height: 36,
@@ -1464,9 +1492,14 @@ const styles = StyleSheet.create({
   },
   emergencyDock: {
     position: 'absolute',
+    bottom: 0,
+  },
+  emergencyDockFull: {
     left: 12,
     right: 12,
-    bottom: 0,
+  },
+  emergencyDockCompact: {
+    right: 16,
   },
   emergencyButton: {
     minHeight: 58,
@@ -1482,6 +1515,15 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 5,
   },
+  emergencyButtonCompact: {
+    width: 54,
+    height: 54,
+    minHeight: 54,
+    borderRadius: 27,
+    paddingHorizontal: 0,
+    justifyContent: 'center',
+    gap: 0,
+  },
   emergencyIcon: {
     width: 34,
     height: 34,
@@ -1489,6 +1531,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  emergencyIconCompact: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: 'transparent',
   },
   emergencyTextWrap: {
     flex: 1,
