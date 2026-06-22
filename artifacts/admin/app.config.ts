@@ -75,7 +75,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
       backendApiUrl:
         // Mirror root config: prefer env, fallback to same cloud URL
         process.env.EXPO_PUBLIC_API_BASE_URL ??
-        'https://limpeja-backend-production-5956.up.railway.app',
+        'https://helpin-platform-core-production.up.railway.app',
       environment: process.env.NODE_ENV || 'production',
       router: {},
       eas: {
