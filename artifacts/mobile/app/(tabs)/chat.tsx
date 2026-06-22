@@ -128,7 +128,7 @@ export default function ChatScreen() {
               style={styles.logoIcon}
               resizeMode="contain"
             />
-            <Text style={[styles.logoText, { color: colors.primary }]}>ZooHelp</Text>
+            <Text style={[styles.logoText, { color: colors.primary }]}>Helpin</Text>
           </View>
         </View>
       </View>
