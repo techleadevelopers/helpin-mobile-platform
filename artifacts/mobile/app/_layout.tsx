@@ -33,19 +33,17 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   const segments = useSegments();
-  const { hasSeenOnboarding, isAuthenticated, isLoading } = useApp();
+  const { isAuthenticated, isLoading } = useApp();
   const firstSegment = segments[0] as string | undefined;
   const isPublicRoute =
     !firstSegment ||
-    firstSegment === "welcome" ||
     firstSegment === "login" ||
     firstSegment === "register" ||
     firstSegment === "forgot-password" ||
     firstSegment === "reset-password";
 
   if (isLoading) return <ZooHelpLoading />;
-  if (!hasSeenOnboarding && firstSegment !== "welcome") return <Redirect href="/welcome" />;
-  if (hasSeenOnboarding && !isAuthenticated && !isPublicRoute) return <Redirect href="/login" />;
+  if (!isAuthenticated && !isPublicRoute) return <Redirect href="/login" />;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
