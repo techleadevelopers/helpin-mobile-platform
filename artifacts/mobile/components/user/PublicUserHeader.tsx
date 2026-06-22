@@ -17,6 +17,7 @@ type PublicUserHeaderProps = {
   followingCount: number;
   postsCount: number;
   onChangeSearch: (value: string) => void;
+  onFocusSearch?: () => void;
   onFollow: () => void;
   onMessage: () => void;
   onShare: () => void;
@@ -39,6 +40,7 @@ export function PublicUserHeader({
   followingCount,
   postsCount,
   onChangeSearch,
+  onFocusSearch,
   onFollow,
   onMessage,
   onShare,
@@ -60,6 +62,7 @@ export function PublicUserHeader({
           placeholder="Buscar usuario"
           placeholderTextColor="#8A928B"
           returnKeyType="search"
+          onFocus={onFocusSearch}
         />
       </View>
 
