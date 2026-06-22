@@ -1,8 +1,8 @@
 ﻿import { ExpoConfig, ConfigContext } from "expo/config";
 
-const APP_VERSION = "1.0.8";
+const APP_VERSION = "1.0.9";
 const IOS_BUILD_NUMBER = "1";
-const ANDROID_VERSION_CODE = 8;
+const ANDROID_VERSION_CODE = 9;
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const devDomain = process.env.EXPO_PUBLIC_DOMAIN;
