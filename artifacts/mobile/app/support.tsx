@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 
 const SUPPORT_WHATSAPP_URL =
-  'https://wa.me/551993223932?text=Ola%2C%20preciso%20de%20suporte%20do%20ZooHelp.';
+  'https://wa.me/551993223932?text=Ola%2C%20preciso%20de%20suporte%20do%20Helpin.';
 
 const SUPPORT_ITEMS: Array<{
   icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -53,7 +53,7 @@ export default function SupportScreen() {
           <MaterialCommunityIcons name="arrow-left" size={20} color={colors.foreground} />
         </TouchableOpacity>
         <View style={styles.headerText}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Suporte ZooHelp</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>Suporte Helpin</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Atendimento direto para operação e conta</Text>
         </View>
       </View>
