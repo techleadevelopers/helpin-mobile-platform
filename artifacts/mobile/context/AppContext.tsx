@@ -8,7 +8,7 @@ import { enqueuePost, listPendingPosts, markPendingPostAttempt, removePendingPos
 import { enqueueRescueOperation, flushRescueOutbox, listPendingRescueOperations } from '@/services/rescueOutbox';
 import { registerRescueAlerts } from '@/services/rescueNotifications';
 import { clearSessionTokens, getSecureItem, setSecureItem, REFRESH_TOKEN_KEY } from '@/services/secureSession';
-import { AUTH_TOKEN_KEY, createZooHelpApi, mapPost, supportPaymentsEnabled, uploadLocalImageToCloudinary } from '@/services/zoohelpApi';
+import { AUTH_TOKEN_KEY, createZooHelpApi, inferAccountType, mapPost, supportPaymentsEnabled, uploadLocalImageToCloudinary } from '@/services/zoohelpApi';
 import { ZooHelpApiError, type ChatConversationContract } from '@/services/zoohelpEngine';
 
 const DELETED_POST_IDS_KEY = 'zoohelp:deletedPostIds:v1';
@@ -212,7 +212,7 @@ function likedPostCountsFromUsers(likedPostUsers: Record<string, string[]>) {
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(true);
   const [posts, setPosts] = useState<Post[]>([]);
   const [likedPosts, setLikedPosts] = useState<string[]>([]);
   const [likedPostUsers, setLikedPostUsers] = useState<Record<string, string[]>>({});
@@ -394,15 +394,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         getSecureItem(AUTH_TOKEN_KEY),
       ]);
 
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser) as User;
-        setUser(parsedUser);
-        setIsAuthenticated(true);
-        if (storedToken) {
-          await refreshCurrentUser();
+      if (storedToken && api) {
+        const currentUser = await api.me().catch(async (error) => {
+          if (error instanceof ZooHelpApiError && error.status === 401) {
+            await clearInvalidSession();
+          }
+          return null;
+        });
+        if (currentUser) {
+          await persistUser(mapAuthUser(currentUser));
+        } else {
+          await AsyncStorage.removeItem('user');
+          setUser(null);
+          setIsAuthenticated(false);
         }
+      } else {
+        await AsyncStorage.removeItem('user');
+        setUser(null);
+        setIsAuthenticated(false);
       }
-      if (storedOnboarding === 'true') setHasSeenOnboarding(true);
+      setHasSeenOnboarding(true);
       if (storedFollows) setFollowedOngs(JSON.parse(storedFollows));
       if (storedUserFollows) setFollowedUsers(JSON.parse(storedUserFollows));
       if (storedDeletedPostIds) {
@@ -488,8 +499,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   function mapAuthUser(response: Pick<Awaited<ReturnType<NonNullable<typeof api>['login']>>, 'user' | 'ongProfile'>): User {
     const ongVerificationStatus = response.ongProfile?.verificationStatus ?? null;
+    const accountType = inferAccountType(response.user.type as any);
     const isApprovedOng =
-      response.user.type === 'ong'
+      accountType === 'ong'
         ? ongVerificationStatus === 'APPROVED' || response.user.verified
         : response.user.verified;
 
@@ -499,7 +511,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       email: response.user.email,
       avatar: response.user.avatar,
       bio: response.user.bio,
-      type: response.user.type,
+      type: accountType,
       gender: response.user.gender ?? null,
       verified: isApprovedOng,
       verificationStatus: ongVerificationStatus,
