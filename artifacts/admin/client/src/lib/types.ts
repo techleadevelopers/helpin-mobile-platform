@@ -645,7 +645,7 @@ export type Mission = {
     rewardType: 'FIXED_AMOUNT' | 'POINTS'; // Tipo de recompensa
     status: MissionStatus;
     targetAudience: MissionTargetAudience;
-    targetId?: string | null; // ID do alvo (cliente, ONG ou clÃ­nica, serviÃƒÂ§o, etc.)
+    targetId?: string | null; // ID do alvo (cliente, ONG ou clínica, serviÃƒÂ§o, etc.)
     startDate: string;
     endDate: string;
     timesCompleted: number; // Quantas vezes a missÃƒÂ£o foi completada
@@ -817,7 +817,7 @@ export type Offer = {
     createdAt: string;
     updatedAt: string;
     target: OfferTarget; // PÃƒÂºblico-alvo da oferta
-    targetId?: string | null; // ID do alvo especÃƒÂ­fico (serviÃƒÂ§o/ONG ou clÃ­nica)
+    targetId?: string | null; // ID do alvo especÃƒÂ­fico (serviÃƒÂ§o/ONG ou clínica)
     status: OfferStatus; // Status da oferta
 };
 
