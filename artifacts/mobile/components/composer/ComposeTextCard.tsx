@@ -46,12 +46,7 @@ export function ComposeTextCard({
   return (
     <Animated.View style={[styles.sectionAnimated, styles.composerCard, animatedStyle]}>
       <View style={styles.composerHeader}>
-        <View style={styles.headerIcon}>
-          <MaterialCommunityIcons name="text-box-edit-outline" size={17} color="#263129" />
-        </View>
         <View style={styles.headerCopy}>
-          <Text style={styles.eyebrow}>DETALHES DO CASO</Text>
-
           <Text style={styles.headerSupport}>Comportamento, saúde e sinais ajudam a orientar o resgate.</Text>
         </View>
       </View>
@@ -125,26 +120,7 @@ const styles = StyleSheet.create({
   },
   composerCard: { padding: 13, gap: 11 },
   composerHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   headerCopy: { flex: 1, gap: 1 },
-  eyebrow: {
-    fontSize: 8.5,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#263129',
-    letterSpacing: 0.72,
-  },
-  headerTitle: {
-    fontSize: 13,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#263129',
-    letterSpacing: -0.2,
-  },
   headerSupport: {
     fontSize: 9.5,
     fontFamily: 'Montserrat_500Medium',
@@ -153,8 +129,8 @@ const styles = StyleSheet.create({
   },
   inputSurface: {
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E5ECE7',
+    borderWidth: 0,
+    borderColor: 'transparent',
     backgroundColor: '#F5F8F5',
     paddingHorizontal: 10,
     paddingVertical: 8,
