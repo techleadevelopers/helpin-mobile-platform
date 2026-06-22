@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/AppContext';
@@ -50,6 +51,7 @@ function totalSteps(type: AccountType | null) {
 
 export default function RegisterScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { register } = useApp();
@@ -144,11 +146,11 @@ export default function RegisterScreen() {
     }
 
     Alert.alert(
-      'Termos e Politica de Privacidade',
-      'Para continuar, confirme que voce leu e aceita os Termos de Uso e a Politica de Privacidade do Helpin.',
+      `${t('common.terms')} / ${t('common.privacy')}`,
+      t('common.termsAgreement'),
       [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Aceitar', onPress: () => setAcceptedTerms(true) },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.continue'), onPress: () => setAcceptedTerms(true) },
       ],
     );
   }
@@ -156,7 +158,7 @@ export default function RegisterScreen() {
   function validateAndNext() {
     if (step === 0) {
       if (!accountType) {
-        Alert.alert('Selecione um tipo de conta', 'Escolha entre Conta Pessoal ou ONG.');
+        Alert.alert(t('register.errSelectTypeTitle'), t('register.errSelectType'));
         return;
       }
       goNext(1);
@@ -165,13 +167,13 @@ export default function RegisterScreen() {
 
     if (accountType === 'person') {
       if (step === 1) {
-        if (!name.trim()) { Alert.alert('Campo obrigatório', 'Informe seu nome completo.'); return; }
-        if (!email.trim() || !email.includes('@')) { Alert.alert('E-mail inválido', 'Informe um e-mail válido.'); return; }
+        if (!name.trim()) { Alert.alert(t('register.errNameTitle'), t('register.errName')); return; }
+        if (!email.trim() || !email.includes('@')) { Alert.alert(t('register.errEmailTitle'), t('register.errEmail')); return; }
         goNext(2);
       } else if (step === 2) {
-        if (password.length < 8) { Alert.alert('Senha fraca', 'A senha deve ter pelo menos 8 caracteres.'); return; }
-        if (password !== confirmPassword) { Alert.alert('Senhas diferentes', 'As senhas nao coincidem.'); return; }
-        if (!acceptedTerms) { Alert.alert('Termos de Uso', 'Aceite os Termos de Uso e a Politica de Privacidade para continuar.'); return; }
+        if (password.length < 8) { Alert.alert(t('register.errWeakPasswordTitle'), t('register.errWeakPassword')); return; }
+        if (password !== confirmPassword) { Alert.alert(t('register.errMismatchTitle'), t('register.errMismatch')); return; }
+        if (!acceptedTerms) { Alert.alert(t('common.terms'), t('common.termsAgreement')); return; }
         handleSubmit();
       }
       return;
