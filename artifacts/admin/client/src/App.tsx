@@ -24,6 +24,7 @@ import LiveTracking from "@/pages/live-tracking";
 import ReferralManagement from "@/pages/referrals/referral-management";
 import SupportCenter from "@/pages/support-center";
 import ObservabilityPage from "@/pages/observability/observability";
+import RescueFinalReportsPage from "@/pages/rescue/final-reports";
 import { useAuth } from "@/context/AuthContext";
 import { TelemetryAlertsBridge } from "@/hooks/use-telemetry-alerts";
 import { Skeleton } from "./components/ui/skeleton";
@@ -143,6 +144,11 @@ function AppRouter() {
           <Route path="/live-tracking">
             <PrivateRoute>
               <LiveTracking />
+            </PrivateRoute>
+          </Route>
+          <Route path="/rescue-final-reports">
+            <PrivateRoute>
+              <RescueFinalReportsPage />
             </PrivateRoute>
           </Route>
           <Route path="/settings">
