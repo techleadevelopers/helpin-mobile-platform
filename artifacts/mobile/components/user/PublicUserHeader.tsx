@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import type { Author } from '@/constants/data';
@@ -13,6 +13,10 @@ type PublicUserHeaderProps = {
   userSearch: string;
   searchResults: Author[];
   following: boolean;
+  followLoading?: boolean;
+  followDisabled?: boolean;
+  messageLoading?: boolean;
+  messageDisabled?: boolean;
   followers: number;
   followingCount: number;
   postsCount: number;
@@ -36,6 +40,10 @@ export function PublicUserHeader({
   userSearch,
   searchResults,
   following,
+  followLoading = false,
+  followDisabled = false,
+  messageLoading = false,
+  messageDisabled = false,
   followers,
   followingCount,
   postsCount,
@@ -88,17 +96,33 @@ export function PublicUserHeader({
 
       <View style={styles.actionRow}>
         <TouchableOpacity
-          style={[styles.followButton, following && styles.followingButton]}
+          style={[styles.followButton, following && styles.followingButton, followDisabled && styles.disabledButton]}
           onPress={onFollow}
+          disabled={followDisabled || followLoading}
           activeOpacity={0.85}
         >
-          <Text style={[styles.followText, following && styles.followingText]}>
-            {following ? 'Seguindo' : 'Seguir'}
-          </Text>
+          {followLoading ? (
+            <ActivityIndicator size="small" color={following ? '#2D6A4F' : '#FFFFFF'} />
+          ) : (
+            <Text style={[styles.followText, following && styles.followingText, followDisabled && styles.disabledText]}>
+              {following ? 'Seguindo' : 'Seguir'}
+            </Text>
+          )}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.messageButton} onPress={onMessage} activeOpacity={0.85}>
-          <MaterialCommunityIcons name="message-outline" size={17} color="#2D6A4F" />
-          <Text style={styles.messageText}>Mensagem</Text>
+        <TouchableOpacity
+          style={[styles.messageButton, messageDisabled && styles.disabledButton]}
+          onPress={onMessage}
+          disabled={messageDisabled || messageLoading}
+          activeOpacity={0.85}
+        >
+          {messageLoading ? (
+            <ActivityIndicator size="small" color="#2D6A4F" />
+          ) : (
+            <>
+              <MaterialCommunityIcons name="message-outline" size={17} color={messageDisabled ? '#A7B0AA' : '#2D6A4F'} />
+              <Text style={[styles.messageText, messageDisabled && styles.disabledText]}>Mensagem</Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -157,8 +181,10 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 11 },
   followButton: { flex: 1, height: 32, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#2D6A4F' },
   followingButton: { backgroundColor: '#EAF3EC', borderWidth: 1, borderColor: '#CFE0D4' },
+  disabledButton: { opacity: 0.55 },
   followText: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#FFFFFF' },
   followingText: { color: '#2D6A4F' },
+  disabledText: { color: '#A7B0AA' },
   messageButton: { flex: 1, height: 32, borderRadius: 18, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DCE4DD' },
   messageText: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#2D6A4F' },
   userSearchBox: {
