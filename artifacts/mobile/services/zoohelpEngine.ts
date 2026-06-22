@@ -147,6 +147,24 @@ export interface OngContract {
   cause: string;
 }
 
+export interface ImpactMetricsContract {
+  resolvedCases: number;
+  animalsHelped: number;
+  confirmedHelpCases: number;
+  supportedOngs?: number;
+  ongSupportCents?: number;
+  activeProtectors30d: number;
+  activeVerifiedOngs: number;
+  repeatHelpers: number;
+  firstHelpResponseSeconds?: number | null;
+  firstAnimalResolvedSeconds?: number | null;
+  firstOngSupportSeconds?: number | null;
+  medianFirstNearbySignalSeconds?: number | null;
+  medianFirstResponseSeconds?: number | null;
+  medianGeocodeActivationSeconds?: number | null;
+  generatedAt: string;
+}
+
 export interface ChatConversationContract {
   id: string;
   postId: string;
@@ -393,10 +411,20 @@ export class ZooHelpEngine {
     }
 
     const maxAttempts = method === "GET" ? 3 : 2;
+    const timeoutMs = requestTimeoutMs(method);
     let lastError: unknown;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      const controller = typeof AbortController !== "undefined" && !init.signal ? new AbortController() : null;
+      const timeout = controller
+        ? setTimeout(() => controller.abort(), timeoutMs)
+        : null;
       try {
-        const response = await fetch(`${this.config.apiBaseUrl}${path}`, { ...init, method, headers });
+        const response = await fetch(`${this.config.apiBaseUrl}${path}`, {
+          ...init,
+          method,
+          headers,
+          signal: init.signal ?? controller?.signal,
+        });
         if (response.status === 401) {
           await this.config.onUnauthorized?.({ path, status: response.status, requestId });
         }
@@ -425,6 +453,8 @@ export class ZooHelpEngine {
         lastError = error;
         if (error instanceof ZooHelpApiError || attempt === maxAttempts) break;
         await sleep(250 * attempt);
+      } finally {
+        if (timeout) clearTimeout(timeout);
       }
     }
     if (lastError instanceof Error) throw lastError;
@@ -702,6 +732,10 @@ export class ZooHelpEngine {
     return this.request<NearbyCaseContract[]>(`/v1/geo/nearby${suffix}`);
   }
 
+  impactMetrics() {
+    return this.request<ImpactMetricsContract>("/v1/impact/metrics");
+  }
+
   search(q: string) {
     return this.request<SearchResponseContract>(`/v1/search?q=${encodeURIComponent(q)}`);
   }
@@ -900,13 +934,13 @@ export class ZooHelpEngine {
     );
   }
 
-  confirmRescueResponse(postId: string, input: { status?: "confirmed" | "cancelled" | "arrived"; lat?: number; lng?: number; etaSeconds?: number } = {}) {
+  confirmRescueResponse(postId: string, input: { action?: "going" | "remote_support" | "unavailable"; status?: "confirmed" | "cancelled" | "arrived"; lat?: number; lng?: number; etaSeconds?: number } = {}) {
     return this.request<{ response: unknown }>(
       `/v1/posts/${encodeURIComponent(postId)}/rescue-response`,
       {
         method: "POST",
         body: JSON.stringify({
-          action: "going",
+          action: input.action ?? "going",
           status: input.status ?? "confirmed",
           lat: input.lat,
           lng: input.lng,
@@ -930,6 +964,12 @@ function createRequestId() {
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function requestTimeoutMs(method: string) {
+  if (method === "GET") return 12000;
+  if (method === "POST" || method === "PUT" || method === "PATCH") return 30000;
+  return 18000;
 }
 
 async function safeJson(response: Response): Promise<any> {
