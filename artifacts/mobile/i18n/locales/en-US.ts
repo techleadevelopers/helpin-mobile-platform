@@ -2,7 +2,7 @@ import type { Translations } from '../types';
 
 const enUS: Translations = {
   common: {
-    appName: 'ZooHelp',
+    appName: 'Helpin',
     tagline: 'Animal adoption, rescue and support platform',
     continue: 'Continue',
     back: 'Back',
@@ -111,7 +111,7 @@ const enUS: Translations = {
     strengthWeak: 'Weak',
     strengthGood: 'Good',
     strengthStrong: 'Strong',
-    verificationBadge: 'Your NGO will receive a verification badge after review by the ZooHelp team',
+    verificationBadge: 'Your NGO will receive a verification badge after review by the Helpin team',
     createBtn: 'Create account',
     registerOngBtn: 'Register NGO',
     creating: 'Creating account...',
@@ -212,7 +212,7 @@ const enUS: Translations = {
     deleteFinalTitle: 'Are you absolutely sure?',
     deleteFinalMessage: 'This action cannot be undone.',
     deleteFinalConfirm: 'Yes, delete account',
-    footer: 'ZooHelp v1.0 · Protect. Rescue. Adopt.',
+    footer: 'Helpin v1.0 · Protect. Rescue. Adopt.',
   },
   publish: {
     title: 'Publish case',
