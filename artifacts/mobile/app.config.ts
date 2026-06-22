@@ -1,5 +1,9 @@
 ﻿import { ExpoConfig, ConfigContext } from "expo/config";
 
+const APP_VERSION = "1.0.8";
+const IOS_BUILD_NUMBER = "1";
+const ANDROID_VERSION_CODE = 8;
+
 export default ({ config }: ConfigContext): ExpoConfig => {
   const devDomain = process.env.EXPO_PUBLIC_DOMAIN;
   const externalPort = process.env.EXPO_EXTERNAL_PORT || "3000";
@@ -8,10 +12,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   return {
     ...config,
-    name: "ZooHelp",
+    name: "Helpin",
     slug: "mobile",
     owner: process.env.EXPO_OWNER,
-    version: "1.0.0",
+    version: APP_VERSION,
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "zoohelp",
@@ -20,35 +24,36 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     splash: {
       image: "./assets/images/icon.png",
       resizeMode: "contain",
-      backgroundColor: "#4CAF50",
+      backgroundColor: "#FFFFFF",
     },
     ios: {
       supportsTablet: false,
       bundleIdentifier: "com.zoohelp.app",
-      buildNumber: "1",
+      buildNumber: IOS_BUILD_NUMBER,
       requireFullScreen: false,
       infoPlist: {
         NSCameraUsageDescription:
-          "O ZooHelp precisa acessar sua câmera para que você possa fotografar animais nas publicações.",
+          "O Helpin precisa acessar sua câmera para que você possa fotografar animais nas publicações.",
         NSPhotoLibraryUsageDescription:
-          "O ZooHelp precisa acessar sua galeria para que você possa escolher fotos nas publicações.",
+          "O Helpin precisa acessar sua galeria para que você possa escolher fotos nas publicações.",
         NSPhotoLibraryAddUsageDescription:
-          "O ZooHelp precisa salvar fotos na sua galeria.",
+          "O Helpin precisa salvar fotos na sua galeria.",
         NSLocationWhenInUseUsageDescription:
-          "O ZooHelp usa sua localização para mostrar animais próximos de você.",
+          "O Helpin usa sua localização para mostrar animais próximos de você.",
         NSLocationAlwaysAndWhenInUseUsageDescription:
-          "O ZooHelp usa sua localização para mostrar animais próximos e enviar alertas de emergência na sua região.",
+          "O Helpin usa sua localização para mostrar animais próximos e enviar alertas de emergência na sua região.",
         NSMicrophoneUsageDescription:
-          "O ZooHelp pode precisar do microfone para gravação de áudio ou vídeo nas publicações.",
+          "O Helpin pode precisar do microfone para gravação de áudio ou vídeo nas publicações.",
       },
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: "./assets/images/icon.png",
-        backgroundColor: "#4CAF50",
+        foregroundImage: "./assets/images/adaptive-icon.png",
+        backgroundColor: "#FFFFFF",
       },
       package: "com.zoohelp.app",
-      versionCode: 1,
+      // Google Play exige versionCode maior a cada novo upload.
+      versionCode: ANDROID_VERSION_CODE,
       permissions: [
         "android.permission.CAMERA",
         "android.permission.ACCESS_FINE_LOCATION",
@@ -68,6 +73,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       favicon: "./assets/images/icon.png",
     },
     plugins: [
+      "./plugins/withPhoneOnlyAndroid",
       [
         "expo-router",
         {
@@ -80,18 +86,18 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         "expo-location",
         {
           locationAlwaysAndWhenInUsePermission:
-            "O ZooHelp usa sua localização para mostrar animais próximos e enviar alertas de emergência na sua região.",
+            "O Helpin usa sua localização para mostrar animais próximos e enviar alertas de emergência na sua região.",
           locationWhenInUsePermission:
-            "O ZooHelp usa sua localização para mostrar animais próximos de você.",
+            "O Helpin usa sua localização para mostrar animais próximos de você.",
         },
       ],
       [
         "expo-image-picker",
         {
           photosPermission:
-            "O ZooHelp precisa acessar sua galeria para que você possa escolher fotos nas publicações.",
+            "O Helpin precisa acessar sua galeria para que você possa escolher fotos nas publicações.",
           cameraPermission:
-            "O ZooHelp precisa acessar sua câmera para fotografar animais.",
+            "O Helpin precisa acessar sua câmera para fotografar animais.",
           microphonePermission: false,
         },
       ],
