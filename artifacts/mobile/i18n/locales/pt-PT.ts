@@ -2,7 +2,7 @@ import type { Translations } from '../types';
 
 const ptPT: Translations = {
   common: {
-    appName: 'ZooHelp',
+    appName: 'Helpin',
     tagline: 'Plataforma de adoção, resgate e apoio animal',
     continue: 'Continuar',
     back: 'Voltar',
@@ -111,7 +111,7 @@ const ptPT: Translations = {
     strengthWeak: 'Fraca',
     strengthGood: 'Boa',
     strengthStrong: 'Forte',
-    verificationBadge: 'A sua ONG receberá um selo de verificação após análise da equipa ZooHelp',
+    verificationBadge: 'A sua ONG receberá um selo de verificação após análise da equipa Helpin',
     createBtn: 'Criar conta',
     registerOngBtn: 'Registar ONG',
     creating: 'A criar conta...',
@@ -212,7 +212,7 @@ const ptPT: Translations = {
     deleteFinalTitle: 'Tem a certeza absoluta?',
     deleteFinalMessage: 'Esta ação nío pode ser anulada.',
     deleteFinalConfirm: 'Sim, eliminar conta',
-    footer: 'ZooHelp v1.0 · Proteja. Resgate. Adote.',
+    footer: 'Helpin v1.0 · Proteja. Resgate. Adote.',
   },
   publish: {
     title: 'Publicar caso',
