@@ -1258,6 +1258,27 @@ export type TrustSafetyPostReport = {
     createdAt: string;
 };
 
+export type RescueFinalReportAdmin = {
+    id: string;
+    rescueId?: string | null;
+    postId: string;
+    postTitle: string;
+    postType: string;
+    status: string;
+    summary: string;
+    publicUpdate: string;
+    generatedByAi: boolean;
+    publicationStatus: string;
+    rejectionReason?: string | null;
+    aiModel?: string | null;
+    aiLatencyMs?: number | null;
+    aiCostCents?: number | null;
+    promptVersion?: string | null;
+    schemaVersion: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
 export const fetchKybDocuments = async (ongId: string): Promise<KybDocument[]> => {
     return fetchApi(`/v1/admin/ongs/${ongId}/kyb-documents`);
 };
@@ -1298,6 +1319,30 @@ export const reviewModerationJob = async (
 
 export const fetchTrustSafetyPostReports = async (): Promise<TrustSafetyPostReport[]> => {
     return fetchApi('/v1/admin/reports/posts');
+};
+
+export const fetchRescueFinalReports = async (status = 'pending_approval'): Promise<RescueFinalReportAdmin[]> => {
+    return fetchApi(`/v1/admin/reports/rescue-final?status=${encodeURIComponent(status)}`);
+};
+
+export const approveRescueFinalReport = async (
+    rescueId: string,
+    input: { status?: string; summary?: string; publicUpdate?: string },
+): Promise<RescueFinalReportAdmin> => {
+    return fetchApi(`/v1/rescue/${encodeURIComponent(rescueId)}/final-report/approve`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+    });
+};
+
+export const rejectRescueFinalReport = async (
+    rescueId: string,
+    input: { rejectionReason: string },
+): Promise<RescueFinalReportAdmin> => {
+    return fetchApi(`/v1/rescue/${encodeURIComponent(rescueId)}/final-report/reject`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+    });
 };
 
 // Tipos adicionais (já estavam no seu arquivo, apenas mantidos)
