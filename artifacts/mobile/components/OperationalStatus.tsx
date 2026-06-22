@@ -61,9 +61,12 @@ function getLead(post: Post) {
 
 function getHumanState(post: Post) {
   if (post.rescueStatus === 'resolved') return 'caso encerrado';
+  if ((post.rescueOperational?.helpArrivedCount ?? 0) > 0) return 'Animal encontrado/resgatado';
+  if (post.rescueStatus === 'active') return 'Em atendimento';
+  if ((post.rescueOperational?.helpGoingCount ?? 0) > 0) return 'Alguem respondeu';
+  if (post.type === 'emergency' || post.urgent) return 'Alertando pessoas proximas';
   if (post.rescueStatus === 'active') return 'Resgate em coordenação';
   if (post.author.type === 'ong') return 'ONG acionada';
-  if (post.type === 'emergency') return 'Sem resposta ainda';
   if (post.type === 'adoption') return 'Aguardando interesse';
   if (post.type === 'lost') return 'Compartilhe se viu';
   if (post.type === 'found') return 'Tutor nao localizado';
