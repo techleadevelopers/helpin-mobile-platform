@@ -47,7 +47,7 @@ export default function ReviewManagementPage() {
       setResponseText('');
       queryClient.invalidateQueries({ queryKey: ['reviews'] });
     },
-    onError: (err: any) => toast({ title: 'Erro', description: err?.message ?? 'Falha ao responder avaliaÃ§Ã£o', variant: 'destructive' }),
+    onError: (err: any) => toast({ title: 'Erro', description: err?.message ?? 'Falha ao responder avaliaçãoo', variant: 'destructive' }),
   });
 
   const filtered = useMemo(() => {
@@ -101,7 +101,7 @@ export default function ReviewManagementPage() {
                       </div>
                     ))}
                     {filtered.length === 0 && (
-                      <div className="text-center text-gray-500 py-10">Nenhuma avaliaÃ§Ã£o encontrada.</div>
+                      <div className="text-center text-gray-500 py-10">Nenhuma avaliaçãoo encontrada.</div>
                     )}
                   </div>
                 )}
@@ -158,7 +158,7 @@ export default function ReviewManagementPage() {
           <Dialog open={respondDialog.open} onOpenChange={(open) => setRespondDialog({ id: respondDialog.id, open })}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Responder avaliaÃ§Ã£o</DialogTitle>
+                <DialogTitle>Responder avaliaçãoo</DialogTitle>
               </DialogHeader>
               <div className="space-y-3">
                 <Textarea placeholder="Escreva sua resposta ao cliente..." value={responseText} onChange={(e) => setResponseText(e.target.value)} />
