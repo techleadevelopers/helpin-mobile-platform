@@ -2,7 +2,7 @@ import type { Translations } from '../types';
 
 const koKR: Translations = {
   common: {
-    appName: 'ZooHelp',
+    appName: 'Helpin',
     tagline: '동물 입양, 구조 및 지원 플랫폼',
     continue: '계속',
     back: '뒤로',
@@ -78,7 +78,7 @@ const koKR: Translations = {
     cityPlaceholder: '서울시 강남구', ongNamePlaceholder: '예: 행복한 발자국',
     passwordPlaceholder: '6자 이상', confirmPasswordPlaceholder: '비밀번호 재입력',
     strengthWeak: '약함', strengthGood: '보통', strengthStrong: '강함',
-    verificationBadge: 'ZooHelp 팀의 검토 후 인증 배지가 부여됩니다',
+    verificationBadge: 'Helpin 팀의 검토 후 인증 배지가 부여됩니다',
     createBtn: '계정 만들기', registerOngBtn: 'NGO 등록', creating: '계정 생성 중...',
     errSelectTypeTitle: '계정 유형을 선택하세요', errSelectType: '개인 계정 또는 NGO를 선택하세요.',
     errNameTitle: '필수 항목', errName: '이름을 입력해 주세요.',
@@ -127,7 +127,7 @@ const koKR: Translations = {
     deleteMessage: '모든 데이터, 게시물, 기록이 영구적으로 삭제됩니다.',
     deleteConfirm: '계정 삭제', deleteFinalTitle: '정말 확실하신가요?',
     deleteFinalMessage: '이 작업은 취소할 수 없습니다.', deleteFinalConfirm: '예, 삭제합니다',
-    footer: 'ZooHelp v1.0 · 보호하세요. 구조하세요. 입양하세요.',
+    footer: 'Helpin v1.0 · 보호하세요. 구조하세요. 입양하세요.',
   },
   publish: {
     title: '케이스 게시', newPost: '새 게시물', caseType: '케이스 유형', animal: '동물',
