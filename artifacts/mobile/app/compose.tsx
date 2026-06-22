@@ -73,7 +73,7 @@ export default function ComposeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ intent?: string; type?: string; rescue?: string }>();
-  const { addPost, isAuthenticated, isLoading, user } = useApp();
+  const { addPost, isAuthenticated, isLoading, refreshUser, user } = useApp();
   const requestedType = typeof params.type === 'string' ? params.type : undefined;
   const requestedIntent = typeof params.intent === 'string' ? params.intent : undefined;
   const initialType = POST_TYPES.some((t) => t.type === requestedType)
@@ -104,6 +104,12 @@ export default function ComposeScreen() {
   const [typingTimeout, setTypingTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   const inputBorder = useSharedValue(0);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      refreshUser().catch(() => {});
+    }
+  }, [isAuthenticated]);
 
   const topPad = (Platform.OS === 'web' ? 0 : insets.top) + 16;
   const bottomPad = Platform.OS === 'web' ? 24 : insets.bottom;
@@ -279,7 +285,7 @@ export default function ComposeScreen() {
   }
 
   function buildAddressLabel() {
-    const street = [location.trim(), manualNumber.trim()].filter(Boolean).join(', ');
+    const street = [manualStreetName(), manualNumber.trim()].filter(Boolean).join(', ');
     const cityState = [manualCity.trim(), manualState.trim()].filter(Boolean).join(' - ');
     const manualLabel = [street, manualNeighborhood.trim(), cityState].filter(Boolean).join(', ');
     if (hasAnyManualLocationPart()) return manualLabel || location.trim();
@@ -287,9 +293,20 @@ export default function ComposeScreen() {
     return manualLabel || location.trim();
   }
 
+  function manualStreetName() {
+    const raw = location.trim();
+    if (!raw) return '';
+    const firstPart = raw.split(',')[0]?.trim() || raw;
+    const number = manualNumber.trim();
+    if (!number) return firstPart;
+    return firstPart
+      .replace(new RegExp(`\\s*,?\\s*${number.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), '')
+      .trim();
+  }
+
   function getManualLocationParts() {
     return {
-      street: location.trim(),
+      street: manualStreetName(),
       number: manualNumber.trim(),
       neighborhood: manualNeighborhood.trim(),
       city: manualCity.trim(),
@@ -465,8 +482,8 @@ export default function ComposeScreen() {
   }
 
   const inputAnimStyle = useAnimatedStyle(() => ({
-    borderColor: inputBorder.value === 1 ? currentType.color : '#E8ECF0',
-    shadowOpacity: inputBorder.value === 1 ? 0.12 : 0,
+    borderColor: '#E1EBE4',
+    shadowOpacity: 0.05,
   }));
 
   const progress = Math.min(
