@@ -60,7 +60,7 @@ interface AdminAxiosRequestConfig extends AxiosRequestConfig {
     __tries?: number;
 }
 
-const RAILWAY_API_BASE_URL = "https://zoohelp-core-production.up.railway.app";
+const RAILWAY_API_BASE_URL = "https://helpin-platform-core-production.up.railway.app";
 
 const resolveBaseUrl = (): string => {
     const maybeWindow = (globalThis as any)?.window as any;
