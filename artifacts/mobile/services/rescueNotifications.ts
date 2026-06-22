@@ -8,7 +8,10 @@ import { getStoredAccessToken } from '@/services/secureSession';
 import { createZooHelpApi } from '@/services/zoohelpApi';
 
 const PUSH_TOKEN_KEY = 'zoohelpPushToken';
+const PUSH_LOCATION_CACHE_KEY = 'zoohelpPushLocation:v1';
 const DEFAULT_RADIUS_KM = 8;
+const LOCATION_CACHE_TTL_MS = 10 * 60 * 1000;
+const HIGH_ACCURACY_TIMEOUT_MS = 8000;
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -50,9 +53,8 @@ export async function registerRescueAlerts(userId: string) {
   const locationPermission = await Location.requestForegroundPermissionsAsync();
   if (locationPermission.status !== 'granted') return null;
 
-  const position = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.High,
-  });
+  const position = await getPushRegistrationLocation();
+  if (!position) return null;
 
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId ??
@@ -71,4 +73,73 @@ export async function registerRescueAlerts(userId: string) {
     radiusKm: DEFAULT_RADIUS_KM,
     criticalAlerts: true,
   });
+}
+
+async function getPushRegistrationLocation() {
+  const lastKnown = await Location.getLastKnownPositionAsync({
+    maxAge: LOCATION_CACHE_TTL_MS,
+    requiredAccuracy: 500,
+  }).catch(() => null);
+  if (lastKnown) {
+    await rememberPushLocation(lastKnown).catch(() => {});
+    return lastKnown;
+  }
+
+  const cached = await readCachedPushLocation();
+  const cachedTimestamp = cached?.timestamp;
+  if (cached && typeof cachedTimestamp === 'number' && Date.now() - cachedTimestamp <= LOCATION_CACHE_TTL_MS) {
+    return {
+      timestamp: cachedTimestamp,
+      coords: {
+        latitude: cached.latitude,
+        longitude: cached.longitude,
+        altitude: null,
+        accuracy: cached.accuracy,
+        altitudeAccuracy: null,
+        heading: null,
+        speed: null,
+      },
+    } as Location.LocationObject;
+  }
+
+  const current = await Promise.race([
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), HIGH_ACCURACY_TIMEOUT_MS)),
+  ]).catch(() => null);
+  if (current) {
+    await rememberPushLocation(current).catch(() => {});
+  }
+  return current;
+}
+
+async function rememberPushLocation(position: Location.LocationObject) {
+  await AsyncStorage.setItem(PUSH_LOCATION_CACHE_KEY, JSON.stringify({
+    latitude: position.coords.latitude,
+    longitude: position.coords.longitude,
+    accuracy: position.coords.accuracy,
+    timestamp: position.timestamp || Date.now(),
+  }));
+}
+
+async function readCachedPushLocation() {
+  const raw = await AsyncStorage.getItem(PUSH_LOCATION_CACHE_KEY).catch(() => null);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as {
+      latitude?: number;
+      longitude?: number;
+      accuracy?: number | null;
+      timestamp?: number;
+    };
+    if (
+      typeof parsed.latitude !== 'number' ||
+      typeof parsed.longitude !== 'number' ||
+      typeof parsed.timestamp !== 'number'
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
 }
