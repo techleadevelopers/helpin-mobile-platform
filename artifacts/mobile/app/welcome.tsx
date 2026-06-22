@@ -84,7 +84,7 @@ export default function WelcomeScreen() {
       style={[styles.container, { paddingTop: topPad }]}
     >
       <View style={[styles.header, { paddingTop: 16 }]}>
-        <Text style={[styles.logo, { color: colors.primary }]}>ZooHelp</Text>
+        <Text style={[styles.logo, { color: colors.primary }]}>Helpin</Text>
         <TouchableOpacity onPress={handleSkip} style={styles.skipBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={[styles.skipText, { color: colors.mutedForeground }]}>Pular</Text>
         </TouchableOpacity>
