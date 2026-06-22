@@ -56,7 +56,7 @@ export default function ResetPasswordScreen() {
             <MaterialCommunityIcons name="lock-reset" size={30} color="#2D6A4F" />
           </View>
           <Text style={styles.title}>Criar nova senha</Text>
-          <Text style={styles.subtitle}>Escolha uma senha forte para proteger sua conta ZooHelp.</Text>
+          <Text style={styles.subtitle}>Escolha uma senha forte para proteger sua conta Helpin.</Text>
         </View>
 
         <View style={styles.form}>
