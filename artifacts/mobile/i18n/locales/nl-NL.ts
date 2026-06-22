@@ -2,7 +2,7 @@ import type { Translations } from '../types';
 
 const nlNL: Translations = {
   common: {
-    appName: 'ZooHelp',
+    appName: 'Helpin',
     tagline: 'Platform voor adoptie, redding en dierenhulp',
     continue: 'Doorgaan',
     back: 'Terug',
@@ -78,7 +78,7 @@ const nlNL: Translations = {
     cityPlaceholder: 'Jouw stad', ongNamePlaceholder: 'Bijv: Blije Pootjes',
     passwordPlaceholder: 'Minimaal 6 tekens', confirmPasswordPlaceholder: 'Herhaal wachtwoord',
     strengthWeak: 'Zwak', strengthGood: 'Goed', strengthStrong: 'Sterk',
-    verificationBadge: 'Jouw NGO ontvangt een verificatiebadge na beoordeling door het ZooHelp-team',
+    verificationBadge: 'Jouw NGO ontvangt een verificatiebadge na beoordeling door het Helpin-team',
     createBtn: 'Account aanmaken', registerOngBtn: 'NGO registreren', creating: 'Account aanmaken...',
     errSelectTypeTitle: 'Selecteer een accounttype', errSelectType: 'Kies tussen Persoonlijk Account of NGO.',
     errNameTitle: 'Verplicht veld', errName: 'Vul je volledige naam in.',
@@ -127,7 +127,7 @@ const nlNL: Translations = {
     deleteMessage: 'Al je gegevens, berichten en geschiedenis worden permanent verwijderd.',
     deleteConfirm: 'Mijn account verwijderen', deleteFinalTitle: 'Weet je het absoluut zeker?',
     deleteFinalMessage: 'Deze actie kan niet ongedaan worden gemaakt.', deleteFinalConfirm: 'Ja, account verwijderen',
-    footer: 'ZooHelp v1.0 · Bescherm. Red. Adopteer.',
+    footer: 'Helpin v1.0 · Bescherm. Red. Adopteer.',
   },
   publish: {
     title: 'Geval publiceren', newPost: 'Nieuw bericht', caseType: 'Type geval', animal: 'Dier',
