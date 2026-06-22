@@ -3,7 +3,7 @@ import type { Translations } from '../types';
 // Shared Latin America Spanish (used as base for MX, AR, CO, CL)
 const esLA: Translations = {
   common: {
-    appName: 'ZooHelp',
+    appName: 'Helpin',
     tagline: 'Plataforma de adopción, rescate y apoyo animal',
     continue: 'Continuar',
     back: 'Volver',
@@ -79,7 +79,7 @@ const esLA: Translations = {
     cityPlaceholder: 'Tu ciudad', ongNamePlaceholder: 'Ej: Patitas Felices',
     passwordPlaceholder: 'Mínimo 6 caracteres', confirmPasswordPlaceholder: 'Repite la contraseña',
     strengthWeak: 'Débil', strengthGood: 'Buena', strengthStrong: 'Fuerte',
-    verificationBadge: 'Tu ONG recibirá un sello de verificación tras el análisis del equipo ZooHelp',
+    verificationBadge: 'Tu ONG recibirá un sello de verificación tras el análisis del equipo Helpin',
     createBtn: 'Crear cuenta', registerOngBtn: 'Registrar ONG', creating: 'Creando cuenta...',
     errSelectTypeTitle: 'Selecciona un tipo de cuenta', errSelectType: 'Elige entre Cuenta Personal o ONG.',
     errNameTitle: 'Campo obligatorio', errName: 'Ingresa tu nombre completo.',
@@ -128,7 +128,7 @@ const esLA: Translations = {
     deleteMessage: 'Todos tus datos, publicaciones e historial serán eliminados permanentemente.',
     deleteConfirm: 'Eliminar mi cuenta', deleteFinalTitle: '¿Estás completamente seguro/a?',
     deleteFinalMessage: 'Esta acción no se puede deshacer.', deleteFinalConfirm: 'Sí, eliminar cuenta',
-    footer: 'ZooHelp v1.0 · Protege. Rescata. Adopta.',
+    footer: 'Helpin v1.0 · Protege. Rescata. Adopta.',
   },
   publish: {
     title: 'Publicar caso', newPost: 'Nueva publicación', caseType: 'Tipo de caso', animal: 'Animal',
