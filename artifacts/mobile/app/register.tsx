@@ -378,7 +378,7 @@ export default function RegisterScreen() {
               <MaterialCommunityIcons name="arrow-left" size={22} color="#1A1A2E" />
             </TouchableOpacity>
             {step > 0 ? (
-              <Text style={styles.stepCounter}>{step} de {total - 1}</Text>
+              <Text style={styles.stepCounter}>{step} {t('register.stepOf')} {total - 1}</Text>
             ) : (
               <View style={{ width: 36 }} />
             )}
@@ -393,7 +393,7 @@ export default function RegisterScreen() {
             {step === 0 && (
   <View style={[styles.section, styles.accountTypeSection]}>
     <View style={[styles.headingBlock, styles.accountTypeHeading]}>
-      <Text style={styles.title}>Criar conta</Text>
+      <Text style={styles.title}>{t('register.title')}</Text>
       <Text style={styles.subtitle}>Selecione o tipo de perfil que melhor representa você</Text>
     </View>
 
@@ -421,7 +421,7 @@ export default function RegisterScreen() {
           <Text style={[
             styles.typeTitle,
             accountType === 'person' && styles.typeTitleActive,
-          ]}>Conta Pessoal</Text>
+          ]}>{t('register.personalTitle')}</Text>
           <Text style={styles.typeDesc}>
             Adotante, protetor independente ou voluntário
           </Text>
@@ -455,7 +455,7 @@ export default function RegisterScreen() {
           <Text style={[
             styles.typeTitle,
             accountType === 'ong' && styles.typeTitleActive,
-          ]}>ONG / Protetor</Text>
+          ]}>{t('register.ongTitle')}</Text>
           <Text style={styles.typeDesc}>
             Organização de resgate, adoção ou clínica veterinária
           </Text>
@@ -477,7 +477,7 @@ export default function RegisterScreen() {
       activeOpacity={0.88}
       disabled={!accountType}
     >
-      <Text style={styles.primaryBtnText}>Continuar</Text>
+      <Text style={styles.primaryBtnText}>{t('common.continue')}</Text>
     </TouchableOpacity>
     </View>
 
@@ -495,17 +495,17 @@ export default function RegisterScreen() {
               <View style={styles.section}>
                 <View style={styles.headingBlock}>
                   <Text style={styles.title}>Olá!</Text>
-                  <Text style={styles.subtitle}>Como podemos te chamar?</Text>
+                  <Text style={styles.subtitle}>{t('register.greetingSubtitle')}</Text>
                 </View>
 
                 <View style={styles.fields}>
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Nome completo</Text>
+                    <Text style={styles.fieldLabel}>{t('register.fullNameLabel')}</Text>
                     <View style={[styles.inputRow, { borderColor: name ? '#2D6A4F' : '#E2E8F0' }]}>
                       <MaterialCommunityIcons name="account-outline" size={20} color={name ? '#2D6A4F' : '#A0AEC0'} />
                       <TextInput
                         style={styles.input}
-                        placeholder="Seu nome completo"
+                        placeholder={t('register.fullNamePlaceholder')}
                         placeholderTextColor="#A0AEC0"
                         autoCapitalize="words"
                         value={name}
@@ -515,12 +515,12 @@ export default function RegisterScreen() {
                   </View>
 
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>E-mail</Text>
+                    <Text style={styles.fieldLabel}>{t('register.emailLabel')}</Text>
                     <View style={[styles.inputRow, { borderColor: email ? '#2D6A4F' : '#E2E8F0' }]}>
                       <MaterialCommunityIcons name="email-outline" size={20} color={email ? '#2D6A4F' : '#A0AEC0'} />
                       <TextInput
                         style={styles.input}
-                        placeholder="seu@email.com"
+                        placeholder={t('register.emailPlaceholder')}
                         placeholderTextColor="#A0AEC0"
                         keyboardType="email-address"
                         autoCapitalize="none"
@@ -533,7 +533,7 @@ export default function RegisterScreen() {
                 </View>
 
                 <TouchableOpacity style={styles.primaryBtn} onPress={validateAndNext} activeOpacity={0.88}>
-                  <Text style={styles.primaryBtnText}>Continuar</Text>
+                  <Text style={styles.primaryBtnText}>{t('common.continue')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -545,17 +545,17 @@ export default function RegisterScreen() {
               <View style={styles.section}>
                 <View style={styles.headingBlock}>
                   <Text style={styles.title}>Quase lá!</Text>
-                  <Text style={styles.subtitle}>Crie uma senha segura para sua conta</Text>
+                  <Text style={styles.subtitle}>{t('register.almostSubtitle')}</Text>
                 </View>
 
                 <View style={styles.fields}>
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Senha</Text>
+                    <Text style={styles.fieldLabel}>{t('register.passwordLabel')}</Text>
                     <View style={[styles.inputRow, { borderColor: password.length >= 8 ? '#2D6A4F' : '#E2E8F0' }]}>
                       <MaterialCommunityIcons name="lock-outline" size={20} color={password.length >= 8 ? '#2D6A4F' : '#A0AEC0'} />
                       <TextInput
                         style={styles.input}
-                        placeholder="Minimo 8 caracteres"
+                        placeholder={t('register.passwordPlaceholder')}
                         placeholderTextColor="#A0AEC0"
                         secureTextEntry={!showPassword}
                         value={password}
@@ -568,12 +568,12 @@ export default function RegisterScreen() {
                   </View>
 
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Confirmar senha</Text>
+                    <Text style={styles.fieldLabel}>{t('register.confirmPasswordLabel')}</Text>
                     <View style={[styles.inputRow, { borderColor: confirmPassword && confirmPassword === password ? '#2D6A4F' : '#E2E8F0' }]}>
                       <MaterialCommunityIcons name="lock-check-outline" size={20} color={confirmPassword && confirmPassword === password ? '#2D6A4F' : '#A0AEC0'} />
                       <TextInput
                         style={styles.input}
-                        placeholder="Repita a senha"
+                        placeholder={t('register.confirmPasswordPlaceholder')}
                         placeholderTextColor="#A0AEC0"
                         secureTextEntry={!showConfirm}
                         value={confirmPassword}
@@ -599,7 +599,7 @@ export default function RegisterScreen() {
                   <View style={[styles.termsCheckbox, acceptedTerms && styles.termsCheckboxChecked]}>
                     {acceptedTerms && <MaterialCommunityIcons name="check" size={15} color="#FFFFFF" />}
                   </View>
-                  <Text style={styles.termsText}>Aceito os Termos de Uso</Text>
+                  <Text style={styles.termsText}>{t('common.termsAgreement')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -608,7 +608,7 @@ export default function RegisterScreen() {
                   disabled={loading || !acceptedTerms}
                   activeOpacity={0.88}
                 >
-                  <Text style={styles.primaryBtnText}>{loading ? 'Criando conta...' : 'Criar conta'}</Text>
+                  <Text style={styles.primaryBtnText}>{loading ? t('register.creating') : t('register.createBtn')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -786,7 +786,7 @@ export default function RegisterScreen() {
                 </View>
 
                 <TouchableOpacity style={styles.primaryBtn} onPress={validateAndNext} activeOpacity={0.88}>
-                  <Text style={styles.primaryBtnText}>Continuar</Text>
+                  <Text style={styles.primaryBtnText}>{t('common.continue')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -846,7 +846,7 @@ export default function RegisterScreen() {
                 </View>
 
                 <TouchableOpacity style={styles.primaryBtn} onPress={validateAndNext} activeOpacity={0.88}>
-                  <Text style={styles.primaryBtnText}>Continuar</Text>
+                  <Text style={styles.primaryBtnText}>{t('common.continue')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -975,7 +975,7 @@ export default function RegisterScreen() {
                 </View>
 
                 <TouchableOpacity style={styles.primaryBtn} onPress={validateAndNext} activeOpacity={0.88}>
-                  <Text style={styles.primaryBtnText}>Continuar</Text>
+                  <Text style={styles.primaryBtnText}>{t('common.continue')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -989,12 +989,12 @@ export default function RegisterScreen() {
 
                 <View style={styles.fields}>
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Senha</Text>
+                    <Text style={styles.fieldLabel}>{t('register.passwordLabel')}</Text>
                     <View style={[styles.inputRow, { borderColor: ongPassword.length >= 8 ? '#2D6A4F' : '#E2E8F0' }]}>
                       <MaterialCommunityIcons name="lock-outline" size={20} color={ongPassword.length >= 8 ? '#2D6A4F' : '#A0AEC0'} />
                       <TextInput
                         style={styles.input}
-                        placeholder="Minimo 8 caracteres"
+                        placeholder={t('register.passwordPlaceholder')}
                         placeholderTextColor="#A0AEC0"
                         secureTextEntry={!showOngPassword}
                         value={ongPassword}
@@ -1027,7 +1027,7 @@ export default function RegisterScreen() {
                   <View style={[styles.termsCheckbox, acceptedTerms && styles.termsCheckboxChecked]}>
                     {acceptedTerms && <MaterialCommunityIcons name="check" size={15} color="#FFFFFF" />}
                   </View>
-                  <Text style={styles.termsText}>Aceito os Termos de Uso</Text>
+                  <Text style={styles.termsText}>{t('common.termsAgreement')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
