@@ -841,6 +841,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function addPost(post: Post) {
+    const optimisticPost = {
+      ...post,
+      createdAt: 'agora',
+    };
+    justPublishedRef.current = {
+      postId: optimisticPost.id,
+      expiresAt: Date.now() + JUST_PUBLISHED_PROMOTION_MS,
+    };
+    setPosts((prev) => {
+      if (prev.some((item) => item.id === optimisticPost.id)) return prev;
+      return sortPostsNewestFirst([optimisticPost, ...prev]);
+    });
+
     try {
       const synced = await publishPostToBackend(post);
       const syncedWithImages = mergePostImages(synced, post);
@@ -849,18 +862,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         postId: syncedWithImages.id,
         expiresAt: Date.now() + JUST_PUBLISHED_PROMOTION_MS,
       };
-      setPosts((prev) => sortPostsNewestFirst([syncedWithImages, ...prev]));
+      setPosts((prev) => sortPostsNewestFirst([
+        syncedWithImages,
+        ...prev.filter((item) => item.id !== post.id && item.id !== syncedWithImages.id),
+      ]));
       await maybeTriggerRescueForSyncedPost(syncedWithImages);
       return syncedWithImages;
     } catch (error) {
       if (error instanceof ZooHelpApiError && error.status === 401) {
+        setPosts((prev) => prev.filter((item) => item.id !== post.id));
         await clearInvalidSession();
         throw error;
       }
       if (error instanceof ZooHelpApiError && error.status != null && error.status < 500) {
+        setPosts((prev) => prev.filter((item) => item.id !== post.id));
         throw error;
       }
       if (hasVolatileWebMedia(post)) {
+        setPosts((prev) => prev.filter((item) => item.id !== post.id));
         throw error;
       }
       await enqueuePost(post, error instanceof Error ? error.message : 'Falha de rede');
@@ -874,7 +893,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         postId: pendingPost.id,
         expiresAt: Date.now() + JUST_PUBLISHED_PROMOTION_MS,
       };
-      setPosts((prev) => sortPostsNewestFirst([pendingPost, ...prev]));
+      setPosts((prev) => sortPostsNewestFirst([
+        pendingPost,
+        ...prev.filter((item) => item.id !== post.id),
+      ]));
       return pendingPost;
     }
   }
