@@ -17,6 +17,7 @@ import {
   Activity,
   PawPrint,
   Stethoscope,
+  FileCheck2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -69,6 +70,12 @@ export default function Sidebar() {
       icon: Stethoscope,
       label: "Casos e Resgates",
       isActive: location === "/booking-oversight",
+    },
+    {
+      path: "/rescue-final-reports",
+      icon: FileCheck2,
+      label: "Relatorios de Resgate",
+      isActive: location === "/rescue-final-reports",
     },
     { path: "/dispute-management", icon: Handshake, label: "Moderação e Golpes", isActive: location === "/dispute-management" },
     { path: "/live-tracking", icon: Radar, label: "Live Tracking", isActive: location === "/live-tracking" },
