@@ -50,7 +50,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: process.env.VITE_API_TARGET || 'http://localhost:3000',
+        target: process.env.VITE_API_TARGET || 'https://helpin-platform-core-production.up.railway.app',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api/, ''),
