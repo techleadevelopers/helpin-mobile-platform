@@ -25,6 +25,7 @@ import { NavigationLoadingOverlay } from "@/components/NavigationLoadingOverlay"
 import { ZooHelpLoading } from "@/components/ZooHelpLoading";
 import { AppProvider } from "@/context/AppContext";
 import { useApp } from "@/context/AppContext";
+import "@/i18n";
 import { initializeObservability } from "@/services/observability";
 
 SplashScreen.preventAutoHideAsync();
