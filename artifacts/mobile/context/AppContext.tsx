@@ -14,6 +14,8 @@ import { ZooHelpApiError, type ChatConversationContract } from '@/services/zoohe
 const DELETED_POST_IDS_KEY = 'zoohelp:deletedPostIds:v1';
 const POST_IMAGES_CACHE_KEY = 'zoohelp:postImages:v1';
 const LIKED_POST_USERS_KEY = 'zoohelp:likedPostUsers:v1';
+const SESSION_SCHEMA_KEY = 'zoohelp:sessionSchemaVersion';
+const SESSION_SCHEMA_VERSION = 'identity-v2-2026-06-22';
 const MAX_LOCAL_DELETED_POST_IDS = 200;
 const MAX_POST_IMAGES_CACHE_ITEMS = 500;
 const JUST_PUBLISHED_PROMOTION_MS = 5 * 60 * 1000;
@@ -384,6 +386,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   async function loadStoredData() {
     try {
+      const storedSessionSchema = await AsyncStorage.getItem(SESSION_SCHEMA_KEY);
+      if (storedSessionSchema !== SESSION_SCHEMA_VERSION) {
+        await clearSessionTokens();
+        await clearLocalIdentityState();
+        await AsyncStorage.setItem(SESSION_SCHEMA_KEY, SESSION_SCHEMA_VERSION);
+      }
+
       const [storedUser, storedOnboarding, storedFollows, storedUserFollows, storedDeletedPostIds, storedLikedPostUsers, storedToken] = await Promise.all([
         AsyncStorage.getItem('user'),
         AsyncStorage.getItem('hasSeenOnboarding'),
@@ -441,10 +450,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function persistUser(nextUser: User) {
-    setUser(nextUser);
     setIsAuthenticated(true);
+    setUser(nextUser);
     await AsyncStorage.setItem('user', JSON.stringify(nextUser));
     return nextUser;
+  }
+
+  async function clearLocalIdentityState() {
+    await Promise.all([
+      AsyncStorage.removeItem('user'),
+      AsyncStorage.removeItem('followedOngs'),
+      AsyncStorage.removeItem('followedUsers'),
+      AsyncStorage.removeItem('likedPosts'),
+    ]);
+    setUser(null);
+    setIsAuthenticated(false);
+    setLikedPosts([]);
+    setFollowedOngs([]);
+    setFollowedUsers([]);
+    setChatUnreadCount(0);
+    setChatMessageNotifications([]);
   }
 
   async function refreshCurrentUser() {
@@ -488,10 +513,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (authClearingRef.current) return;
     authClearingRef.current = true;
     try {
-      await AsyncStorage.removeItem('user');
       await clearSessionTokens();
-      setUser(null);
-      setIsAuthenticated(false);
+      await clearLocalIdentityState();
     } finally {
       authClearingRef.current = false;
     }
@@ -544,10 +567,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   async function login(email: string, password: string) {
     if (api) {
+      await clearLocalIdentityState();
+      await clearSessionTokens();
       const response = await api.login(email, password);
       await setSecureItem(AUTH_TOKEN_KEY, response.accessToken);
       await setSecureItem(REFRESH_TOKEN_KEY, response.refreshToken);
-      return persistUser(mapAuthUser(response));
+      const confirmed = await api.me().catch(() => null);
+      const authUser = confirmed ? mapAuthUser(confirmed) : mapAuthUser(response);
+      if (authUser.id !== response.user.id) {
+        await clearSessionTokens();
+        await clearLocalIdentityState();
+        throw new Error('Sessao inconsistente. Entre novamente.');
+      }
+      return persistUser(authUser);
     }
 
     throw new Error('Backend auth is required');
@@ -574,6 +606,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } = {},
   ) {
     if (api) {
+      await clearLocalIdentityState();
+      await clearSessionTokens();
       const response = await api.register({
         name,
         email,
@@ -583,7 +617,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
       await setSecureItem(AUTH_TOKEN_KEY, response.accessToken);
       await setSecureItem(REFRESH_TOKEN_KEY, response.refreshToken);
-      const nextUser = mapAuthUser(response);
+      const confirmed = await api.me().catch(() => null);
+      const nextUser = confirmed ? mapAuthUser(confirmed) : mapAuthUser(response);
       if (type === 'ong' && response.ongProfile?.verificationStatus !== 'APPROVED') {
         nextUser.verified = false;
         nextUser.verificationStatus = response.ongProfile?.verificationStatus ?? 'PENDING_MANUAL_REVIEW';
@@ -595,13 +630,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function logout() {
-    await AsyncStorage.removeItem('user');
     await clearSessionTokens();
-    setUser(null);
-    setLikedPosts([]);
-    setChatUnreadCount(0);
-    setChatMessageNotifications([]);
-    setIsAuthenticated(false);
+    await clearLocalIdentityState();
   }
 
   async function deleteAccount() {
