@@ -45,7 +45,7 @@ export default function PrivacyScreen() {
         {/* Logo centralizado */}
         <View style={styles.headerCenter}>
           <Image source={require('../assets/images/icon.png')} style={styles.headerLogo} contentFit="cover" />
-          <Text style={[styles.headerBrand, { color: colors.foreground }]}>ZooHelp</Text>
+          <Text style={[styles.headerBrand, { color: colors.foreground }]}>Helpin</Text>
         </View>
 
         {/* Navegação lateral DIREITA - Privacy, Security, Data */}
@@ -72,7 +72,7 @@ export default function PrivacyScreen() {
           <Text style={styles.kicker}>Operational privacy policy</Text>
           <Text style={styles.documentTitle}>Privacy Policy</Text>
           <Text style={[styles.lead, { color: colors.mutedForeground }]}>
-            O ZooHelp usa dados para coordenar ajuda proxima, reduzir abuso, validar perfis confiaveis e manter
+            O Helpin usa dados para coordenar ajuda proxima, reduzir abuso, validar perfis confiaveis e manter
             transparencia em casos urgentes de resgate animal.
           </Text>
         </View>
@@ -109,7 +109,7 @@ export default function PrivacyScreen() {
         {/* Doações e pagamentos */}
         <PolicySection title="Donations And Payments">
           <Text style={[styles.paragraph, { color: colors.mutedForeground }]}>
-            O ZooHelp e gratuito para usuarios que precisam de resgate. Doacoes para ONGs verificadas serao suportadas
+            O Helpin e gratuito para usuarios que precisam de resgate. Doacoes para ONGs verificadas serao suportadas
             em fase futura. Por enquanto, nao ha transacoes financeiras dentro do app.
           </Text>
         </PolicySection>
