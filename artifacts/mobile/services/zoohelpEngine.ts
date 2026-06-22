@@ -249,6 +249,21 @@ export interface SearchResponseContract {
   ongs: OngContract[];
 }
 
+export interface PublicUserSummaryContract extends AuthorContract {}
+
+export interface PublicUserProfileContract extends AuthorContract {
+  bio: string;
+  location: string;
+  postsCount: number;
+  activeCasesCount: number;
+  resolvedCasesCount: number;
+  followersCount: number;
+  followingCount: number;
+  following: boolean;
+  posts: PostContract[];
+  createdAt: string;
+}
+
 export interface DonationIntentContract {
   id: string;
   ongId: string;
@@ -689,6 +704,40 @@ export class ZooHelpEngine {
 
   search(q: string) {
     return this.request<SearchResponseContract>(`/v1/search?q=${encodeURIComponent(q)}`);
+  }
+
+  publicUsers(input: { q?: string; limit?: number } = {}) {
+    const params = new URLSearchParams();
+    const query = input.q?.trim();
+    if (query) params.set("q", query);
+    if (input.limit != null) params.set("limit", String(input.limit));
+    const suffix = params.toString() ? `?${params}` : "";
+    return this.request<PublicUserSummaryContract[]>(`/v1/users${suffix}`);
+  }
+
+  publicUser(id: string) {
+    return this.request<PublicUserProfileContract>(`/v1/users/${encodeURIComponent(id)}`);
+  }
+
+  publicUserFollowers(id: string, input: { limit?: number } = {}) {
+    const params = new URLSearchParams();
+    if (input.limit != null) params.set("limit", String(input.limit));
+    const suffix = params.toString() ? `?${params}` : "";
+    return this.request<PublicUserSummaryContract[]>(`/v1/users/${encodeURIComponent(id)}/followers${suffix}`);
+  }
+
+  publicUserFollowing(id: string, input: { limit?: number } = {}) {
+    const params = new URLSearchParams();
+    if (input.limit != null) params.set("limit", String(input.limit));
+    const suffix = params.toString() ? `?${params}` : "";
+    return this.request<PublicUserSummaryContract[]>(`/v1/users/${encodeURIComponent(id)}/following${suffix}`);
+  }
+
+  followUser(id: string) {
+    return this.request<{ userId: string; following: boolean; followersCount: number }>(
+      `/v1/users/${encodeURIComponent(id)}/follow`,
+      { method: "POST" },
+    );
   }
 
   createDonationIntent(input: { ongId: string; amountCents: number; currency?: string }) {
