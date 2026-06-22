@@ -32,6 +32,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       buildNumber: IOS_BUILD_NUMBER,
       requireFullScreen: false,
       infoPlist: {
+        CFBundleLocalizations: ["en", "en_GB", "de", "tr", "pt_BR"],
         NSCameraUsageDescription:
           "O Helpin precisa acessar sua câmera para que você possa fotografar animais nas publicações.",
         NSPhotoLibraryUsageDescription:
@@ -110,6 +111,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ...config.extra,
       environment: process.env.APP_ENV || process.env.NODE_ENV || "development",
       sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || "",
+      supportedLocales: ["de-DE", "en-US", "en-GB", "tr-TR", "pt-BR"],
       eas: {
         projectId: "6fa106b1-6f9f-4da4-872e-5ba9ee75ff4b"
       }
