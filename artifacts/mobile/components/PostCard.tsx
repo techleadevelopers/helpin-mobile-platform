@@ -1,4 +1,4 @@
-﻿import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -144,7 +144,7 @@ function formatFeedAddress(post: Post) {
   const normalizedLocation = normalizeLocationPart(location);
   const normalizedNeighborhood = normalizeLocationPart(post.neighborhood || '');
   if (!normalizedNeighborhood || normalizedLocation.includes(normalizedNeighborhood)) {
-    return location || post.neighborhood || 'Localização do caso';
+    return location || post.neighborhood || 'Localiza��o do caso';
   }
   return [post.neighborhood, location].filter(Boolean).join(', ');
 }
@@ -266,7 +266,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
       setLocalComments((prev) => prev + 1);
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
-      Alert.alert('Comentário', 'Não foi possível enviar agora. Tente novamente.');
+      Alert.alert('Coment�rio', 'N�o foi poss�vel enviar agora. Tente novamente.');
     } finally {
       setCommentSubmitting(false);
     }
@@ -287,7 +287,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   }
 
   function handleShare() {
-    shareZooHelpItem(post.name, `${post.name} no ZooHelp: ${post.description}`);
+    shareZooHelpItem(post.name, `${post.name} no Helpin: ${post.description}`);
   }
 
   function hasPostCoords() {
@@ -339,7 +339,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   }
 
   function openRoute() {
-    const label = encodeURIComponent(post.name || 'Caso ZooHelp');
+    const label = encodeURIComponent(post.name || 'Caso Helpin');
     const coords = getRouteCoords();
     const destination = coords
       ? `${coords.latitude},${coords.longitude}`
@@ -357,7 +357,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   async function confirmGoing() {
     const api = createZooHelpApi();
     if (!api) {
-      Alert.alert('Confirmação indisponivel', 'Conecte ao backend para registrar sua ida.');
+      Alert.alert('Confirma��o indisponivel', 'Conecte ao backend para registrar sua ida.');
       return;
     }
     try {
@@ -372,12 +372,12 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     } catch (error) {
       if (error instanceof ZooHelpApiError && error.status === 404) {
         Alert.alert(
-          'Confirmação ainda indisponivel',
-          'A API publicada ainda nao suporta esta confirmação. Atualize o backend e tente novamente.',
+          'Confirma��o ainda indisponivel',
+          'A API publicada ainda nao suporta esta confirma��o. Atualize o backend e tente novamente.',
         );
         return;
       }
-      Alert.alert('Confirmação indisponivel', 'Nao foi possivel registrar sua ida agora. Tente novamente.');
+      Alert.alert('Confirma��o indisponivel', 'Nao foi possivel registrar sua ida agora. Tente novamente.');
     }
   }
 
@@ -391,14 +391,14 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     if (Platform.OS === 'web') {
       const confirmed =
         typeof window === 'undefined' ||
-        window.confirm('Deseja excluir este post? Esta ação nao pode ser desfeita.');
+        window.confirm('Deseja excluir este post? Esta a��o nao pode ser desfeita.');
       if (confirmed) runDeletePost();
       return;
     }
 
     Alert.alert(
       'Excluir post',
-      'Deseja excluir este post? Esta ação nao pode ser desfeita.',
+      'Deseja excluir este post? Esta a��o nao pode ser desfeita.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -427,7 +427,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
         id: `local-${localIndex}-${body}`,
         body,
         authorId: user?.id ?? null,
-        authorName: user?.name?.split(' ')[0] ?? 'Você',
+        authorName: user?.name?.split(' ')[0] ?? 'Voc�',
         authorAvatar: user?.avatar ?? null,
         authorVerified: user?.verified ?? false,
         authorType: user?.type ?? 'person',
@@ -441,7 +441,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
         {(commentOpen || localCommentBodies.length > 0) && (
           <View style={styles.commentList}>
             {commentsLoading && (
-              <Text style={[styles.commentHint, { color: colors.mutedForeground }]}>Carregando comentários...</Text>
+              <Text style={[styles.commentHint, { color: colors.mutedForeground }]}>Carregando coment�rios...</Text>
             )}
             {!commentsLoading && commentsError && (
               <TouchableOpacity
@@ -451,11 +451,11 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                 }}
                 activeOpacity={0.75}
               >
-                <Text style={[styles.commentHint, { color: colors.primary }]}>Tentar carregar comentários novamente</Text>
+                <Text style={[styles.commentHint, { color: colors.primary }]}>Tentar carregar coment�rios novamente</Text>
               </TouchableOpacity>
             )}
             {!commentsLoading && !commentsError && visibleComments.length === 0 && (
-              <Text style={[styles.commentHint, { color: colors.mutedForeground }]}>Nenhum comentário ainda.</Text>
+              <Text style={[styles.commentHint, { color: colors.mutedForeground }]}>Nenhum coment�rio ainda.</Text>
             )}
             {!commentsLoading && !commentsError && visibleComments.map((comment) => {
               const isCommentLiked = likedComments.includes(comment.id);
@@ -498,7 +498,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                     }}
                     activeOpacity={0.75}
                     accessibilityRole="button"
-                    accessibilityLabel={isCommentLiked ? 'Remover curtida do comentário' : 'Curtir comentário'}
+                    accessibilityLabel={isCommentLiked ? 'Remover curtida do coment�rio' : 'Curtir coment�rio'}
                   >
                     <MaterialCommunityIcons
                       name={isCommentLiked ? 'heart' : 'heart-outline'}
@@ -515,7 +515,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                       }}
                       activeOpacity={0.75}
                       accessibilityRole="button"
-                      accessibilityLabel="Excluir comentário"
+                      accessibilityLabel="Excluir coment�rio"
                     >
                       <MaterialCommunityIcons name="trash-can-outline" size={13} color={colors.mutedForeground} />
                     </TouchableOpacity>
@@ -531,7 +531,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
               style={[styles.commentInput, { color: colors.foreground }]}
               value={commentText}
               onChangeText={setCommentText}
-              placeholder="Escreva um comentário..."
+              placeholder="Escreva um coment�rio..."
               placeholderTextColor={colors.mutedForeground}
               returnKeyType="send"
               onSubmitEditing={submitComment}
@@ -564,7 +564,8 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   const canJoinRescue = !isResolved;
   const helpGoingCount = (localRescueOperational ?? post.rescueOperational)?.helpGoingCount ?? 0;
   const helpGoingLabel = helpGoingCount === 1 ? '1 pessoa a caminho' : `${helpGoingCount} pessoas a caminho`;
-  const ctaLabel = isResolved ? 'Ver resolução' : CTA_LABELS[post.type] ?? 'Ver mais';
+  const publicResolution = post.rescueFinalReport?.publicUpdate;
+  const ctaLabel = isResolved ? 'Ver resolu��o' : CTA_LABELS[post.type] ?? 'Ver mais';
   const accentColor = CTA_COLORS[post.type] ?? colors.primary;
   const ctaColor = colors.primary;
   const imageOverlay = (
@@ -599,7 +600,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     const coords = getRouteCoords() ?? DEFAULT_MAP_COORDS;
     const mapLat = coords.latitude;
     const mapLng = coords.longitude;
-    const locationLabel = post.location || post.neighborhood || 'Localização do caso';
+    const locationLabel = post.location || post.neighborhood || 'Localiza��o do caso';
 
     return (
       <Modal
@@ -634,7 +635,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
             <TouchableOpacity style={styles.overlayMapCard} onPress={openRoute} activeOpacity={0.86}>
               <View style={styles.overlayMapInfo}>
                 <Text style={styles.overlayMapTitle}>Area de resgate</Text>
-                <Text style={styles.overlayMapSubtitle} numberOfLines={2}>Baseado na localização do caso</Text>
+                <Text style={styles.overlayMapSubtitle} numberOfLines={2}>Baseado na localiza��o do caso</Text>
                 <Text style={styles.overlayMapLink}>{'Abrir rota ->'}</Text>
               </View>
               <View style={styles.overlayMapPreview}>
@@ -695,7 +696,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     </View>
   );
 
-  /* â”€â”€ TEXT-ONLY CARD (premium) â”€â”€ */
+  /* ── TEXT-ONLY CARD (premium) ── */
   if (post.textOnly) {
     return (
       <Animated.View style={animatedCardStyle}>
@@ -733,7 +734,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
             >
               <Avatar
                 name={post.author.name}
-                size={36}
+                size={40}
                 verified={post.author.verified}
                 type={post.author.type}
                 imageUrl={post.author.avatar}
@@ -759,6 +760,12 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
             </Text>
 
             <OperationalStatus post={post} variant="compact" />
+            {publicResolution && (
+              <View style={styles.resolutionCard}>
+                <MaterialCommunityIcons name="check-decagram-outline" size={14} color="#2E6B4F" />
+                <Text style={styles.resolutionText} numberOfLines={3}>{publicResolution}</Text>
+              </View>
+            )}
             {helpGoingCount > 0 && (
               <View style={styles.rescueMomentum}>
                 <View style={styles.rescueMomentumDot} />
@@ -840,7 +847,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     );
   }
 
-  /* â”€â”€ IMAGE CARD â”€â”€ */
+  /* ── IMAGE CARD ── */
   return (
     <Animated.View style={animatedCardStyle}>
       <TouchableOpacity
@@ -860,7 +867,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
           >
             <Avatar
               name={post.author.name}
-              size={30}
+              size={33}
               verified={post.author.verified}
               type={post.author.type}
               imageUrl={post.author.avatar}
@@ -916,6 +923,12 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
           </View>
 
           <OperationalStatus post={post} />
+          {publicResolution && (
+            <View style={styles.resolutionCard}>
+              <MaterialCommunityIcons name="check-decagram-outline" size={14} color="#2E6B4F" />
+              <Text style={styles.resolutionText} numberOfLines={3}>{publicResolution}</Text>
+            </View>
+          )}
           {helpGoingCount > 0 && (
             <View style={styles.rescueMomentum}>
               <View style={styles.rescueMomentumDot} />
@@ -1147,7 +1160,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 10,
   },
-  distanceText: { fontSize: 10, fontFamily: 'Montserrat_500Medium', color: '#FFFFFF' },
+  distanceText: { fontSize: 12, top: 10, fontFamily: 'Montserrat_500Medium', color: '#FFFFFF' },
   photoCountBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1173,7 +1186,7 @@ const styles = StyleSheet.create({
   authorInfo: { flex: 1 },
   authorNameRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   authorName: {
-    fontSize: 12,
+    fontSize: 14,
     fontFamily: 'Montserrat_600SemiBold',
     flexShrink: 1,
     textShadowColor: 'rgba(0,0,0,0.1)',
@@ -1234,6 +1247,24 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: 'Montserrat_600SemiBold',
     color: '#326044',
+  },
+  resolutionCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#EEF6F1',
+    borderWidth: 1,
+    borderColor: '#D6E7DD',
+  },
+  resolutionText: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 16,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: '#2E5A45',
   },
   tagsRow: { flexDirection: 'row', gap: 5, flexWrap: 'wrap' },
   tag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
