@@ -30,8 +30,8 @@ const SETTINGS_SECTIONS: Array<{
   {
     title: 'Rede',
     items: [
-      { icon: 'account-multiple-plus-outline', label: 'Convidar amigos', detail: 'Compartilhar ZooHelp com protetores', route: '/invite' },
-      { icon: 'help-circle-outline', label: 'Suporte ZooHelp', detail: 'Atendimento direto no WhatsApp', route: '/support' },
+      { icon: 'account-multiple-plus-outline', label: 'Convidar amigos', detail: 'Compartilhar Helpin com protetores', route: '/invite' },
+      { icon: 'help-circle-outline', label: 'Suporte Helpin', detail: 'Atendimento direto no WhatsApp', route: '/support' },
     ],
   },
 ];
@@ -51,7 +51,7 @@ export default function SettingsScreen() {
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={[styles.title, { color: colors.foreground }]}>Configuracoes</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{user?.name ?? 'Conta ZooHelp'}</Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{user?.name ?? 'Conta Helpin'}</Text>
         </View>
       </View>
 
