@@ -9,7 +9,7 @@ import { useColors } from '@/hooks/useColors';
 import { shareZooHelpItem } from '@/services/share';
 
 const INVITE_MESSAGE =
-  'Conheca o ZooHelp: uma rede para publicar casos, acionar ajuda e conectar pessoas, ONGs e voluntarios em resgates animais.';
+  'Conheca o Helpin: uma rede para publicar casos, acionar ajuda e conectar pessoas, ONGs e voluntarios em resgates animais.';
 
 
 export default function InviteScreen() {
@@ -19,7 +19,7 @@ export default function InviteScreen() {
   const bottomPad = Platform.OS === 'web' ? 24 : insets.bottom;
 
   function handleShare() {
-    shareZooHelpItem('ZooHelp', INVITE_MESSAGE);
+    shareZooHelpItem('Helpin', INVITE_MESSAGE);
   }
 
   return (
@@ -39,7 +39,7 @@ export default function InviteScreen() {
           </View>
           <Text style={styles.heroTitle}>Fortaleça os resgates perto de você</Text>
           <Text style={[styles.heroDescription, { color: colors.mutedForeground }]}>
-            Compartilhe o ZooHelp com quem pode ver, responder e ajudar casos reais na sua região.
+            Compartilhe o Helpin com quem pode ver, responder e ajudar casos reais na sua região.
           </Text>
         </View>
 
@@ -74,7 +74,7 @@ export default function InviteScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingTop: 18, top: 180, },
+  content: { paddingHorizontal: 20, paddingTop: 0, top: 180 },
   
   // Hero Section
   heroSection: { alignItems: 'center', marginTop: 16, marginBottom: 24 },
