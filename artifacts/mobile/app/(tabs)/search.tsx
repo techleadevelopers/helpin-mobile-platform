@@ -8,7 +8,8 @@ import { Avatar } from '@/components/Avatar';
 import { PostCard } from '@/components/PostCard';
 import { MOCK_AUTHORS, MOCK_ONGS, type Author, type ONG, type Post } from '@/constants/data';
 import { useColors } from '@/hooks/useColors';
-import { createZooHelpApi, mapPost } from '@/services/zoohelpApi';
+import { createZooHelpApi, inferAccountType, mapPost } from '@/services/zoohelpApi';
+import type { PublicUserSummaryContract } from '@/services/zoohelpEngine';
 
 type SearchItem =
   | { type: 'user'; user: Author }
@@ -45,6 +46,25 @@ function UserSearchCard({ user, onPress }: { user: Author; onPress: () => void }
       <MaterialCommunityIcons name="chevron-right" size={20} color={colors.mutedForeground} />
     </TouchableOpacity>
   );
+}
+
+function mapPublicUser(user: PublicUserSummaryContract): Author {
+  return {
+    id: user.id,
+    name: user.name,
+    avatar: user.avatar,
+    verified: user.verified,
+    type: inferAccountType(user.type),
+  };
+}
+
+function fallbackUsers(term: string) {
+  return term
+    ? MOCK_AUTHORS.filter((user) =>
+        [user.name, getAuthorLabel(user.type)]
+          .some((value) => value.toLowerCase().includes(term))
+      ).slice(0, 4)
+    : MOCK_AUTHORS.slice(0, 4);
 }
 
 function OngSearchCard({ ong, onPress }: { ong: ONG; onPress: () => void }) {
@@ -85,6 +105,8 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState(q ?? '');
   const [results, setResults] = useState<Post[]>([]);
+  const [userResults, setUserResults] = useState<Author[]>([]);
+  const [usersLoaded, setUsersLoaded] = useState(false);
 
   function handleBack() {
     if (router.canGoBack()) {
@@ -95,12 +117,7 @@ export default function SearchScreen() {
   }
 
   const term = query.trim().toLowerCase();
-  const userResults = term
-    ? MOCK_AUTHORS.filter((user) =>
-        [user.name, getAuthorLabel(user.type)]
-          .some((value) => value.toLowerCase().includes(term))
-      ).slice(0, 4)
-    : MOCK_AUTHORS.slice(0, 4);
+  const visibleUserResults = usersLoaded ? userResults : fallbackUsers(term);
   const ongResults = term
     ? MOCK_ONGS.filter((ong) =>
         [ong.name, ong.shortName, ong.description, ong.cause, ong.city, ong.state, ong.location]
@@ -108,10 +125,27 @@ export default function SearchScreen() {
       )
     : [];
   const searchItems: SearchItem[] = [
-    ...userResults.map((user) => ({ type: 'user' as const, user })),
+    ...visibleUserResults.map((user) => ({ type: 'user' as const, user })),
     ...ongResults.map((ong) => ({ type: 'ong' as const, ong })),
     ...results.map((post) => ({ type: 'post' as const, post })),
   ];
+
+  useEffect(() => {
+    const rawTerm = query.trim();
+    const timeout = setTimeout(() => {
+      const api = createZooHelpApi();
+      if (!api) {
+        setUserResults(fallbackUsers(rawTerm.toLowerCase()));
+        setUsersLoaded(true);
+        return;
+      }
+      api.publicUsers({ q: rawTerm, limit: rawTerm ? 20 : 16 })
+        .then((users) => setUserResults(users.map(mapPublicUser)))
+        .catch(() => setUserResults(fallbackUsers(rawTerm.toLowerCase())))
+        .finally(() => setUsersLoaded(true));
+    }, rawTerm ? 250 : 0);
+    return () => clearTimeout(timeout);
+  }, [query]);
 
   useEffect(() => {
     const term = query.trim();
@@ -164,7 +198,7 @@ export default function SearchScreen() {
         }
         ListEmptyComponent={
           <Text style={[styles.empty, { color: colors.mutedForeground }]}>
-            {query.trim() ? 'Nenhum resultado encontrado.' : 'Digite para buscar no ZooHelp.'}
+            {query.trim() ? 'Nenhum resultado encontrado.' : 'Digite para buscar no Helpin.'}
           </Text>
         }
       />
