@@ -1,10 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
-  Image,
+  Animated,
+  Easing,
   Platform,
   ScrollView,
   StyleSheet,
@@ -17,6 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
+import { API_BASE_URL } from '@/services/zoohelpApi';
+import { ZooHelpApiError } from '@/services/zoohelpEngine';
 
 const ZOOHELP_LOGIN_LOGO =
   'https://res.cloudinary.com/limpeja/image/upload/v1779564981/Gemini_Generated_Image_isin7wisin7wisin-removebg-preview_yx0k5g.png';
@@ -33,6 +36,30 @@ export default function LoginScreen() {
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
+  const logoAnimation = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const logoLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(logoAnimation, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoAnimation, {
+          toValue: 0,
+          duration: 1500,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.delay(700),
+      ])
+    );
+
+    logoLoop.start();
+    return () => logoLoop.stop();
+  }, [logoAnimation]);
 
   async function handleLogin() {
     if (!email.trim() || !password.trim()) {
@@ -43,8 +70,12 @@ export default function LoginScreen() {
     try {
       const loggedUser = await login(email.trim(), password);
       router.replace('/(tabs)');
-    } catch {
-      Alert.alert('Erro', 'Nao foi possivel fazer login. Tente novamente.');
+    } catch (error) {
+      const detail =
+        error instanceof ZooHelpApiError
+          ? `API: ${API_BASE_URL}\nStatus: ${error.status ?? 'rede'}\n${error.message}`
+          : `API: ${API_BASE_URL}\n${error instanceof Error ? error.message : 'Erro desconhecido'}`;
+      Alert.alert('Erro no login', detail);
     } finally {
       setLoading(false);
     }
@@ -61,10 +92,36 @@ export default function LoginScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.logoSection}>
-          <View style={styles.logoRow}>
-            <Image source={{ uri: ZOOHELP_LOGIN_LOGO }} style={styles.logoImage} resizeMode="contain" />
+          <Animated.View
+            style={[
+              styles.logoRow,
+              {
+                transform: [
+                  {
+                    translateY: logoAnimation.interpolate({
+                      inputRange: [0, 0.5, 1],
+                      outputRange: [0, -1.6, 0],
+                    }),
+                  },
+                  {
+                    rotate: logoAnimation.interpolate({
+                      inputRange: [0, 0.5, 1],
+                      outputRange: ['0deg', '-0.8deg', '0deg'],
+                    }),
+                  },
+                  {
+                    scale: logoAnimation.interpolate({
+                      inputRange: [0, 0.5, 1],
+                      outputRange: [1, 1.018, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <Animated.Image source={{ uri: ZOOHELP_LOGIN_LOGO }} resizeMode="contain" style={styles.logoImage} />
             <Text style={[styles.logoText, { color: colors.primary }]}>Helpin</Text>
-          </View>
+          </Animated.View>
           <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
             Plataforma de resgate e apoio animal
           </Text>
@@ -163,6 +220,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 0,
     left: -8,
+    position: 'relative',
   },
   logoImage: {
     width: 38.55,
@@ -235,7 +293,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 20,
     bottom: 55,
-    marginBottom: Platform.OS === 'ios' ? 35 : 25,
+    marginBottom: 8,
     shadowColor: '#606864',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.3,
@@ -272,7 +330,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     width: '75%',
     left: 35,
-    marginTop: 24,
+    marginTop: 8,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
