@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import React from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/AppContext';
@@ -23,6 +24,7 @@ function normalizePath(pathname: string) {
 
 export function UserBottomNav() {
   const colors = useColors();
+  const { t } = useTranslation();
   const router = useRouter();
   const pathname = normalizePath(usePathname());
   const insets = useSafeAreaInsets();
@@ -34,38 +36,38 @@ export function UserBottomNav() {
 
   const items: NavItem[] = [
     {
-      label: isOng ? 'Dashboard' : 'Feed',
+      label: isOng ? 'Dashboard' : t('nav.feed'),
       icon: 'home-variant-outline',
       route: '/(tabs)',
       activePaths: ['/'],
     },
     {
-      label: 'Mapa',
+      label: t('nav.map'),
       icon: 'map-marker-outline',
       route: '/(tabs)/map',
       activePaths: ['/map'],
     },
     isOng
       ? {
-          label: 'Casos',
+          label: t('common.cases'),
           icon: 'clipboard-text-outline',
           route: '/(tabs)/cases',
           activePaths: ['/cases'],
         }
       : {
-          label: 'Publicar',
+          label: t('nav.publish'),
           icon: 'plus-circle-outline',
           route: '/composer',
           activePaths: ['/composer'],
         },
     {
-      label: 'Chat',
+      label: t('nav.chat'),
       icon: 'chat-outline',
       route: '/(tabs)/chat',
       activePaths: ['/chat'],
     },
     {
-      label: 'Perfil',
+      label: t('nav.profile'),
       icon: 'account-outline',
       route: '/(tabs)/profile',
       activePaths: ['/profile'],
@@ -85,7 +87,7 @@ export function UserBottomNav() {
     >
       {items.map((item) => {
         const isActive = item.activePaths.includes(pathname);
-        const itemColor = isActive || item.label === 'Publicar' ? colors.primary : colors.mutedForeground;
+        const itemColor = isActive || item.route === '/composer' ? colors.primary : colors.mutedForeground;
 
         return (
           <TouchableOpacity
@@ -96,7 +98,7 @@ export function UserBottomNav() {
           >
             <View style={styles.iconWrap}>
               <MaterialCommunityIcons name={item.icon} size={21} color={itemColor} />
-              {item.label === 'Chat' && chatBadgeCount > 0 && (
+              {item.route === '/(tabs)/chat' && chatBadgeCount > 0 && (
                 <View style={styles.chatBadge}>
                   <Text style={styles.chatBadgeText}>{chatBadgeCount > 9 ? '9+' : chatBadgeCount}</Text>
                 </View>
