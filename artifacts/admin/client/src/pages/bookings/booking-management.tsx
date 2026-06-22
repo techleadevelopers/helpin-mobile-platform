@@ -86,16 +86,16 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/bookings'] });
       queryClient.invalidateQueries({ queryKey: ['/bookings', bookingId] });
-      toast({ title: "AÃ§Ã£o executada", description: "Estorno forÃ§ado concluÃ­do com sucesso." });
+      toast({ title: "Açãoo executada", description: "Estorno forÃ§ado concluído com sucesso." });
     },
     onError: (error: any) => {
-      toast({ title: "Erro", description: `NÃ£o foi possÃ­vel forÃ§ar o cancelamento: ${error.message}`, variant: "destructive" });
+      toast({ title: "Erro", description: `NÃ£o foi possível forÃ§ar o cancelamento: ${error.message}`, variant: "destructive" });
     },
   });
 
   const handleForceRefund = () => {
     if (!bookingId) return;
-    if (!window.confirm("Tem certeza que deseja forÃ§ar o cancelamento e estorno deste caso? Esta aÃ§Ã£o notificarÃ¡ o backend imediatamente.")) {
+    if (!window.confirm("Tem certeza que deseja forÃ§ar o cancelamento e estorno deste caso? Esta açãoo notificarÃ¡ o backend imediatamente.")) {
       return;
     }
     forceRefundMutation.mutate({ id: bookingId, reason: adminNotes || undefined });
@@ -106,12 +106,12 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/bookings'] });
       queryClient.invalidateQueries({ queryKey: ['/bookings', bookingId] });
-      toast({ title: "Doação confirmado", description: "ConfirmaÃ§Ã£o manual do PIX concluÃ­da." });
+      toast({ title: "Doação confirmado", description: "Confirmaçãoo manual do PIX concluída." });
     },
     onError: (error: any) => {
       toast({
         title: "Erro",
-        description: `NÃ£o foi possÃ­vel confirmar o PIX manualmente: ${error.message}`,
+        description: `NÃ£o foi possível confirmar o PIX manualmente: ${error.message}`,
         variant: "destructive",
       });
     },
@@ -191,7 +191,7 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
               )}
             </div>
 
-            {/* SeÃ§Ã£o de AtualizaÃ§Ã£o de Status */}
+            {/* Seçãoo de Atualizaçãoo de Status */}
             <Card className="border-0 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Atualizar Status do Caso</CardTitle>
@@ -219,7 +219,7 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
                       id="notes"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Adicione notas sobre a atualizaÃ§Ã£o"
+                      placeholder="Adicione notas sobre a atualizaçãoo"
                     />
                   </div>
                 </div>
@@ -235,12 +235,12 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
               </CardContent>
             </Card>
 
-            {/* AÃ§Ã£o de Suporte */}
+            {/* Açãoo de Suporte */}
             <Card className="border-0 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <LifeBuoy size={20} />
-                  AÃ§Ã£o de Suporte
+                  Açãoo de Suporte
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -250,7 +250,7 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
                     id="adminNotes"
                     value={adminNotes}
                     onChange={(e) => setAdminNotes(e.target.value)}
-                    placeholder="Registre observaÃ§Ãµes, incidentes ou instruÃ§Ãµes que sÃ³ o time administrativo verÃ¡."
+                    placeholder="Registre observaÃ§Ãµes, incidentes ou instruÃ§Ãµes que só o time administrativo verÃ¡."
                     className="min-h-[120px]"
                   />
                 </div>
@@ -265,7 +265,7 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }: BookingDetailsModal
                     }}
                   >
                     <MessageSquare size={16} className="mr-2" />
-                    Chat de EmergÃªncia
+                    Chat de Emergência
                     </Button>
                     <Button
                       variant="outline"
@@ -412,7 +412,7 @@ export default function BookingManagement() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">ConcluÃ­dos</p>
+                    <p className="text-sm font-medium text-gray-600">Concluídos</p>
                     <p className="text-2xl font-bold text-gray-900">{resolvedStatusCounts.completed}</p>
                   </div>
                   <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
