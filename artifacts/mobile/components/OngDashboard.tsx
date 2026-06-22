@@ -369,7 +369,7 @@ export function OngDashboard() {
             <MaterialCommunityIcons name="shield-alert-outline" size={18} color="#B37A15" />
             <View style={styles.reviewCopy}>
               <Text style={styles.reviewTitle}>Conta em analise</Text>
-              <Text style={styles.reviewText}>A equipe ZooHelp esta validando os dados da ONG antes do selo.</Text>
+              <Text style={styles.reviewText}>A equipe Helpin esta validando os dados da ONG antes do selo.</Text>
             </View>
           </View>
         )}
