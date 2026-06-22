@@ -12,7 +12,8 @@ import {
   Montserrat_700Bold,
 } from "@expo-google-fonts/montserrat";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Redirect, Stack, useSegments } from "expo-router";
+import { Redirect, Stack, useRouter, useSegments } from "expo-router";
+import * as Notifications from "expo-notifications";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
@@ -32,6 +33,60 @@ SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
+function notificationTargetFromResponse(response: Notifications.NotificationResponse | null | undefined) {
+  const data = response?.notification.request.content.data;
+  if (!data) return null;
+
+  const deeplink = typeof data.deeplink === "string" ? data.deeplink : "";
+  const postIdFromData = typeof data.postId === "string" ? data.postId : "";
+  const chatIdFromData = typeof data.roomId === "string" ? data.roomId : "";
+  const postMatch = deeplink.match(/zoohelp:\/\/post\/([^?]+)/);
+  const chatMatch = deeplink.match(/zoohelp:\/\/chat\/([^?]+)/);
+  const postId = postMatch?.[1] || postIdFromData;
+  const chatId = chatMatch?.[1] || chatIdFromData;
+
+  if (postId) return { pathname: "/post/[id]" as const, params: { id: postId } };
+  if (chatId) return { pathname: "/chat/[id]" as const, params: { id: chatId } };
+  return null;
+}
+
+function NotificationDeepLinkHandler() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading } = useApp();
+  const pendingTargetRef = React.useRef<ReturnType<typeof notificationTargetFromResponse>>(null);
+  const lastHandledRef = React.useRef<string | null>(null);
+
+  const handleResponse = React.useCallback((response: Notifications.NotificationResponse | null | undefined) => {
+    const target = notificationTargetFromResponse(response);
+    if (!target) return;
+    const key = `${target.pathname}:${target.params.id}`;
+    if (lastHandledRef.current === key) return;
+    lastHandledRef.current = key;
+    if (isLoading || !isAuthenticated) {
+      pendingTargetRef.current = target;
+      return;
+    }
+    router.push(target);
+  }, [isAuthenticated, isLoading, router]);
+
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
+    Notifications.getLastNotificationResponseAsync()
+      .then(handleResponse)
+      .catch(() => {});
+    return () => subscription.remove();
+  }, [handleResponse]);
+
+  useEffect(() => {
+    if (isLoading || !isAuthenticated || !pendingTargetRef.current) return;
+    const target = pendingTargetRef.current;
+    pendingTargetRef.current = null;
+    router.push(target);
+  }, [isAuthenticated, isLoading, router]);
+
+  return null;
+}
+
 function RootLayoutNav() {
   const segments = useSegments();
   const { isAuthenticated, isLoading } = useApp();
@@ -47,6 +102,8 @@ function RootLayoutNav() {
   if (!isAuthenticated && !isPublicRoute) return <Redirect href="/login" />;
 
   return (
+    <>
+    <NotificationDeepLinkHandler />
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="welcome" />
@@ -103,6 +160,7 @@ function RootLayoutNav() {
       <Stack.Screen name="invite" />
       <Stack.Screen name="marketplace" />
     </Stack>
+    </>
   );
 }
 
