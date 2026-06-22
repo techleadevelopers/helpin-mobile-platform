@@ -153,7 +153,7 @@ const WithdrawalActionModal = ({
   const handleReject = () => {
     if (isLocked) return;
     if (!rejectionReason.trim()) {
-      onValidationError("Informe um motivo antes de rejeitar a solicitaÃ§Ã£o.");
+      onValidationError("Informe um motivo antes de rejeitar a solicitaçãoo.");
       return;
     }
     onReject(withdrawal.id, rejectionReason.trim());
@@ -164,7 +164,7 @@ const WithdrawalActionModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Detalhes da SolicitaÃ§Ã£o de Saque</DialogTitle>
+          <DialogTitle>Detalhes da Solicitaçãoo de Saque</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <p>
@@ -187,12 +187,12 @@ const WithdrawalActionModal = ({
           {withdrawal.status === "PENDING" && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="rejectionReason">Motivo da RejeiÃ§Ã£o (opcional)</Label>
+                <Label htmlFor="rejectionReason">Motivo da Rejeiçãoo (opcional)</Label>
                 <Input
                   id="rejectionReason"
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="Ex: DocumentaÃ§Ã£o incompleta"
+                  placeholder="Ex: Documentaçãoo incompleta"
                   disabled={isLocked}
                 />
               </div>
@@ -322,7 +322,7 @@ export default function PaymentManagementPage() {
   const showValidationDialog = (message: string) => {
     setConfirmationDialog({
       open: true,
-      title: "AtenÃ§Ã£o",
+      title: "Atençãoo",
       description: message,
       confirmLabel: "Fechar",
       hideCancel: true,
@@ -397,7 +397,7 @@ export default function PaymentManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/payments/withdrawals"] });
-      toast({ title: "Sucesso!", description: "SolicitaÃ§Ã£o de saque aprovada." });
+      toast({ title: "Sucesso!", description: "Solicitaçãoo de saque aprovada." });
     },
     onSettled: () => {
       setIsActionLocked(false);
@@ -424,7 +424,7 @@ export default function PaymentManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/payments/withdrawals"] });
-      toast({ title: "Sucesso!", description: "SolicitaÃ§Ã£o de saque rejeitada." });
+      toast({ title: "Sucesso!", description: "Solicitaçãoo de saque rejeitada." });
     },
     onSettled: () => {
       setIsActionLocked(false);
@@ -454,7 +454,7 @@ export default function PaymentManagementPage() {
     setConfirmationDialog({
       open: true,
       title: "Confirmar reembolso",
-      description: "Deseja iniciar o reembolso desta transaÃ§Ã£o?",
+      description: "Deseja iniciar o reembolso desta transaçãoo?",
       confirmLabel: "Iniciar reembolso",
       cancelLabel: "Cancelar",
       isDestructive: true,
@@ -668,12 +668,12 @@ export default function PaymentManagementPage() {
             <Card className="shadow-floating border-0">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>HistÃ³rico de TransaÃ§Ãµes</CardTitle>
+                  <CardTitle>Histórico de TransaÃ§Ãµes</CardTitle>
                   <div className="flex items-center space-x-2">
                     <div className="relative">
                       <Input
                         type="text"
-                        placeholder="Buscar transaÃ§Ã£o..."
+                        placeholder="Buscar transaçãoo..."
                         value={transactionSearchTerm}
                         onChange={(e) => updateQueryParam("txSearch", e.target.value || null)}
                         className="pl-10"
@@ -739,7 +739,7 @@ export default function PaymentManagementPage() {
                 ) : filteredTransactions.length === 0 ? (
                   <div className="text-center py-12">
                     <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma transaÃ§Ã£o encontrada</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma transaçãoo encontrada</h3>
                     <p className="text-gray-500">Experimente ajustar os filtros ou a busca.</p>
                   </div>
                 ) : (
@@ -759,7 +759,7 @@ export default function PaymentManagementPage() {
                             </div>
                             <div>
                                 <p className="font-medium text-gray-900">
-                                  {transaction.description || `TransaÃ§Ã£o ${transaction.type}`}
+                                  {transaction.description || `Transaçãoo ${transaction.type}`}
                                 </p>
                                 {transaction.fullName && (
                                   <p className="text-xs text-gray-500 mt-1">{transaction.fullName}</p>
@@ -819,7 +819,7 @@ export default function PaymentManagementPage() {
                     <div className="relative">
                       <Input
                         type="text"
-                        placeholder="Buscar solicitaÃ§Ã£o..."
+                        placeholder="Buscar solicitaçãoo..."
                         value={withdrawalSearchTerm}
                         onChange={(e) => updateQueryParam("withdrawalSearch", e.target.value || null)}
                         className="pl-10"
@@ -869,9 +869,9 @@ export default function PaymentManagementPage() {
                   <div className="text-center py-12">
                     <Wallet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Nenhuma solicitaÃ§Ã£o de saque encontrada
+                      Nenhuma solicitaçãoo de saque encontrada
                     </h3>
-                    <p className="text-gray-500">Experimente limpar a busca ou expandir o perÃ­odo monitorado.</p>
+                    <p className="text-gray-500">Experimente limpar a busca ou expandir o período monitorado.</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
