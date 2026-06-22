@@ -93,7 +93,7 @@ export default function OngProfileScreen() {
     if (!supportPaymentsEnabled) {
       Alert.alert(
         'Apoio comunitario futuro',
-        'O ZooHelp vai comecar sem cobranca. Apoio opcional, como R$1 para manter a infraestrutura, so sera habilitado depois de uso real, confianca e impacto comprovado.',
+        'O Helpin vai comecar sem cobranca. Apoio opcional, como R$1 para manter a infraestrutura, so sera habilitado depois de uso real, confianca e impacto comprovado.',
       );
       return;
     }
@@ -104,7 +104,7 @@ export default function OngProfileScreen() {
   }
 
   function handleShare() {
-    shareZooHelpItem(ong?.name ?? 'ZooHelp', `Ajude ${ong?.name ?? 'uma ONG'} no ZooHelp.`);
+    shareZooHelpItem(ong?.name ?? 'Helpin', `Ajude ${ong?.name ?? 'uma ONG'} no Helpin.`);
   }
 
   function handleContact() {
@@ -392,7 +392,7 @@ export default function OngProfileScreen() {
         <View style={styles.trustSeal}>
           <MaterialCommunityIcons name="shield-check" size={22} color="#2F80ED" />
           <View style={styles.trustText}>
-            <Text style={styles.trustTitle}>Organização verificada pela ZooHelp</Text>
+            <Text style={styles.trustTitle}>Organização verificada pelo Helpin</Text>
             <Text style={styles.trustSub}>Documentação e CNPJ validados · Doações rastreáveis</Text>
           </View>
         </View>
