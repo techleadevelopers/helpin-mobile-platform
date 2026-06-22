@@ -1,11 +1,12 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+﻿import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   FlatList,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -13,40 +14,24 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { OperationalStatus } from '@/components/OperationalStatus';
-import { StaticMapTiles } from '@/components/StaticMapTiles';
 import { ZooHelpHeader } from '@/components/ZooHelpHeader';
-import { Post, POST_TYPE_CONFIG, PostType } from '@/constants/data';
+import { PostMapCard } from '@/components/post/PostMapCard';
+import { Post, PostType } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
-import { createZooHelpApi, getStaticMapUrl, mapPost } from '@/services/zoohelpApi';
+import { createZooHelpApi, mapPost } from '@/services/zoohelpApi';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
-
-const TYPE_ICONS: Record<PostType, MCIcon> = {
-  adoption:  'home-heart',
-  emergency: 'alert-circle',
-  lost:      'magnify',
-  found:     'check-circle',
-  campaign:  'heart-multiple',
-  post:      'pencil-outline',
-};
 
 type FilterValue = PostType | 'all' | 'urgent' | 'ong';
 
 const FILTER_OPTIONS: Array<{ label: string; value: FilterValue; icon: MCIcon }> = [
   { label: 'Todos',       value: 'all',       icon: 'paw' },
-  { label: 'Adoção',      value: 'adoption',  icon: 'home-heart' },
+  { label: 'adoção',      value: 'adoption',  icon: 'home-heart' },
   { label: 'Emergência',  value: 'emergency', icon: 'alert-circle' },
   { label: 'Perdidos',    value: 'lost',      icon: 'magnify' },
   { label: 'Urgente',     value: 'urgent',    icon: 'lightning-bolt' },
@@ -90,57 +75,22 @@ function mergePosts(primary: Post[], secondary: Post[]) {
   });
 }
 
-function PulsingPin({ type, top, left, urgent }: { type: PostType; top: number; left: number; urgent?: boolean }) {
-  const cfg = POST_TYPE_CONFIG[type];
-  const scale = useSharedValue(1);
+function getPostAddress(post: Post) {
+  const address = post.locationAddress;
+  if (!address) return post.location || post.neighborhood;
 
-  useEffect(() => {
-    if (urgent) {
-      scale.value = withRepeat(
-        withSequence(
-          withTiming(1.3, { duration: 600 }),
-          withTiming(1, { duration: 600 })
-        ),
-        -1
-      );
-    }
-  }, [urgent]);
-
-  const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: urgent ? scale.value * 0.35 : 0,
-  }));
-
-  const icon = TYPE_ICONS[type];
-
-  return (
-    <View style={[styles.pinContainer, { top, left }]}>
-      {urgent && (
-        <Animated.View
-          style={[styles.pinPulse, { backgroundColor: cfg.color }, pulseStyle]}
-        />
-      )}
-      <View
-        style={[
-          styles.mapPin,
-          {
-            backgroundColor: cfg.color,
-            borderColor: '#FFFFFF',
-            shadowColor: cfg.color,
-          },
-        ]}
-      >
-        <MaterialCommunityIcons name={icon} size={12} color="#FFFFFF" />
-      </View>
-    </View>
-  );
+  return [
+    [address.street, address.number].filter(Boolean).join(', '),
+    address.neighborhood,
+    [address.city, address.state].filter(Boolean).join(' - '),
+  ].filter(Boolean).join(', ');
 }
 
 function CaseCard({ item, index }: { item: Post; index: number }) {
   const colors = useColors();
   const router = useRouter();
-  const cfg = POST_TYPE_CONFIG[item.type];
-  const icon = TYPE_ICONS[item.type];
+  const thumbnailUri = item.images?.[0] ?? item.image;
+  const addressLabel = getPostAddress(item);
 
   return (
     <TouchableOpacity
@@ -148,22 +98,23 @@ function CaseCard({ item, index }: { item: Post; index: number }) {
       onPress={() => router.push(`/post/${item.id}`)}
       activeOpacity={0.92}
     >
-      {/* Type icon */}
-      <View
-        style={[
-          styles.typeIconWrap,
-          { backgroundColor: cfg.bgColor, borderColor: cfg.color + '40' },
-        ]}
-      >
-        <MaterialCommunityIcons name={icon} size={20} color={cfg.color} />
-      </View>
+      <Avatar
+        name={item.author.name}
+        size={46}
+        verified={item.author.verified}
+        type={item.author.type}
+        imageUrl={item.author.avatar}
+      />
 
       {/* Info */}
       <View style={styles.caseInfo}>
         <View style={styles.caseTopRow}>
-          <Text style={[styles.caseName, { color: colors.foreground }]} numberOfLines={1}>
-            {item.name}
+          <Text style={[styles.caseAuthorName, { color: colors.foreground }]} numberOfLines={1}>
+            {item.author.name}
           </Text>
+          {item.author.verified && (
+            <MaterialCommunityIcons name="check-decagram" size={13} color="#7B8B8B" />
+          )}
           {item.urgent && (
             <View style={styles.urgentPill}>
               <MaterialCommunityIcons name="lightning-bolt" size={9} color="#FFFFFF" />
@@ -172,8 +123,8 @@ function CaseCard({ item, index }: { item: Post; index: number }) {
           )}
         </View>
 
-        <Text style={[styles.caseBreed, { color: colors.mutedForeground }]} numberOfLines={1}>
-          {item.breed}{item.age ? ` · ${item.age}` : ''}
+        <Text style={[styles.caseDescription, { color: colors.mutedForeground }]} numberOfLines={1}>
+          {item.description}
         </Text>
 
         <OperationalStatus post={item} variant="compact" />
@@ -181,20 +132,20 @@ function CaseCard({ item, index }: { item: Post; index: number }) {
         <View style={styles.caseLocationRow}>
           <MaterialCommunityIcons name="map-marker-outline" size={11} color={colors.mutedForeground} />
           <Text style={[styles.locationText, { color: colors.mutedForeground }]} numberOfLines={1}>
-            {item.neighborhood} · {item.createdAt}
+            {addressLabel}
           </Text>
         </View>
       </View>
 
       {/* Right */}
       <View style={styles.caseRight}>
-        <Avatar
-          name={item.author.name}
-          size={30}
-          verified={item.author.verified}
-          imageUrl={item.author.avatar}
-        />
-        <MaterialCommunityIcons name="chevron-right" size={15} color={colors.mutedForeground} />
+        {thumbnailUri ? (
+          <Image source={{ uri: thumbnailUri }} style={styles.caseThumb} contentFit="cover" transition={120} />
+        ) : (
+          <View style={[styles.caseThumbFallback, { backgroundColor: colors.muted }]}>
+            <MaterialCommunityIcons name="image-outline" size={15} color={colors.mutedForeground} />
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -203,41 +154,30 @@ function CaseCard({ item, index }: { item: Post; index: number }) {
 export default function MapScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const { posts } = useApp();
   const [activeFilter, setActiveFilter] = useState<FilterValue>('all');
   const [apiNearbyPosts, setApiNearbyPosts] = useState<Post[]>([]);
   const [locationLabel, setLocationLabel] = useState('Sao Paulo, SP');
-  const [mapImageUrl, setMapImageUrl] = useState<string | null>(null);
   const [mapCoords, setMapCoords] = useState(DEFAULT_MAP_COORDS);
-  const [expandedMap, setExpandedMap] = useState(false);
 
   useEffect(() => {
     let mounted = true;
 
-    async function loadMapImage(lat: number, lng: number) {
+    async function loadMapCenter(lat: number, lng: number) {
       setMapCoords({ lat, lng });
-      const staticMap = await getStaticMapUrl({
-        lat,
-        lng,
-        zoom: 13,
-        width: 800,
-        height: 360,
-      });
-      if (staticMap && mounted) setMapImageUrl(staticMap);
     }
 
     async function loadNearby() {
       try {
         const permission = await Location.requestForegroundPermissionsAsync();
         if (permission.status !== 'granted') {
-          await loadMapImage(DEFAULT_MAP_COORDS.lat, DEFAULT_MAP_COORDS.lng);
+          await loadMapCenter(DEFAULT_MAP_COORDS.lat, DEFAULT_MAP_COORDS.lng);
           return;
         }
         const position = await Location.getCurrentPositionAsync({});
         if (!mounted) return;
         setLocationLabel('Perto de voce');
-        await loadMapImage(position.coords.latitude, position.coords.longitude);
+        await loadMapCenter(position.coords.latitude, position.coords.longitude);
         const api = createZooHelpApi();
         const nearby = await api?.nearby({
           lat: position.coords.latitude,
@@ -251,7 +191,7 @@ export default function MapScreen() {
           })));
         }
       } catch {
-        await loadMapImage(DEFAULT_MAP_COORDS.lat, DEFAULT_MAP_COORDS.lng);
+        await loadMapCenter(DEFAULT_MAP_COORDS.lat, DEFAULT_MAP_COORDS.lng);
       }
     }
     loadNearby();
@@ -280,7 +220,6 @@ export default function MapScreen() {
 
   const urgentCount = nearbyPosts.filter((p) => p.urgent).length;
   const nearbyCount = filteredPosts.length;
-  const mapPosts = filteredPosts.filter((post) => post.latitude != null && post.longitude != null).slice(0, 7);
 
   const renderCase = useCallback(
     ({ item, index }: { item: Post; index: number }) => (
@@ -289,9 +228,21 @@ export default function MapScreen() {
     []
   );
 
+  function openMapRoute() {
+    const destination = `${mapCoords.lat},${mapCoords.lng}`;
+    const url =
+      Platform.OS === 'ios'
+        ? `http://maps.apple.com/?daddr=${destination}&q=Area%20de%20resgate&dirflg=d`
+        : `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`;
+
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Rota indisponivel', 'Nao foi possivel abrir o mapa agora.');
+    });
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: '#F5F7F2' }]}>
-      {/* ── Header ── */}
+      {/* â”€â”€ Header â”€â”€ */}
       <ZooHelpHeader />
 
       <View style={styles.mapIntro}>
@@ -312,78 +263,12 @@ export default function MapScreen() {
         </View>
       </View>
 
-      {/* ── Map Placeholder ── */}
-      <View style={[styles.mapContainer, { shadowColor: '#244C35' }]}>
-        <LinearGradient
-          colors={['#E8F5E9', '#E3F2FD', '#F3E5F5']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.mapGradient, expandedMap && styles.mapGradientExpanded]}
-        >
-          <StaticMapTiles latitude={mapCoords.lat} longitude={mapCoords.lng} zoom={13} opacity={0.95} />
-          {mapImageUrl && (
-            <Image
-              source={{ uri: mapImageUrl }}
-              style={styles.realMapImage}
-              contentFit="cover"
-              onError={() => setMapImageUrl(null)}
-            />
-          )}
-
-          {/* Grid lines */}
-          {false && !mapImageUrl && [...Array(5)].map((_, i) => (
-            <View
-              key={`h${i}`}
-              style={[styles.gridLineH, { top: 20 + i * 28, opacity: 0.18 }]}
-            />
-          ))}
-          {false && !mapImageUrl && [...Array(7)].map((_, i) => (
-            <View
-              key={`v${i}`}
-              style={[styles.gridLineV, { left: 16 + i * 52, opacity: 0.18 }]}
-            />
-          ))}
-
-          {/* Map pins */}
-          {mapPosts.map((post, i) => (
-            <PulsingPin
-              key={post.id}
-              type={post.type}
-              urgent={post.urgent || post.type === 'emergency'}
-              top={18 + ((i * 29) % 92)}
-              left={32 + ((i * 61) % 302)}
-            />
-          ))}
-
-          {/* Center marker — "você" */}
-          <View style={[styles.youMarker, { borderColor: colors.primary, shadowColor: colors.primary }]}>
-            <View style={[styles.youDot, { backgroundColor: colors.primary }]} />
-          </View>
-
-          {/* Expand CTA */}
-          <TouchableOpacity
-            style={[styles.expandBtn, { backgroundColor: '#FFFFFF', shadowColor: '#000' }]}
-            onPress={() => setExpandedMap((value) => !value)}
-            activeOpacity={0.8}
-          >
-            <MaterialCommunityIcons name={expandedMap ? 'fullscreen-exit' : 'fullscreen'} size={14} color={colors.foreground} />
-            <Text style={[styles.expandText, { color: colors.foreground }]}>{expandedMap ? 'Reduzir mapa' : 'Expandir mapa'}</Text>
-          </TouchableOpacity>
-        </LinearGradient>
-
-        {/* Alert strip */}
-        {urgentCount > 0 && (
-          <View style={[styles.alertStrip, { backgroundColor: '#FF3B3015', borderColor: '#FF3B3030' }]}>
-            <MaterialCommunityIcons name="alert-circle" size={13} color="#FF3B30" />
-            <Text style={[styles.alertText, { color: '#FF3B30' }]}>
-              {urgentCount} emergência{urgentCount > 1 ? 's' : ''} próxima{urgentCount > 1 ? 's' : ''}
-            </Text>
-            <View style={[styles.alertDot, { backgroundColor: '#FF3B30' }]} />
-          </View>
-        )}
+      {/* â”€â”€ Map Placeholder â”€â”€ */}
+      <View style={styles.rescueAreaCardWrap}>
+        <PostMapCard latitude={mapCoords.lat} longitude={mapCoords.lng} onPress={openMapRoute} />
       </View>
 
-      {/* ── Stats quick bar ── */}
+      {/* â”€â”€ Stats quick bar â”€â”€ */}
       <View style={[styles.statsBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
         {[
           { label: 'Casos perto', value: nearbyCount.toString(), color: '#4CAF50', icon: 'paw' },
@@ -412,7 +297,7 @@ export default function MapScreen() {
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="map-search-outline" size={26} color="#7C867C" />
             <Text style={styles.emptyTitle}>Nenhum caso próximo</Text>
-            <Text style={styles.emptyText}>Quando o feed tiver casos com localização nesta região, eles aparecem aqui.</Text>
+            <Text style={styles.emptyText}>Quando o feed tiver casos com localizaçãoo nesta regiÃ£o, eles aparecem aqui.</Text>
           </View>
         }
         ListHeaderComponent={
@@ -487,6 +372,11 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   locationLabel: { flexShrink: 1, fontSize: 10, fontFamily: 'Montserrat_700Bold' },
+
+  rescueAreaCardWrap: {
+    marginHorizontal: 14,
+    marginBottom: 2,
+  },
 
   mapContainer: {
     marginHorizontal: 16,
@@ -661,18 +551,10 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 3,
   },
-  typeIconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    flexShrink: 0,
-  },
   caseInfo: { flex: 1, gap: 3 },
-  caseTopRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  caseName: { fontSize: 15, fontFamily: 'Montserrat_700Bold', flex: 1 },
+  caseTopRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  caseAuthorName: { fontSize: 15, fontFamily: 'Montserrat_700Bold', flexShrink: 1, maxWidth: '72%' },
+  caseDescription: { fontSize: 11, fontFamily: 'Montserrat_500Medium', lineHeight: 15 },
   urgentPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -683,14 +565,29 @@ const styles = StyleSheet.create({
     borderRadius: 7,
   },
   urgentText: { fontSize: 9, fontFamily: 'Montserrat_700Bold', color: '#FFFFFF' },
-  caseBreed: { fontSize: 12, fontFamily: 'Montserrat_500Medium' },
   caseMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
   metaDot: { width: 3, height: 3, borderRadius: 1.5 },
   distanceChip: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   distanceText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
   caseLocationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   locationText: { fontSize: 11, fontFamily: 'Montserrat_500Medium', flex: 1 },
-  caseRight: { alignItems: 'center', gap: 8, flexShrink: 0 },
+  caseRight: { alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  caseThumb: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: '#E4EAE5',
+  },
+  caseThumbFallback: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E4EAE5',
+  },
   emptyState: {
     marginHorizontal: 16,
     marginTop: 18,
