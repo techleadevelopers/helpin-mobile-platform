@@ -1,5 +1,6 @@
 import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { UserBottomNav } from '@/components/UserBottomNav';
 import { useApp } from '@/context/AppContext';
@@ -7,6 +8,7 @@ import { ZooHelpLoading } from '@/components/ZooHelpLoading';
 
 function ClassicTabLayout() {
   const { user } = useApp();
+  const { t } = useTranslation();
   const isOng = user?.type === 'ong';
 
   return (
@@ -19,27 +21,27 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: isOng ? 'Dashboard' : 'Feed',
+          title: isOng ? 'Dashboard' : t('nav.feed'),
         }}
       />
       <Tabs.Screen
         name="cases"
         options={{
-          title: 'Casos',
+          title: t('common.cases'),
           href: isOng ? undefined : null,
         }}
       />
       <Tabs.Screen
         name="feed"
         options={{
-          title: 'Feed',
+          title: t('nav.feed'),
           href: null,
         }}
       />
       <Tabs.Screen
         name="map"
         options={{
-          title: 'Mapa',
+          title: t('nav.map'),
         }}
       />
       <Tabs.Screen
@@ -51,13 +53,13 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="chat"
         options={{
-          title: 'Chat',
+          title: t('nav.chat'),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Perfil',
+          title: t('nav.profile'),
         }}
       />
       <Tabs.Screen
