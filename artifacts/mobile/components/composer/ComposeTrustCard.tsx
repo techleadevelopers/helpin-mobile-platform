@@ -35,7 +35,7 @@ export function ComposeTrustCard() {
               <Text style={styles.eyebrow}>Proteção ativa</Text>
             </View>
 
-            <Text style={styles.trustTitle}>Sistema de confiança ZooHelp</Text>
+            <Text style={styles.trustTitle}>Sistema de confiança Helpin</Text>
             <Text style={styles.trustSubtitle}>
               Segurança antes, durante e depois da publicação.
             </Text>
@@ -90,7 +90,7 @@ export function ComposeTrustCard() {
             </View>
 
             <Text style={styles.overlayIntro}>
-              Ao publicar um caso, a ZooHelp ajuda a aproximar o pedido de usuários e ONGs na região,
+              Ao publicar um caso, o Helpin ajuda a aproximar o pedido de usuários e ONGs na região,
               com contexto para uma resposta mais rápida e coordenada.
             </Text>
 
