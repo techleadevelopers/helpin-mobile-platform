@@ -83,7 +83,7 @@ As tres telas usam uma estetica de produto social com foco em cuidado animal:
 
 Uso por tela:
 
-- Logo `ZooHelp`: Montserrat 700, 25px, sombra verde suave.
+- Logo `Helpin`: Montserrat 700, 25px, sombra verde suave.
 - Titulos de cards: Montserrat 700, 12-16px.
 - Metadados e labels: Montserrat 500/600, 9-12px.
 - Bottom nav: Inter 500, 10px.
