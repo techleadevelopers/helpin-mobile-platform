@@ -31,7 +31,7 @@ export function PostContactSheet({
           </View>
           <Text style={styles.contactSheetTitle}>Contato do caso</Text>
           <Text style={styles.contactSheetText}>
-            Fale com gentileza, informe que viu o caso no ZooHelp e combine os detalhes com seguranca antes de se deslocar.
+            Fale com gentileza, informe que viu o caso no Helpin e combine os detalhes com seguranca antes de se deslocar.
           </Text>
           <View style={styles.contactPhoneBox}>
             <Text style={styles.contactPhoneLabel}>WhatsApp do caso</Text>
