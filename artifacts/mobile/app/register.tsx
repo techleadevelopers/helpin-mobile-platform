@@ -394,7 +394,7 @@ export default function RegisterScreen() {
   <View style={[styles.section, styles.accountTypeSection]}>
     <View style={[styles.headingBlock, styles.accountTypeHeading]}>
       <Text style={styles.title}>{t('register.title')}</Text>
-      <Text style={styles.subtitle}>Selecione o tipo de perfil que melhor representa você</Text>
+      <Text style={styles.subtitle}>{t('register.subtitle')}</Text>
     </View>
 
     <View style={styles.accountTypePanel}>
@@ -423,7 +423,7 @@ export default function RegisterScreen() {
             accountType === 'person' && styles.typeTitleActive,
           ]}>{t('register.personalTitle')}</Text>
           <Text style={styles.typeDesc}>
-            Adotante, protetor independente ou voluntário
+            {t('register.personalDesc')}
           </Text>
         </View>
         {accountType === 'person' && (
@@ -457,7 +457,7 @@ export default function RegisterScreen() {
             accountType === 'ong' && styles.typeTitleActive,
           ]}>{t('register.ongTitle')}</Text>
           <Text style={styles.typeDesc}>
-            Organização de resgate, adoção ou clínica veterinária
+            {t('register.ongDesc')}
           </Text>
         </View>
         {accountType === 'ong' && (
@@ -494,7 +494,7 @@ export default function RegisterScreen() {
             {accountType === 'person' && step === 1 && (
               <View style={styles.section}>
                 <View style={styles.headingBlock}>
-                  <Text style={styles.title}>Olá!</Text>
+                  <Text style={styles.title}>{t('register.greetingTitle')}</Text>
                   <Text style={styles.subtitle}>{t('register.greetingSubtitle')}</Text>
                 </View>
 
@@ -544,7 +544,7 @@ export default function RegisterScreen() {
             {accountType === 'person' && step === 2 && (
               <View style={styles.section}>
                 <View style={styles.headingBlock}>
-                  <Text style={styles.title}>Quase lá!</Text>
+                  <Text style={styles.title}>{t('register.almostTitle')}</Text>
                   <Text style={styles.subtitle}>{t('register.almostSubtitle')}</Text>
                 </View>
 
@@ -589,10 +589,7 @@ export default function RegisterScreen() {
                 </View>
 
                 <Text style={styles.terms}>
-                  Ao criar sua conta você concorda com os{' '}
-                  <Text style={{ color: '#2D6A4F', fontFamily: 'Inter_500Medium' }}>Termos de Uso</Text>
-                  {' '}e{' '}
-                  <Text style={{ color: '#2D6A4F', fontFamily: 'Inter_500Medium' }}>Política de Privacidade</Text>
+                  {t('common.termsAgreement')}
                 </Text>
 
                 <TouchableOpacity style={styles.termsRow} onPress={handleTermsPress} activeOpacity={0.78}>
@@ -1102,8 +1099,9 @@ export default function RegisterScreen() {
 }
 
 function StrengthBar({ password, color = '#2D6A4F' }: { password: string; color?: string }) {
+  const { t } = useTranslation();
   const strength = password.length === 0 ? 0 : password.length < 8 ? 1 : password.length < 12 ? 2 : 3;
-  const labels = ['', 'Fraca', 'Boa', 'Forte'];
+  const labels = ['', t('register.strengthWeak'), t('register.strengthGood'), t('register.strengthStrong')];
   const colors = ['', '#8E8E93', color, color];
   if (!password) return null;
   return (
