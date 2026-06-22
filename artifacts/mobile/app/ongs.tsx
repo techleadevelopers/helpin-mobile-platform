@@ -167,7 +167,7 @@ function ONGCard({ item, following, onFollow, onPress, index }: {
           </TouchableOpacity>
           <TouchableOpacity
             style={[S.sqBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
-            onPress={() => shareZooHelpItem(item.name, `Ajude ${item.name} no ZooHelp.`)}
+            onPress={() => shareZooHelpItem(item.name, `Ajude ${item.name} no Helpin.`)}
             activeOpacity={0.8}
           >
             <MaterialCommunityIcons name="share-variant-outline" size={15} color={colors.foreground} />
