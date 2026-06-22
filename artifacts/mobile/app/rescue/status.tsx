@@ -214,7 +214,7 @@ export default function RescueStatusScreen() {
 
         <TouchableOpacity
           style={[styles.secondaryAction, { borderColor: colors.border, backgroundColor: colors.card }]}
-          onPress={() => shareZooHelpItem('ZooHelp', `Caso de resgate ZooHelp: ${resolvedPostId}`)}
+          onPress={() => shareZooHelpItem('Helpin', `Caso de resgate Helpin: ${resolvedPostId}`)}
           activeOpacity={0.8}
         >
           <MaterialCommunityIcons name="share-variant-outline" size={19} color={colors.foreground} />
