@@ -27,6 +27,7 @@ const CARD_IMAGE_HEIGHT = 330;
 const FEED_TIME_ICON =
   'https://res.cloudinary.com/limpeja/image/upload/v1779576484/pngtree-vector-clock-icon-png-image_4152707_bfoxlj.jpg';
 const DEFAULT_MAP_COORDS = { latitude: -23.5505, longitude: -46.6333 };
+type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 const ANIMAL_PLACEHOLDERS: Record<string, string> = {
   dog: 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=700&q=85',
@@ -149,6 +150,42 @@ function formatFeedAddress(post: Post) {
   return [post.neighborhood, location].filter(Boolean).join(', ');
 }
 
+function getPostAgeMinutes(post: Post) {
+  const value = post.createdAt;
+  if (!value) return 0;
+  if (value.includes('T')) {
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) return Math.max(0, Math.floor((Date.now() - date.getTime()) / 60_000));
+  }
+
+  const normalized = value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const amount = Number(normalized.match(/\d+/)?.[0] ?? 0);
+  if (!amount) return 0;
+  if (normalized.includes('dia') || normalized.includes('d ')) return amount * 24 * 60;
+  if (normalized.includes('h')) return amount * 60;
+  return amount;
+}
+
+function getCaseCycle(post: Post, operational: RescueOperationalSummary | null | undefined) {
+  const going = operational?.helpGoingCount ?? 0;
+  const arrived = operational?.helpArrivedCount ?? 0;
+  const ageMinutes = getPostAgeMinutes(post);
+
+  if (post.rescueStatus === 'resolved') return { label: 'Resolvido', detail: 'caso encerrado', icon: 'check-circle-outline' as MCIcon, tone: 'resolved' as const };
+  if (arrived > 0) return { label: 'Animal encontrado/resgatado', detail: `${arrived} chegada${arrived === 1 ? '' : 's'} confirmada${arrived === 1 ? '' : 's'}`, icon: 'shield-check-outline' as MCIcon, tone: 'active' as const };
+  if (post.rescueStatus === 'active' || going > 0) return { label: 'Em atendimento', detail: going > 0 ? `${going} pessoa${going === 1 ? '' : 's'} respondeu${going === 1 ? '' : 'ram'}` : 'resgate em coordenacao', icon: 'run-fast' as MCIcon, tone: 'active' as const };
+
+  if (post.urgent || post.type === 'emergency') {
+    if (ageMinutes >= 60) return { label: 'Sem resposta ainda', detail: 'compartilhar fora do app', icon: 'share-variant-outline' as MCIcon, tone: 'alert' as const };
+    if (ageMinutes >= 30) return { label: 'Sem resposta ainda', detail: 'prioridade na fila urgente', icon: 'timer-alert-outline' as MCIcon, tone: 'alert' as const };
+    if (ageMinutes >= 15) return { label: 'Alertando ONGs da cidade', detail: 'protetores e ONGs acionados', icon: 'shield-alert-outline' as MCIcon, tone: 'alert' as const };
+    if (ageMinutes >= 5) return { label: 'Alertando raio 5 km', detail: 'alcance ampliado', icon: 'map-marker-radius-outline' as MCIcon, tone: 'alert' as const };
+    return { label: 'Alertando raio 2 km', detail: 'pessoas proximas acionadas', icon: 'map-marker-radius-outline' as MCIcon, tone: 'alert' as const };
+  }
+
+  return { label: 'Aberto', detail: 'aguardando interacao', icon: 'paw' as MCIcon, tone: 'default' as const };
+}
+
 export function PostCard({ post, index = 0 }: PostCardProps) {
   const colors = useColors();
   const router = useRouter();
@@ -171,6 +208,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [goingOverlayOpen, setGoingOverlayOpen] = useState(false);
   const [goingConfirmed, setGoingConfirmed] = useState(false);
+  const [quickResponseSubmitting, setQuickResponseSubmitting] = useState<string | null>(null);
   const [localRescueOperational, setLocalRescueOperational] = useState<RescueOperationalSummary | null | undefined>();
   const [resolvedGoingCoords, setResolvedGoingCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const displayTime = formatPostTime(post.createdAt);
@@ -290,6 +328,12 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     shareZooHelpItem(post.name, `${post.name} no Helpin: ${post.description}`);
   }
 
+  async function refreshOperationalSummary() {
+    await createZooHelpApi()?.post(post.id)
+      .then((updatedPost) => setLocalRescueOperational(updatedPost.rescueOperational))
+      .catch(() => {});
+  }
+
   function hasPostCoords() {
     return Number.isFinite(post.latitude) && Number.isFinite(post.longitude);
   }
@@ -364,9 +408,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
       await api.confirmRescueResponse(post.id);
       setGoingConfirmed(true);
       setGoingOverlayOpen(false);
-      void api.post(post.id)
-        .then((updatedPost) => setLocalRescueOperational(updatedPost.rescueOperational))
-        .catch(() => {});
+      void refreshOperationalSummary();
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       openRoute();
     } catch (error) {
@@ -379,6 +421,63 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
       }
       Alert.alert('Confirma��o indisponivel', 'Nao foi possivel registrar sua ida agora. Tente novamente.');
     }
+  }
+
+  async function registerQuickResponse(
+    kind: 'nearby' | 'seen' | 'temporary_home',
+    label: string,
+  ) {
+    const api = createZooHelpApi();
+    if (!api) {
+      Alert.alert('Ajuda indisponivel', 'Conecte ao backend para registrar sua ajuda.');
+      return;
+    }
+    if (!user) {
+      Alert.alert('Entrar para ajudar', 'Faca login para registrar sua ajuda neste caso.');
+      router.push('/login');
+      return;
+    }
+    if (quickResponseSubmitting) return;
+
+    setQuickResponseSubmitting(kind);
+    try {
+      await api.confirmRescueResponse(post.id, {
+        action: kind === 'nearby' ? 'going' : 'remote_support',
+        status: 'confirmed',
+        etaSeconds: kind === 'nearby' ? 600 : undefined,
+      });
+      if (kind === 'nearby') setGoingConfirmed(true);
+      void refreshOperationalSummary();
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Ajuda registrada', `${label} foi registrado no caso.`);
+    } catch {
+      Alert.alert('Ajuda indisponivel', 'Nao foi possivel registrar sua ajuda agora.');
+    } finally {
+      setQuickResponseSubmitting(null);
+    }
+  }
+
+  async function openPostChat() {
+    const api = createZooHelpApi();
+    if (!api) {
+      Alert.alert('Chat indisponivel', 'Conecte ao backend para abrir o chat.');
+      return;
+    }
+    if (!user) {
+      Alert.alert('Entrar para conversar', 'Faca login para chamar este perfil.');
+      router.push('/login');
+      return;
+    }
+    if (isPostOwner) {
+      router.push('/(tabs)/chat');
+      return;
+    }
+    const room = await api.openDirectChat(post.author.id).catch(() => null);
+    if (!room) {
+      Alert.alert('Chat indisponivel', 'Nao foi possivel abrir o chat agora.');
+      return;
+    }
+    router.push(`/chat/${room.id}?postName=${encodeURIComponent(room.postTitle)}&authorName=${encodeURIComponent(room.participant.name)}`);
   }
 
   function runDeletePost() {
@@ -555,16 +654,19 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
       ? post.images
       : post.image
       ? [post.image]
-      : [ANIMAL_PLACEHOLDERS[post.animalType]];
+      : [ANIMAL_PLACEHOLDERS[post.animalType] ?? ANIMAL_PLACEHOLDERS.other];
   const imageUri = imageUris[0];
   const hasPhotoGrid = imageUris.length > 1;
   const distance = formatDistanceKm(post.distanceKm);
   const isResolved = post.rescueStatus === 'resolved';
   const displayUrgent = post.urgent || post.tags.includes('urgente');
   const canJoinRescue = !isResolved;
-  const helpGoingCount = (localRescueOperational ?? post.rescueOperational)?.helpGoingCount ?? 0;
+  const operationalSummary = localRescueOperational ?? post.rescueOperational;
+  const helpGoingCount = operationalSummary?.helpGoingCount ?? 0;
   const helpGoingLabel = helpGoingCount === 1 ? '1 pessoa a caminho' : `${helpGoingCount} pessoas a caminho`;
   const publicResolution = post.rescueFinalReport?.publicUpdate;
+  const caseCycle = getCaseCycle(post, operationalSummary);
+  const showResponseTools = canJoinRescue && (post.urgent || post.type === 'emergency' || post.type === 'lost' || post.type === 'found');
   const ctaLabel = isResolved ? 'Ver resolu��o' : CTA_LABELS[post.type] ?? 'Ver mais';
   const accentColor = CTA_COLORS[post.type] ?? colors.primary;
   const ctaColor = colors.primary;
@@ -665,6 +767,55 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
       </Modal>
     );
   }
+
+  function renderCaseCycle() {
+    const toneStyle =
+      caseCycle.tone === 'alert' ? styles.caseCycleAlert :
+      caseCycle.tone === 'active' ? styles.caseCycleActive :
+      caseCycle.tone === 'resolved' ? styles.caseCycleResolved :
+      styles.caseCycleDefault;
+    const iconColor = caseCycle.tone === 'alert' ? '#D84A3A' : caseCycle.tone === 'active' ? '#2D6A4F' : '#5F6861';
+
+    return (
+      <View style={[styles.caseCycle, toneStyle]}>
+        <MaterialCommunityIcons name={caseCycle.icon} size={14} color={iconColor} />
+        <Text style={styles.caseCycleLabel} numberOfLines={1}>{caseCycle.label}</Text>
+        <Text style={styles.caseCycleDetail} numberOfLines={1}>{caseCycle.detail}</Text>
+      </View>
+    );
+  }
+
+  function renderResponseTools() {
+    if (!showResponseTools) return null;
+    const tools: Array<{ key: string; label: string; icon: MCIcon; onPress: () => void }> = [
+      { key: 'nearby', label: 'Estou perto', icon: 'map-marker-check-outline', onPress: () => void registerQuickResponse('nearby', 'Estou perto') },
+      { key: 'rescue', label: 'Posso resgatar', icon: 'lifebuoy', onPress: openGoingOverlay },
+      { key: 'seen', label: 'Vi esse animal', icon: 'eye-check-outline', onPress: () => void registerQuickResponse('seen', 'Avistamento') },
+      { key: 'home', label: 'Lar temporario', icon: 'home-heart', onPress: () => void registerQuickResponse('temporary_home', 'Lar temporario') },
+      { key: 'share', label: 'Compartilhar', icon: 'share-variant-outline', onPress: handleShare },
+      { key: 'chat', label: 'Chamar no chat', icon: 'chat-outline', onPress: () => void openPostChat() },
+    ];
+
+    return (
+      <View style={styles.quickHelpRow}>
+        {tools.map((tool) => {
+          const busy = quickResponseSubmitting === tool.key;
+          return (
+            <TouchableOpacity
+              key={tool.key}
+              style={styles.quickHelpChip}
+              onPress={tool.onPress}
+              disabled={!!quickResponseSubmitting}
+              activeOpacity={0.82}
+            >
+              <MaterialCommunityIcons name={busy ? 'sync' : tool.icon} size={13} color="#2D6A4F" />
+              <Text style={styles.quickHelpText} numberOfLines={1}>{tool.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  }
   const postImageMedia = hasPhotoGrid ? (
     <View style={[styles.imageContainer, styles.inlineImageContainer, styles.imageGrid]}>
       {imageUris.slice(0, 2).map((uri, photoIndex) => (
@@ -760,6 +911,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
             </Text>
 
             <OperationalStatus post={post} variant="compact" />
+            {renderCaseCycle()}
             {publicResolution && (
               <View style={styles.resolutionCard}>
                 <MaterialCommunityIcons name="check-decagram-outline" size={14} color="#2E6B4F" />
@@ -772,6 +924,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                 <Text style={styles.rescueMomentumText}>{helpGoingLabel}</Text>
               </View>
             )}
+            {renderResponseTools()}
 
             {/* Tags */}
           {post.tags.length > 0 && (
@@ -923,6 +1076,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
           </View>
 
           <OperationalStatus post={post} />
+          {renderCaseCycle()}
           {publicResolution && (
             <View style={styles.resolutionCard}>
               <MaterialCommunityIcons name="check-decagram-outline" size={14} color="#2E6B4F" />
@@ -935,6 +1089,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
               <Text style={styles.rescueMomentumText}>{helpGoingLabel}</Text>
             </View>
           )}
+          {renderResponseTools()}
 
           {postImageMedia}
 
@@ -1247,6 +1402,67 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: 'Montserrat_600SemiBold',
     color: '#326044',
+  },
+  caseCycle: {
+    minHeight: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 15,
+    borderWidth: 1,
+  },
+  caseCycleAlert: {
+    backgroundColor: '#FFF1F0',
+    borderColor: '#F3D2CF',
+  },
+  caseCycleActive: {
+    backgroundColor: '#EFF7F1',
+    borderColor: '#D7E7DA',
+  },
+  caseCycleResolved: {
+    backgroundColor: '#EEF4F6',
+    borderColor: '#D6E2E7',
+  },
+  caseCycleDefault: {
+    backgroundColor: '#F7F9F6',
+    borderColor: '#E4EAE5',
+  },
+  caseCycleLabel: {
+    flexShrink: 1,
+    fontSize: 10,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#243226',
+  },
+  caseCycleDetail: {
+    flex: 1,
+    textAlign: 'right',
+    fontSize: 9,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: '#667168',
+  },
+  quickHelpRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  quickHelpChip: {
+    minHeight: 29,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    borderRadius: 15,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DCE8DE',
+  },
+  quickHelpText: {
+    maxWidth: 98,
+    fontSize: 9.5,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#2D6A4F',
   },
   resolutionCard: {
     flexDirection: 'row',
