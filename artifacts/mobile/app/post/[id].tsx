@@ -173,7 +173,7 @@ export default function PostDetailScreen() {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
         <MaterialCommunityIcons name="paw-off" size={36} color={colors.mutedForeground} />
-        <Text style={[styles.errorText, { color: colors.mutedForeground }]}>Caso nÃ­o encontrado</Text>
+        <Text style={[styles.errorText, { color: colors.mutedForeground }]}>Caso nío encontrado</Text>
       </View>
     );
   }
@@ -248,7 +248,7 @@ export default function PostDetailScreen() {
 
   function handleRoute() {
     tapFeedback();
-    const label = encodeURIComponent(activePost.name || 'Caso ZooHelp');
+    const label = encodeURIComponent(activePost.name || 'Caso Helpin');
     const hasCoords = activePost.latitude != null && activePost.longitude != null;
     const destination = hasCoords
       ? `${activePost.latitude},${activePost.longitude}`
@@ -288,6 +288,18 @@ export default function PostDetailScreen() {
             onPressContact={handleContact}
           />
 
+          {activePost.rescueFinalReport?.publicUpdate && (
+            <View style={styles.resolutionPanel}>
+              <View style={styles.resolutionIcon}>
+                <MaterialCommunityIcons name="check-decagram-outline" size={17} color="#2E6B4F" />
+              </View>
+              <View style={styles.resolutionBody}>
+                <Text style={styles.resolutionLabel}>Atualizacao do resgate</Text>
+                <Text style={styles.resolutionText}>{activePost.rescueFinalReport.publicUpdate}</Text>
+              </View>
+            </View>
+          )}
+
           <View style={{ height: bottomPad + 92 }} />
         </View>
       </ScrollView>
@@ -322,6 +334,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   content: { padding: 14, paddingTop: 12, gap: 12,  },
+  resolutionPanel: {
+    flexDirection: 'row',
+    gap: 10,
+    padding: 13,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#D8E8DE',
+    backgroundColor: '#EFF7F2',
+  },
+  resolutionIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  resolutionBody: { flex: 1, gap: 3 },
+  resolutionLabel: {
+    fontSize: 11,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#2E6B4F',
+  },
+  resolutionText: {
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: 'Montserrat_500Medium',
+    color: '#2F4D3E',
+  },
   errorText: { fontSize: 14, fontFamily: 'Montserrat_400Regular', marginTop: 10 },
   bottomNavHost: {
     position: 'absolute',
