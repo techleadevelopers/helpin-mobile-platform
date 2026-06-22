@@ -23,7 +23,7 @@ export function PostImageModal({
           <MaterialCommunityIcons name="chevron-left" size={26} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={styles.topMeta}>
-          <Text style={styles.topMetaText}>ZooHelp</Text>
+          <Text style={styles.topMetaText}>Helpin</Text>
         </View>
         {selectedImageUri && (
           <Image source={{ uri: selectedImageUri }} style={styles.imageModalPhoto} contentFit="cover" />
