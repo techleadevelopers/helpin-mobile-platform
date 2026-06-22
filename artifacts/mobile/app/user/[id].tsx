@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Platform,
@@ -27,7 +27,8 @@ import { ZooHelpHeader } from '@/components/ZooHelpHeader';
 import { AUTHOR_TO_ONG, MOCK_AUTHORS, MOCK_ONGS, MOCK_POSTS, type Author, type Post } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { shareZooHelpItem } from '@/services/share';
-import { createZooHelpApi } from '@/services/zoohelpApi';
+import { createZooHelpApi, inferAccountType, mapPost } from '@/services/zoohelpApi';
+import type { PublicUserProfileContract, PublicUserSummaryContract } from '@/services/zoohelpEngine';
 
 function formatCompactNumber(value: number) {
   if (value >= 1000) return `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k`;
@@ -42,6 +43,16 @@ function getAuthorLabel(type: Author['type']) {
 
 function showsProtectorSince(type: Author['type']) {
   return type !== 'ong' && type !== 'vet';
+}
+
+function mapPublicUser(user: PublicUserSummaryContract): Author {
+  return {
+    id: user.id,
+    name: user.name,
+    avatar: user.avatar,
+    verified: user.verified,
+    type: inferAccountType(user.type),
+  };
 }
 
 function isResolved(post: Post) {
@@ -97,8 +108,8 @@ function getAuthorBio(author: Author, posts: Post[]) {
   const ong = MOCK_ONGS.find((item) => item.id === AUTHOR_TO_ONG[author.id]);
   if (ong) return ong.description;
   if (author.type === 'vet') return 'Atendimento, orientação e apoio veterinario para casos que precisam de resposta rapida.';
-  if (posts.some((post) => post.urgent)) return 'Protetor ativo na rede ZooHelp, compartilhando casos urgentes e pedidos de apoio.';
-  return 'Perfil da comunidade ZooHelp, com publicacoes sobre resgate, adoção e cuidado animal.';
+  if (posts.some((post) => post.urgent)) return 'Protetor ativo na rede Helpin, compartilhando casos urgentes e pedidos de apoio.';
+  return 'Perfil da comunidade Helpin, com publicacoes sobre resgate, adoção e cuidado animal.';
 }
 
 export default function PublicUserProfileScreen() {
@@ -115,6 +126,11 @@ export default function PublicUserProfileScreen() {
   const { posts, user, followedUsers, toggleFollowUser } = useApp();
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [userSearch, setUserSearch] = useState('');
+  const [userSearchFocused, setUserSearchFocused] = useState(false);
+  const [remoteSearchUsers, setRemoteSearchUsers] = useState<Author[]>([]);
+  const [remoteUsersLoaded, setRemoteUsersLoaded] = useState(false);
+  const [remoteProfile, setRemoteProfile] = useState<PublicUserProfileContract | null>(null);
+  const [relationUsers, setRelationUsers] = useState<Author[]>([]);
   const [socialOverlay, setSocialOverlay] = useState<SocialOverlayType>(null);
 
   const allPosts = useMemo(() => {
@@ -127,7 +143,13 @@ export default function PublicUserProfileScreen() {
     });
   }, [posts]);
 
-  const profilePosts = allPosts.filter((post) => post.author.id === id);
+  const remoteProfilePosts = useMemo(
+    () => remoteProfile?.posts.map(mapPost) ?? [],
+    [remoteProfile],
+  );
+  const profilePosts = remoteProfile
+    ? remoteProfilePosts
+    : allPosts.filter((post) => post.author.id === id);
   const searchableAuthors = useMemo(() => {
     const authors = [
       ...allPosts.map((post) => post.author),
@@ -156,7 +178,17 @@ export default function PublicUserProfileScreen() {
           type: profileType,
         }
       : null;
+  const remoteAuthor: Author | null = remoteProfile
+    ? {
+        id: remoteProfile.id,
+        name: remoteProfile.name,
+        avatar: remoteProfile.avatar,
+        verified: remoteProfile.verified,
+        type: inferAccountType(remoteProfile.type),
+      }
+    : null;
   const author =
+    remoteAuthor ??
     profilePosts[0]?.author ??
     MOCK_AUTHORS.find((item) => item.id === id) ??
     (user?.id === id
@@ -168,6 +200,94 @@ export default function PublicUserProfileScreen() {
           type: user.type,
         }
       : routedAuthor);
+  const resolvedAuthor = author ?? { id: '', name: '', avatar: null, verified: false, type: 'person' as const };
+
+  const activePosts = profilePosts.filter(isActive);
+  const resolvedPosts = profilePosts.filter(isResolved);
+  const location = remoteProfile?.location || getAuthorLocation(profilePosts);
+  const bio = remoteProfile?.bio || getAuthorBio(resolvedAuthor, profilePosts);
+  const following = remoteProfile?.following ?? followedUsers.includes(resolvedAuthor.id);
+  const followers = remoteProfile?.followersCount ?? 0;
+  const followingCount = remoteProfile?.followingCount ?? 0;
+  const socialUsers = relationUsers.filter((item) => item.id !== resolvedAuthor.id);
+  const socialCount = socialOverlay === 'following' ? followingCount : followers;
+  const visiblePosts =
+    activeTab === 'active' ? activePosts :
+    activeTab === 'resolved' ? resolvedPosts :
+    profilePosts;
+  const searchTerm = userSearch.trim().toLowerCase();
+  const fallbackSearchResults = useMemo(
+    () => (searchTerm
+      ? searchableAuthors.filter((item) => item.name.toLowerCase().includes(searchTerm))
+      : searchableAuthors
+    )
+      .filter((item) => item.id !== resolvedAuthor.id)
+      .slice(0, 6),
+    [resolvedAuthor.id, searchableAuthors, searchTerm],
+  );
+  const searchResults = userSearchFocused || searchTerm
+    ? (remoteUsersLoaded ? remoteSearchUsers : fallbackSearchResults)
+        .filter((item) => item.id !== resolvedAuthor.id)
+        .slice(0, 6)
+    : [];
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    const api = createZooHelpApi();
+    api?.publicUser(id)
+      .then((profile) => {
+        if (!cancelled) setRemoteProfile(profile);
+      })
+      .catch(() => {
+        if (!cancelled) setRemoteProfile(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    if (!id || !socialOverlay) {
+      setRelationUsers([]);
+      return;
+    }
+    let cancelled = false;
+    const api = createZooHelpApi();
+    const request = socialOverlay === 'following'
+      ? api?.publicUserFollowing(id, { limit: 100 })
+      : api?.publicUserFollowers(id, { limit: 100 });
+
+    request
+      ?.then((users) => {
+        if (!cancelled) setRelationUsers(users.map(mapPublicUser));
+      })
+      .catch(() => {
+        if (!cancelled) setRelationUsers([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, socialOverlay]);
+
+  useEffect(() => {
+    if (!userSearchFocused && !userSearch.trim()) return;
+    const rawTerm = userSearch.trim();
+    const timeout = setTimeout(() => {
+      const api = createZooHelpApi();
+      if (!api) {
+        setRemoteSearchUsers(fallbackSearchResults);
+        setRemoteUsersLoaded(true);
+        return;
+      }
+      api.publicUsers({ q: rawTerm, limit: rawTerm ? 20 : 16 })
+        .then((users) => setRemoteSearchUsers(users.map(mapPublicUser)))
+        .catch(() => setRemoteSearchUsers(fallbackSearchResults))
+        .finally(() => setRemoteUsersLoaded(true));
+    }, rawTerm ? 250 : 0);
+    return () => clearTimeout(timeout);
+  }, [fallbackSearchResults, userSearch, userSearchFocused]);
 
   if (!author) {
     return (
@@ -181,31 +301,19 @@ export default function PublicUserProfileScreen() {
     );
   }
 
-  const activePosts = profilePosts.filter(isActive);
-  const resolvedPosts = profilePosts.filter(isResolved);
-  const location = getAuthorLocation(profilePosts);
-  const bio = getAuthorBio(author, profilePosts);
-  const following = followedUsers.includes(author.id);
-  const followers = 1240 + author.id.charCodeAt(author.id.length - 1) * 37 + (following ? 1 : 0);
-  const followingCount = author.type === 'ong' ? 86 : 142;
-  const socialUsers = searchableAuthors
-    .filter((item) => item.id !== author.id)
-    .slice(0, socialOverlay === 'following' ? 6 : 8);
-  const socialCount = socialOverlay === 'following' ? followingCount : followers;
-  const visiblePosts =
-    activeTab === 'active' ? activePosts :
-    activeTab === 'resolved' ? resolvedPosts :
-    profilePosts;
-  const searchResults = userSearch.trim().length >= 2
-    ? searchableAuthors
-        .filter((item) => item.id !== author.id)
-        .filter((item) => item.name.toLowerCase().includes(userSearch.trim().toLowerCase()))
-        .slice(0, 4)
-    : [];
-
-  function handleFollow() {
+  async function handleFollow() {
     toggleFollowUser(author.id);
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const response = await createZooHelpApi()?.followUser(author.id).catch(() => null);
+    if (response) {
+      setRemoteProfile((current) => current
+        ? {
+            ...current,
+            following: response.following,
+            followersCount: response.followersCount,
+          }
+        : current);
+    }
   }
 
   async function handleMessage() {
@@ -227,7 +335,7 @@ export default function PublicUserProfileScreen() {
   }
 
   function handleShare() {
-    shareZooHelpItem(author.name, `Veja o perfil de ${author.name} no ZooHelp.`);
+    shareZooHelpItem(author.name, `Veja o perfil de ${author.name} no Helpin.`);
   }
 
   function getSocialLocation(item: Author) {
@@ -253,12 +361,21 @@ export default function PublicUserProfileScreen() {
           followers={followers}
           followingCount={followingCount}
           postsCount={profilePosts.length}
-          onChangeSearch={setUserSearch}
+          onChangeSearch={(value) => {
+            setUserSearch(value);
+            setUserSearchFocused(true);
+            setRemoteUsersLoaded(false);
+          }}
+          onFocusSearch={() => {
+            setUserSearchFocused(true);
+            if (!remoteUsersLoaded) setRemoteUsersLoaded(false);
+          }}
           onFollow={handleFollow}
           onMessage={handleMessage}
           onShare={handleShare}
           onOpenSearchResult={(item) => {
             setUserSearch('');
+            setUserSearchFocused(false);
             router.push({ pathname: '/(tabs)/user/[id]', params: { id: item.id } });
           }}
           onOpenFollowers={() => setSocialOverlay('followers')}
@@ -315,4 +432,3 @@ const styles = StyleSheet.create({
   emptyButton: { marginTop: 18, paddingHorizontal: 18, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#2D6A4F' },
   emptyButtonText: { fontSize: 13, fontFamily: 'Montserrat_700Bold', color: '#FFFFFF' },
 });
-
