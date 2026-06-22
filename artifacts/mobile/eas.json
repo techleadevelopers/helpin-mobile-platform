@@ -10,7 +10,6 @@
       "env": {
         "APP_ENV": "development",
         "EXPO_PUBLIC_API_BASE_URL": "https://helpin-platform-core-production.up.railway.app",
-        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "",
         "EXPO_PUBLIC_SUPPORT_PAYMENTS_ENABLED": "false"
       },
       "ios": {
@@ -22,7 +21,6 @@
       "env": {
         "APP_ENV": "preview",
         "EXPO_PUBLIC_API_BASE_URL": "https://helpin-platform-core-production.up.railway.app",
-        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "",
         "EXPO_PUBLIC_SUPPORT_PAYMENTS_ENABLED": "false"
       },
       "ios": {
@@ -33,7 +31,6 @@
       "env": {
         "APP_ENV": "production",
         "EXPO_PUBLIC_API_BASE_URL": "https://helpin-platform-core-production.up.railway.app",
-        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "",
         "EXPO_PUBLIC_SUPPORT_PAYMENTS_ENABLED": "false"
       },
       "ios": {
@@ -48,7 +45,6 @@
       "env": {
         "APP_ENV": "development",
         "EXPO_PUBLIC_API_BASE_URL": "https://helpin-platform-core-production.up.railway.app",
-        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "",
         "EXPO_PUBLIC_SUPPORT_PAYMENTS_ENABLED": "false"
       }
     }
