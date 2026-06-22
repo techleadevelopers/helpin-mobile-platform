@@ -296,7 +296,7 @@ export default function ChatRoomScreen() {
             {participant?.name ?? 'Chat'}
           </Text>
           <Text style={[styles.headerPost, { color: colors.primary }]} numberOfLines={1}>
-            {room?.postTitle ?? (postName ? decodeURIComponent(postName) : 'Conversa ZooHelp')}
+            {room?.postTitle ?? (postName ? decodeURIComponent(postName) : 'Conversa Helpin')}
           </Text>
           <Text style={[styles.connectionText, { color: connectionStatus === 'connected' ? '#2D6A4F' : colors.mutedForeground }]}>
             {connectionLabel}
