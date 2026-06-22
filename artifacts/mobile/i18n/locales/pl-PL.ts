@@ -2,7 +2,7 @@ import type { Translations } from '../types';
 
 const plPL: Translations = {
   common: {
-    appName: 'ZooHelp',
+    appName: 'Helpin',
     tagline: 'Platforma adopcji, ratowania i wsparcia zwierząt',
     continue: 'Kontynuuj',
     back: 'Wróć',
@@ -78,7 +78,7 @@ const plPL: Translations = {
     cityPlaceholder: 'Twoje miasto', ongNamePlaceholder: 'Np. Szczęśliwe łapki',
     passwordPlaceholder: 'Minimum 6 znaków', confirmPasswordPlaceholder: 'Powtórz hasło',
     strengthWeak: 'Słabe', strengthGood: 'Dobre', strengthStrong: 'Mocne',
-    verificationBadge: 'Twoja organizacja otrzyma odznakę weryfikacji po ocenie przez zespół ZooHelp',
+    verificationBadge: 'Twoja organizacja otrzyma odznakę weryfikacji po ocenie przez zespół Helpin',
     createBtn: 'Utwórz konto', registerOngBtn: 'Zarejestruj organizację', creating: 'Tworzenie konta...',
     errSelectTypeTitle: 'Wybierz typ konta', errSelectType: 'Wybierz Konto osobiste lub Organizację.',
     errNameTitle: 'Wymagane pole', errName: 'Proszę podać imię i nazwisko.',
@@ -127,7 +127,7 @@ const plPL: Translations = {
     deleteMessage: 'Wszystkie Twoje dane, posty i historia zostaną trwale usunięte.',
     deleteConfirm: 'Usuń moje konto', deleteFinalTitle: 'Jesteś absolutnie pewny/a?',
     deleteFinalMessage: 'Tej czynności nie można cofnąć.', deleteFinalConfirm: 'Tak, usuń konto',
-    footer: 'ZooHelp v1.0 · Chroń. Ratuj. Adoptuj.',
+    footer: 'Helpin v1.0 · Chroń. Ratuj. Adoptuj.',
   },
   publish: {
     title: 'Opublikuj sprawę', newPost: 'Nowy post', caseType: 'Typ sprawy', animal: 'Zwierzę',
