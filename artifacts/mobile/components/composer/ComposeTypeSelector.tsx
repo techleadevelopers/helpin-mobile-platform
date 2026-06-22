@@ -81,13 +81,9 @@ export function ComposeTypeSelector({
           onPress={() => setPickerVisible(true)}
           activeOpacity={0.84}
         >
-          <View style={[styles.selectedIcon, { backgroundColor: selectedItem.light }]}>
-            <MaterialCommunityIcons name={selectedItem.icon} size={17} color={selectedItem.color} />
-          </View>
-
           <View style={styles.compactCopy}>
             <View style={styles.compactTopLine}>
-              <Text style={styles.compactLabelText}>SITUAção</Text>
+              <Text style={styles.compactLabelText}>SITUAÇÃO</Text>
               <View style={[styles.typePill, { backgroundColor: selectedItem.light }]}>
                 <Text style={[styles.typePillText, { color: selectedItem.color }]}>ativo</Text>
               </View>
@@ -199,13 +195,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.055,
     shadowRadius: 12,
     elevation: 2,
-  },
-  selectedIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   compactCopy: { flex: 1, gap: 2 },
   compactTopLine: {
