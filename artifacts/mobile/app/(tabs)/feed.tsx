@@ -28,7 +28,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { EmptyState } from '@/components/EmptyState';
+import { ImpactMetricsStrip } from '@/components/ImpactMetricsStrip';
 import { PostCard } from '@/components/PostCard';
+import { ResolvedStoriesStrip } from '@/components/ResolvedStoriesStrip';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { MOCK_AUTHORS, Post, PostType } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
@@ -36,7 +38,7 @@ import { useColors } from '@/hooks/useColors';
 import { geocodeAddress, geocodeStructuredAddress, getPlaceAddressDetails, searchAddressSuggestions } from '@/services/zoohelpApi';
 import { ZooHelpApiError } from '@/services/zoohelpEngine';
 
-type FeedFilter = PostType | 'all' | 'ong';
+type FeedFilter = PostType | 'all' | 'ong' | 'needs_response';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -49,6 +51,14 @@ const FILTERS: Array<{ label: string; value: FeedFilter; icon: MCIcon; color: st
   { label: 'Campanhas',   value: 'campaign',   icon: 'heart-multiple',    color: '#9B59B6', activeBg: '#586158' },
   { label: 'ONGs',        value: 'ong',        icon: 'shield-check',      color: '#2F80ED', activeBg: '#586158' },
 ];
+
+FILTERS.splice(2, 0, {
+  label: 'Sem resposta',
+  value: 'needs_response',
+  icon: 'timer-alert',
+  color: '#D84A3A',
+  activeBg: '#586158',
+});
 
 const ZOOHELP_HEADER_LOGO =
   'https://res.cloudinary.com/limpeja/image/upload/v1779564981/Gemini_Generated_Image_isin7wisin7wisin-removebg-preview_yx0k5g.png';
@@ -115,6 +125,13 @@ export default function FeedScreen() {
   const filteredPosts = useMemo(() => {
     if (activeFilter === 'all') return posts;
     if (activeFilter === 'ong') return posts.filter((p) => p.author.type === 'ong');
+    if (activeFilter === 'needs_response') {
+      return posts.filter((p) => {
+        const urgent = p.urgent || p.type === 'emergency';
+        const hasResponse = p.rescueStatus === 'active' || (p.rescueOperational?.helpGoingCount ?? 0) > 0;
+        return urgent && p.rescueStatus !== 'resolved' && !hasResponse;
+      });
+    }
     return posts.filter((p) => p.type === (activeFilter as PostType));
   }, [posts, activeFilter]);
 
@@ -898,10 +915,14 @@ export default function FeedScreen() {
       </Modal>
 
       {/* ── Section heading ── */}
+      <ImpactMetricsStrip />
+      <ResolvedStoriesStrip posts={posts} />
+
       <View style={styles.sectionRow}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
           {activeFilter === 'all' ? 'Casos recentes' :
            activeFilter === 'adoption' ? 'Para adoção' :
+           activeFilter === 'needs_response' ? 'Urgentes sem resposta' :
            activeFilter === 'lost' ? 'Animais perdidos' :
            activeFilter === 'found' ? 'Animais encontrados' :
            activeFilter === 'emergency' ? 'Emergências' : 'Campanhas'}
