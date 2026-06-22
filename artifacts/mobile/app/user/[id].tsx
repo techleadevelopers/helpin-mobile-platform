@@ -132,6 +132,8 @@ export default function PublicUserProfileScreen() {
   const [remoteProfile, setRemoteProfile] = useState<PublicUserProfileContract | null>(null);
   const [relationUsers, setRelationUsers] = useState<Author[]>([]);
   const [socialOverlay, setSocialOverlay] = useState<SocialOverlayType>(null);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [messageLoading, setMessageLoading] = useState(false);
 
   const allPosts = useMemo(() => {
     const merged = [...posts, ...MOCK_POSTS];
@@ -207,6 +209,7 @@ export default function PublicUserProfileScreen() {
   const location = remoteProfile?.location || getAuthorLocation(profilePosts);
   const bio = remoteProfile?.bio || getAuthorBio(resolvedAuthor, profilePosts);
   const following = remoteProfile?.following ?? followedUsers.includes(resolvedAuthor.id);
+  const isOwnProfile = !!user?.id && user.id === resolvedAuthor.id;
   const followers = remoteProfile?.followersCount ?? 0;
   const followingCount = remoteProfile?.followingCount ?? 0;
   const socialUsers = relationUsers.filter((item) => item.id !== resolvedAuthor.id);
@@ -302,6 +305,15 @@ export default function PublicUserProfileScreen() {
   }
 
   async function handleFollow() {
+    if (!user) {
+      Alert.alert('Entrar para seguir', 'Faca login para acompanhar este perfil.');
+      router.push('/login');
+      return;
+    }
+    if (isOwnProfile || followLoading) return;
+
+    setFollowLoading(true);
+    const wasFollowing = following;
     toggleFollowUser(author.id);
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const response = await createZooHelpApi()?.followUser(author.id).catch(() => null);
@@ -313,25 +325,43 @@ export default function PublicUserProfileScreen() {
             followersCount: response.followersCount,
           }
         : current);
+    } else {
+      toggleFollowUser(author.id);
+      setRemoteProfile((current) => current
+        ? {
+            ...current,
+            following: wasFollowing,
+          }
+        : current);
+      Alert.alert('Nao foi possivel seguir', 'Verifique sua conexao e tente novamente.');
     }
+    setFollowLoading(false);
   }
 
   async function handleMessage() {
+    if (!user) {
+      Alert.alert('Entrar para conversar', 'Faca login para enviar mensagem a este perfil.');
+      router.push('/login');
+      return;
+    }
+    if (isOwnProfile || messageLoading) return;
+
+    setMessageLoading(true);
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const api = createZooHelpApi();
-    const rooms = await api?.chatRooms().catch(() => null);
-    const existingRoom = rooms?.find((item) => item.participant.id === author.id);
-    const room = existingRoom ?? await api?.openDirectChat(author.id).catch(() => null);
+    const room = await api?.openDirectChat(author.id).catch(() => null);
 
     if (room) {
+      setMessageLoading(false);
       router.push(
         `/chat/${room.id}?postName=${encodeURIComponent(room.postTitle)}&authorName=${encodeURIComponent(room.participant.name)}`
       );
       return;
     }
 
-    Alert.alert('Chat indisponivel', 'Ainda nao existe uma conversa confirmada com este perfil.');
+    setMessageLoading(false);
+    Alert.alert('Chat indisponivel', 'Nao foi possivel abrir uma conversa com este perfil agora.');
   }
 
   function handleShare() {
@@ -358,6 +388,10 @@ export default function PublicUserProfileScreen() {
           userSearch={userSearch}
           searchResults={searchResults}
           following={following}
+          followLoading={followLoading}
+          followDisabled={isOwnProfile}
+          messageLoading={messageLoading}
+          messageDisabled={isOwnProfile}
           followers={followers}
           followingCount={followingCount}
           postsCount={profilePosts.length}
