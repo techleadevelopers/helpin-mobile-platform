@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/AppContext';
@@ -26,6 +27,7 @@ const ZOOHELP_LOGIN_LOGO =
 
 export default function LoginScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { login } = useApp();
@@ -63,7 +65,7 @@ export default function LoginScreen() {
 
   async function handleLogin() {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Campos obrigatórios', 'Por favor, preencha email e senha.');
+      Alert.alert(t('auth.errRequiredTitle'), t('auth.errRequired'));
       return;
     }
     setLoading(true);
@@ -75,7 +77,7 @@ export default function LoginScreen() {
         error instanceof ZooHelpApiError
           ? `API: ${API_BASE_URL}\nStatus: ${error.status ?? 'rede'}\n${error.message}`
           : `API: ${API_BASE_URL}\n${error instanceof Error ? error.message : 'Erro desconhecido'}`;
-      Alert.alert('Erro no login', detail);
+      Alert.alert(t('auth.errLoginTitle'), detail);
     } finally {
       setLoading(false);
     }
@@ -123,7 +125,7 @@ export default function LoginScreen() {
             <Text style={[styles.logoText, { color: colors.primary }]}>Helpin</Text>
           </Animated.View>
           <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
-            Plataforma de resgate e apoio animal
+            {t('common.tagline')}
           </Text>
         </View>
 
@@ -136,7 +138,7 @@ export default function LoginScreen() {
             </View>
             <TextInput
               style={[styles.input, styles.loginInput]}
-              placeholder="Seu e-mail"
+              placeholder={t('auth.emailPlaceholder')}
               placeholderTextColor={colors.mutedForeground}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -151,7 +153,7 @@ export default function LoginScreen() {
             </View>
             <TextInput
               style={[styles.input, styles.loginInput]}
-              placeholder="Senha"
+              placeholder={t('auth.passwordPlaceholder')}
               placeholderTextColor={colors.mutedForeground}
               secureTextEntry={!showPassword}
               value={password}
@@ -172,7 +174,7 @@ export default function LoginScreen() {
 
           <TouchableOpacity style={styles.forgotBtn} onPress={() => router.push({ pathname: '/forgot-password', params: { email } } as any)}>
             <Text style={[styles.forgotText, { color: colors.secondary }]}>
-              Esqueceu sua senha?
+              {t('auth.forgotPassword')}
             </Text>
           </TouchableOpacity>
 
@@ -186,13 +188,13 @@ export default function LoginScreen() {
             activeOpacity={0.85}
           >
             <Text style={styles.signInButtonText}>
-              {loading ? 'Entrando...' : 'Entrar'}
+              {loading ? t('auth.loggingIn') : t('auth.loginBtn')}
             </Text>
           </TouchableOpacity>
 
           <View style={styles.dividerRow}>
             <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-            <Text style={[styles.dividerText, { color: colors.mutedForeground }]}>ou</Text>
+            <Text style={[styles.dividerText, { color: colors.mutedForeground }]}>{t('auth.or')}</Text>
             <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
           </View>
 
@@ -202,7 +204,7 @@ export default function LoginScreen() {
             activeOpacity={0.85}
           >
             <Text style={[styles.registerBtnText, { color: colors.primary }]}>
-              Criar conta gratuita
+              {t('auth.createAccount')}
             </Text>
           </TouchableOpacity>
 
