@@ -54,4 +54,3 @@ export const ANIMAL_OPTIONS: AnimalOption[] = [
   { value: 'cat', icon: 'cat', label: 'Gato' },
   { value: 'other', icon: 'paw', label: 'Outro' },
 ];
-
