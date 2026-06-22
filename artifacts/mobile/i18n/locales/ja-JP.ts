@@ -2,7 +2,7 @@ import type { Translations } from '../types';
 
 const jaJP: Translations = {
   common: {
-    appName: 'ZooHelp',
+    appName: 'Helpin',
     tagline: '動物の里親募集・救助・支援プラットフォーム',
     continue: '続ける',
     back: '戻る',
@@ -78,7 +78,7 @@ const jaJP: Translations = {
     cityPlaceholder: '渋谷区', ongNamePlaceholder: '例：幸せの足跡',
     passwordPlaceholder: '6文字以上', confirmPasswordPlaceholder: 'パスワードを再入力',
     strengthWeak: '弱い', strengthGood: '普通', strengthStrong: '強い',
-    verificationBadge: 'ZooHelpチームの審査後、認証バッジが付与されます',
+    verificationBadge: 'Helpinチームの審査後、認証バッジが付与されます',
     createBtn: 'アカウント作成', registerOngBtn: 'NPOを登録', creating: 'アカウント作成中...',
     errSelectTypeTitle: 'タイプを選択してください', errSelectType: '個人アカウントまたはNPOを選んでください。',
     errNameTitle: '必須項目', errName: '氏名を入力してください。',
@@ -127,7 +127,7 @@ const jaJP: Translations = {
     deleteMessage: 'すべてのデータ、投稿、履歴が完全に削除されます。',
     deleteConfirm: 'アカウントを削除', deleteFinalTitle: '本当によろしいですか？',
     deleteFinalMessage: 'この操作は元に戻せません。', deleteFinalConfirm: 'はい、削除します',
-    footer: 'ZooHelp v1.0 · 守ろう。救おう。家族にしよう。',
+    footer: 'Helpin v1.0 · 守ろう。救おう。家族にしよう。',
   },
   publish: {
     title: 'ケースを投稿', newPost: '新しい投稿', caseType: 'ケースの種類', animal: '動物',
