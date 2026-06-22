@@ -137,6 +137,22 @@ export default function RegisterScreen() {
     animateProgress(prevStep);
   }
 
+  function handleTermsPress() {
+    if (acceptedTerms) {
+      setAcceptedTerms(false);
+      return;
+    }
+
+    Alert.alert(
+      'Termos e Politica de Privacidade',
+      'Para continuar, confirme que voce leu e aceita os Termos de Uso e a Politica de Privacidade do Helpin.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Aceitar', onPress: () => setAcceptedTerms(true) },
+      ],
+    );
+  }
+
   function validateAndNext() {
     if (step === 0) {
       if (!accountType) {
@@ -239,10 +255,6 @@ export default function RegisterScreen() {
           });
         }
       }
-      Alert.alert(
-        'Confirme seu e-mail',
-        'Enviamos um link de confirmação para o e-mail cadastrado. Abra esse link para ativar a conta.',
-      );
       router.replace('/(tabs)');
     } catch (error) {
       console.error('[register] failed to complete registration flow', error);
@@ -581,15 +593,11 @@ export default function RegisterScreen() {
                   <Text style={{ color: '#2D6A4F', fontFamily: 'Inter_500Medium' }}>Política de Privacidade</Text>
                 </Text>
 
-                <TouchableOpacity style={styles.termsRow} onPress={() => setAcceptedTerms((prev) => !prev)} activeOpacity={0.78}>
+                <TouchableOpacity style={styles.termsRow} onPress={handleTermsPress} activeOpacity={0.78}>
                   <View style={[styles.termsCheckbox, acceptedTerms && styles.termsCheckboxChecked]}>
                     {acceptedTerms && <MaterialCommunityIcons name="check" size={15} color="#FFFFFF" />}
                   </View>
                   <Text style={styles.termsText}>Aceito os Termos de Uso</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.78}>
-                  <Text style={styles.privacyLink}>Abrir Politica de Privacidade</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -607,13 +615,13 @@ export default function RegisterScreen() {
                 ONG — Step 1: Nome + Tipo
             ══════════════════════════════════ */}
             {accountType === 'ong' && step === 1 && (
-              <View style={styles.section}>
+              <View style={[styles.section, styles.ongProfileSection]}>
                 <View style={styles.headingBlock}>
                   <Text style={styles.title}>Sua ONG</Text>
                   <Text style={styles.subtitle}>Qual e o nome e o foco de atuação?</Text>
                 </View>
 
-                <View style={[styles.fields, styles.ongStepPanel]}>
+                <View style={[styles.fields, styles.ongStepPanel, styles.ongProfilePanel]}>
                   <TouchableOpacity style={styles.logoPickerRow} onPress={pickOngLogo} activeOpacity={0.82}>
                     <View style={styles.logoPickerPreview}>
                       {ongLogoUri ? (
@@ -635,7 +643,7 @@ export default function RegisterScreen() {
 
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Nome da ONG / Organização</Text>
-                    <View style={[styles.inputRow, { borderColor: ongName ? '#2D6A4F' : '#E2E8F0' }]}>
+                    <View style={[styles.inputRow, styles.ongInputRow, { borderColor: ongName ? '#2D6A4F' : '#E2E8F0' }]}>
                       <MaterialCommunityIcons name="home-heart" size={20} color={ongName ? '#2D6A4F' : '#A0AEC0'} />
                       <TextInput
                         style={styles.input}
@@ -651,7 +659,7 @@ export default function RegisterScreen() {
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Area de atuação</Text>
                     <TouchableOpacity
-                      style={[styles.selectInput, showOngTypeOptions && styles.selectInputOpen]}
+                      style={[styles.selectInput, styles.ongInputRow, showOngTypeOptions && styles.selectInputOpen]}
                       onPress={() => setShowOngTypeOptions((value) => !value)}
                       activeOpacity={0.82}
                     >
@@ -711,7 +719,7 @@ export default function RegisterScreen() {
                         </View>
                       )}
                     </View>
-                    <View style={[styles.inputRow, { borderColor: cnpjComplete ? '#2D6A4F' : '#E2E8F0' }]}>
+                    <View style={[styles.inputRow, styles.ongInputRow, { borderColor: cnpjComplete ? '#2D6A4F' : '#E2E8F0' }]}>
                       <MaterialCommunityIcons
                         name="card-account-details-outline"
                         size={20}
@@ -737,7 +745,7 @@ export default function RegisterScreen() {
 
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Ano de fundação</Text>
-                    <View style={[styles.inputRow, { borderColor: ongFoundationYear ? '#2D6A4F' : '#E2E8F0' }]}>
+                    <View style={[styles.inputRow, styles.ongInputRow, { borderColor: ongFoundationYear ? '#2D6A4F' : '#E2E8F0' }]}>
                       <MaterialCommunityIcons name="calendar-heart" size={20} color={ongFoundationYear ? '#2D6A4F' : '#A0AEC0'} />
                       <TextInput
                         style={styles.input}
@@ -851,10 +859,10 @@ export default function RegisterScreen() {
                   <Text style={styles.subtitle}>Informe o CEP para preencher cidade e UF automaticamente</Text>
                 </View>
 
-                <View style={styles.fields}>
-                  <View style={styles.fieldGroup}>
+                <View style={[styles.fields, styles.addressFields]}>
+                  <View style={[styles.fieldGroup, styles.addressFieldGroup]}>
                     <Text style={styles.fieldLabel}>CEP</Text>
-                    <View style={[styles.inputRow, { borderColor: ongCep.replace(/\D/g, '').length === 8 ? '#2D6A4F' : '#E2E8F0' }]}>
+                    <View style={[styles.inputRow, styles.addressInputRow, { borderColor: ongCep.replace(/\D/g, '').length === 8 ? '#2D6A4F' : '#E2E8F0' }]}>
                       <MaterialCommunityIcons name="map-marker-radius-outline" size={20} color={ongCep.replace(/\D/g, '').length === 8 ? '#2D6A4F' : '#A0AEC0'} />
                       <TextInput
                         style={styles.input}
@@ -875,9 +883,9 @@ export default function RegisterScreen() {
                     {cepLoading && <Text style={styles.cepLoadingText}>Consultando CEP...</Text>}
                   </View>
 
-                  <View style={styles.fieldGroup}>
+                  <View style={[styles.fieldGroup, styles.addressFieldGroup]}>
                     <Text style={styles.fieldLabel}>Rua</Text>
-                    <View style={[styles.inputRow, { borderColor: ongStreet ? '#2D6A4F' : '#E2E8F0' }]}>
+                    <View style={[styles.inputRow, styles.addressInputRow, { borderColor: ongStreet ? '#2D6A4F' : '#E2E8F0' }]}>
                       <MaterialCommunityIcons name="road-variant" size={20} color={ongStreet ? '#2D6A4F' : '#A0AEC0'} />
                       <TextInput
                         style={styles.input}
@@ -890,10 +898,10 @@ export default function RegisterScreen() {
                     </View>
                   </View>
 
-                  <View style={styles.row}>
-                    <View style={[styles.fieldGroup, { width: 118 }]}>
+                  <View style={[styles.row, styles.addressRow]}>
+                    <View style={[styles.fieldGroup, styles.addressFieldGroup, { width: 128 }]}>
                       <Text style={styles.fieldLabel}>Numero</Text>
-                      <View style={[styles.inputRow, { borderColor: ongNumber ? '#2D6A4F' : '#E2E8F0' }]}>
+                      <View style={[styles.inputRow, styles.addressInputRow, { borderColor: ongNumber ? '#2D6A4F' : '#E2E8F0' }]}>
                         <TextInput
                           style={styles.ufInput}
                           placeholder="No."
@@ -903,9 +911,9 @@ export default function RegisterScreen() {
                         />
                       </View>
                     </View>
-                    <View style={[styles.fieldGroup, { flex: 1 }]}>
+                    <View style={[styles.fieldGroup, styles.addressFieldGroup, { flex: 1 }]}>
                       <Text style={styles.fieldLabel}>Bairro</Text>
-                      <View style={[styles.inputRow, { borderColor: ongNeighborhood ? '#2D6A4F' : '#E2E8F0' }]}>
+                      <View style={[styles.inputRow, styles.addressInputRow, { borderColor: ongNeighborhood ? '#2D6A4F' : '#E2E8F0' }]}>
                         <TextInput
                           style={styles.input}
                           placeholder="Bairro"
@@ -918,9 +926,9 @@ export default function RegisterScreen() {
                     </View>
                   </View>
 
-                  <View style={styles.fieldGroup}>
+                  <View style={[styles.fieldGroup, styles.addressFieldGroup]}>
                     <Text style={styles.fieldLabel}>Complemento</Text>
-                    <View style={styles.inputRow}>
+                    <View style={[styles.inputRow, styles.addressInputRow]}>
                       <MaterialCommunityIcons name="home-edit-outline" size={20} color="#A0AEC0" />
                       <TextInput
                         style={styles.input}
@@ -932,10 +940,10 @@ export default function RegisterScreen() {
                     </View>
                   </View>
 
-                  <View style={styles.row}>
-                    <View style={[styles.fieldGroup, { flex: 1 }]}>
+                  <View style={[styles.row, styles.addressRow]}>
+                    <View style={[styles.fieldGroup, styles.addressFieldGroup, { flex: 1 }]}>
                       <Text style={styles.fieldLabel}>Cidade</Text>
-                      <View style={styles.inputRow}>
+                      <View style={[styles.inputRow, styles.addressInputRow]}>
                         <MaterialCommunityIcons name="city-variant-outline" size={20} color="#A0AEC0" />
                         <TextInput
                           style={styles.input}
@@ -947,9 +955,9 @@ export default function RegisterScreen() {
                         />
                       </View>
                     </View>
-                    <View style={[styles.fieldGroup, { width: 96 }]}>
+                    <View style={[styles.fieldGroup, styles.addressFieldGroup, { width: 96 }]}>
                       <Text style={styles.fieldLabel}>UF</Text>
-                      <View style={[styles.inputRow, styles.ufInputRow]}>
+                      <View style={[styles.inputRow, styles.addressInputRow, styles.ufInputRow]}>
                         <TextInput
                           style={styles.ufInput}
                           placeholder="UF"
@@ -1001,7 +1009,7 @@ export default function RegisterScreen() {
                   <View style={[styles.ongBadge, { backgroundColor: 'rgba(45, 106, 79, 0.10)' }]}>
                     <MaterialCommunityIcons name="shield-check-outline" size={18} color="#2D6A4F" />
                     <Text style={[styles.ongBadgeText, { color: '#2D6A4F' }]}>
-                      Sua ONG recebera um selo de verificação apos analise da equipe ZooHelp
+                      Sua ONG recebera um selo de verificação apos analise da equipe Helpin
                     </Text>
                   </View>
                 </View>
@@ -1013,15 +1021,11 @@ export default function RegisterScreen() {
                   <Text style={{ color: '#2D6A4F', fontFamily: 'Inter_500Medium' }}>Política de Privacidade</Text>
                 </Text>
 
-                <TouchableOpacity style={styles.termsRow} onPress={() => setAcceptedTerms((prev) => !prev)} activeOpacity={0.78}>
+                <TouchableOpacity style={styles.termsRow} onPress={handleTermsPress} activeOpacity={0.78}>
                   <View style={[styles.termsCheckbox, acceptedTerms && styles.termsCheckboxChecked]}>
                     {acceptedTerms && <MaterialCommunityIcons name="check" size={15} color="#FFFFFF" />}
                   </View>
                   <Text style={styles.termsText}>Aceito os Termos de Uso</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.78}>
-                  <Text style={styles.privacyLink}>Abrir Politica de Privacidade</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -1039,7 +1043,7 @@ export default function RegisterScreen() {
               <View style={styles.section}>
                 <View style={styles.headingBlock}>
                   <Text style={styles.title}>Validação da ONG</Text>
-                  <Text style={styles.subtitle}>Envie os documentos do responsavel para analise da equipe ZooHelp</Text>
+                  <Text style={styles.subtitle}>Envie os documentos do responsavel para analise da equipe Helpin</Text>
                 </View>
 
                 <View style={styles.fields}>
@@ -1184,6 +1188,9 @@ const styles = StyleSheet.create({
   section: {
     gap: 28,
   },
+  ongProfileSection: {
+    gap: 20,
+  },
   accountTypeSection: {
     minHeight: 688,
   },
@@ -1202,10 +1209,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   contactStepSection: {
-    paddingTop: 118,
+    paddingTop: 0,
   },
   accessStepSection: {
-    paddingTop: 56,
+    paddingTop: 0,
   },
 
   headingBlock: {
@@ -1213,7 +1220,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   accountTypeHeading: {
-    paddingTop: 100,
+    paddingTop: 0,
   },
   title: {
     fontSize: 24,
@@ -1311,6 +1318,9 @@ const styles = StyleSheet.create({
   fields: {
     gap: 20,
   },
+  addressFields: {
+    gap: 14,
+  },
   ongStepPanel: {
     gap: 18,
     paddingHorizontal: 16,
@@ -1325,8 +1335,23 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 3,
   },
+  ongProfilePanel: {
+    gap: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#DDE6E1',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    elevation: 2,
+  },
   fieldGroup: {
     gap: 8,
+  },
+  addressFieldGroup: {
+    gap: 6,
   },
   fieldLabel: {
     fontSize: 14,
@@ -1353,6 +1378,26 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     width: '100%',
     gap: 12,
+  },
+  ongInputRow: {
+    height: 46,
+    marginBottom: 0,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingLeft: 12,
+    paddingRight: 14,
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 1,
+  },
+  addressInputRow: {
+    height: 46,
+    marginBottom: 0,
+    paddingLeft: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
   },
   inputLeadingIcon: {
     marginLeft: 8,
@@ -1417,6 +1462,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: 12,
+  },
+  addressRow: {
+    alignItems: 'flex-start',
   },
 
   selectInput: {
@@ -1493,7 +1541,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 4,
+    marginBottom: 0,
+    flexWrap: 'wrap',
   },
   optionalBadge: {
     backgroundColor: '#F0F2F5',
@@ -1531,19 +1580,20 @@ const styles = StyleSheet.create({
   logoPickerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 28,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    marginBottom: 2,
+    gap: 13,
+    minHeight: 78,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 22,
+    backgroundColor: '#F8FBF9',
+    borderWidth: 1,
+    borderColor: '#DDE6E1',
+    marginBottom: 0,
   },
   logoPickerPreview: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F0F8FF',
@@ -1551,9 +1601,9 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   logoPreviewImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 18,
   },
   logoPickerBadge: {
     position: 'absolute',
