@@ -8,6 +8,11 @@ out-tsc
 .expo
 .expo-shared
 
+# Local environment files can contain production credentials. Keep templates versioned.
+.env
+.env.*
+!.env.example
+
 # dependencies
 node_modules
 

@@ -1,7 +1,8 @@
 {
   "expo": {
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-localization"
     ]
   }
 }

@@ -1,8 +1,9 @@
-﻿import { ExpoConfig, ConfigContext } from "expo/config";
+import type { ExpoConfig, ConfigContext } from "expo/config";
 
-const APP_VERSION = "1.0.10";
+const APP_VERSION = "1.0.11";
 const IOS_BUILD_NUMBER = "1";
-const ANDROID_VERSION_CODE = 10;
+const ANDROID_VERSION_CODE = 11;
+const DEFAULT_API_BASE_URL = "https://helpin-platform-core-production.up.railway.app";
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const devDomain = process.env.EXPO_PUBLIC_DOMAIN;
@@ -20,6 +21,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     icon: "./assets/images/icon.png",
     scheme: "zoohelp",
     userInterfaceStyle: "automatic",
+    // @ts-ignore: Propriedade válida no Expo, mas ausente na tipagem atual do ExpoConfig
     newArchEnabled: true,
     splash: {
       image: "./assets/images/icon.png",
@@ -49,7 +51,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: "./assets/images/adaptive-icon.png",
+        foregroundImage: "./assets/images/adaptive-icon-foreground.png",
         backgroundColor: "#FFFFFF",
       },
       package: "com.zoohelp.app",
@@ -75,33 +77,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     plugins: [
       "./plugins/withPhoneOnlyAndroid",
-      [
-        "expo-router",
-        {
-          origin: isProduction ? "https://zoohelp.app" : origin,
-        },
-      ],
-      "expo-font",
-      "expo-web-browser",
-      [
-        "expo-location",
-        {
-          locationAlwaysAndWhenInUsePermission:
-            "O Helpin usa sua localização para mostrar animais próximos e enviar alertas de emergência na sua região.",
-          locationWhenInUsePermission:
-            "O Helpin usa sua localização para mostrar animais próximos de você.",
-        },
-      ],
-      [
-        "expo-image-picker",
-        {
-          photosPermission:
-            "O Helpin precisa acessar sua galeria para que você possa escolher fotos nas publicações.",
-          cameraPermission:
-            "O Helpin precisa acessar sua câmera para fotografar animais.",
-          microphonePermission: false,
-        },
-      ],
+      // "expo-router",  // REMOVIDO
+      // "expo-font",   // REMOVIDO
+      // "expo-web-browser",  // REMOVIDO
+      // "expo-location",  // REMOVIDO
+      // "expo-image-picker",  // REMOVIDO
     ],
     experiments: {
       typedRoutes: true,
@@ -110,10 +90,15 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     extra: {
       ...config.extra,
       environment: process.env.APP_ENV || process.env.NODE_ENV || "development",
+      // EAS resolves EXPO_PUBLIC_* variables while building and embeds this in the APK.
+      apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || DEFAULT_API_BASE_URL,
       sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || "",
       supportedLocales: ["de-DE", "en-US", "en-GB", "tr-TR", "pt-BR"],
       eas: {
         projectId: "6fa106b1-6f9f-4da4-872e-5ba9ee75ff4b"
+      },
+      router: {
+        origin: isProduction ? "https://zoohelp.app" : origin,
       }
     },
   };

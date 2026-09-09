@@ -6,7 +6,7 @@
 - Run `pnpm run typecheck`.
 - Run `pnpm run test:contracts`.
 - Configure `EXPO_OWNER`, `ASC_APP_ID`, and `APPLE_TEAM_ID`.
-- Set production API with `EXPO_PUBLIC_API_BASE_URL=https://Helpin-core-production.up.railway.app`.
+- Set production API with `EXPO_PUBLIC_API_BASE_URL=https://helpin-platform-core-production.up.railway.app`.
 - Build TestFlight: `pnpm exec eas build --platform ios --profile production`.
 - Submit TestFlight/App Store: `pnpm exec eas submit --platform ios --profile production`.
 

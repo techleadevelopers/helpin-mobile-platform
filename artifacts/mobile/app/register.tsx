@@ -397,7 +397,6 @@ export default function RegisterScreen() {
       <Text style={styles.subtitle}>{t('register.subtitle')}</Text>
     </View>
 
-    <View style={styles.accountTypePanel}>
     <View style={styles.typeCards}>
       <TouchableOpacity
         style={[
@@ -479,7 +478,6 @@ export default function RegisterScreen() {
     >
       <Text style={styles.primaryBtnText}>{t('common.continue')}</Text>
     </TouchableOpacity>
-    </View>
 
     <View style={styles.bottomBrand}>
       <Image source={{ uri: ZOOHELP_REGISTER_LOGO }} style={styles.bottomBrandLogo} contentFit="contain" />
@@ -1194,20 +1192,6 @@ const styles = StyleSheet.create({
   accountTypeSection: {
     minHeight: 688,
   },
-  accountTypePanel: {
-    gap: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-    borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.72)',
-    borderWidth: 1,
-    borderColor: 'rgba(226,232,240,0.86)',
-    shadowColor: '#101828',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.07,
-    shadowRadius: 24,
-    elevation: 3,
-  },
   contactStepSection: {
     paddingTop: 0,
   },
@@ -1241,6 +1225,7 @@ const styles = StyleSheet.create({
   typeCards: {
     gap: 14,
     marginTop: 0,
+    marginBottom: 4,
   },
   typeCard: {
     flexDirection: 'row',

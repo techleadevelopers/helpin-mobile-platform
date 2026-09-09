@@ -215,7 +215,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, paddingHorizontal: 25, gap: 32, marginTop: 80, },
+  container: { flexGrow: 1, paddingHorizontal: 25, gap: 32, marginTop: 60, },
   logoSection: { alignItems: 'center', gap: 12 },
   logoRow: {
     flexDirection: 'row',

@@ -28,7 +28,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { EmptyState } from '@/components/EmptyState';
-import { ImpactMetricsStrip } from '@/components/ImpactMetricsStrip';
 import { PostCard } from '@/components/PostCard';
 import { ResolvedStoriesStrip } from '@/components/ResolvedStoriesStrip';
 import { SkeletonCard } from '@/components/SkeletonCard';
@@ -915,7 +914,6 @@ export default function FeedScreen() {
       </Modal>
 
       {/* ── Section heading ── */}
-      <ImpactMetricsStrip />
       <ResolvedStoriesStrip posts={posts} />
 
       <View style={styles.sectionRow}>

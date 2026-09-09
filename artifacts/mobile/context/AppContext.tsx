@@ -171,7 +171,7 @@ interface AppContextType {
   addPost: (post: Post) => Promise<Post>;
   refreshPosts: () => Promise<void>;
   donateToOng: (ongId: string, amountCents?: number) => Promise<void>;
-  updateUserAvatar: (avatarUri: string) => Promise<void>;
+  updateUserAvatar: (avatarUri: string, fileSize?: number) => Promise<void>;
   updateUserProfile: (input: {
     name: string;
     cep?: string;
@@ -874,7 +874,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         await clearInvalidSession();
         throw error;
       }
-      if (error instanceof ZooHelpApiError && error.status != null && error.status < 500) {
+      if (
+        error instanceof ZooHelpApiError &&
+        error.status != null &&
+        error.status < 500 &&
+        error.status !== 429
+      ) {
         setPosts((prev) => prev.filter((item) => item.id !== post.id));
         throw error;
       }
@@ -905,11 +910,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!api) return;
     if (Date.now() < feedRetryAfterRef.current) return;
     try {
-      const feed = await api.feed();
+      const [feed, ownProfile] = await Promise.all([
+        api.feed(),
+        user?.id ? api.publicUser(user.id).catch(() => null) : Promise.resolve(null),
+      ]);
       feedFailureCountRef.current = 0;
       feedRetryAfterRef.current = 0;
       const imageCache = await loadPostImagesCache();
-      const mapped = feed
+      // The public feed is ranked and bounded. Merge the authenticated user's
+      // profile posts so a valid publication can never disappear locally just
+      // because it falls outside that global result window.
+      const remotePosts = [
+        ...feed,
+        ...(ownProfile?.posts ?? []),
+      ].filter((post, index, allPosts) => allPosts.findIndex((item) => item.id === post.id) === index);
+      const mapped = remotePosts
         .map(mapPost)
         .map((post) => mergePostImages(post, imageCache[post.id]))
         .filter((post) => !deletedPostIdsRef.current.has(post.id));
@@ -993,16 +1008,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function updateUserAvatar(avatarUri: string) {
+  async function updateUserAvatar(avatarUri: string, fileSize?: number) {
     if (!user) return;
 
     const uploadedImage =
       api && !avatarUri.startsWith('http')
-        ? await uploadLocalImageToCloudinary(api, avatarUri, user.type === 'ong' ? 'ong-logo' : 'profile-avatar')
+        ? await uploadLocalImageToCloudinary(
+            api,
+            avatarUri,
+            user.type === 'ong' ? 'ong-logo' : 'profile-avatar',
+            fileSize,
+          )
         : null;
-    const avatar = uploadedImage?.publicUrl ?? avatarUri;
+    let avatar = uploadedImage?.publicUrl ?? avatarUri;
     if (api && avatar.startsWith('http')) {
-      await api.updateAvatar({ avatarUrl: avatar });
+      const savedAvatar = await api.updateAvatar({
+        avatarUrl: avatar,
+        uploadId: uploadedImage?.uploadId,
+      });
+      avatar = savedAvatar.avatarUrl;
     }
     const nextUser = {
       ...user,

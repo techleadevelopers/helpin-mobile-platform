@@ -1,7 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Linking, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -670,34 +669,6 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   const ctaLabel = isResolved ? 'Ver resolu��o' : CTA_LABELS[post.type] ?? 'Ver mais';
   const accentColor = CTA_COLORS[post.type] ?? colors.primary;
   const ctaColor = colors.primary;
-  const imageOverlay = (
-    <>
-      <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.55)']}
-        style={styles.imageGradient}
-      />
-
-      <View style={styles.imageTopRow}>
-        <StatusBadge type={post.type} urgent={displayUrgent && !isResolved} resolved={isResolved} size="sm" />
-      </View>
-
-      <View style={styles.imageBottomRow}>
-        {distance && (
-          <View style={styles.distanceBadge}>
-            <MaterialCommunityIcons name="navigation-variant" size={11} color="#FFFFFF" />
-            <Text style={styles.distanceText}>{distance}</Text>
-          </View>
-        )}
-        {post.author.type === 'ong' && (
-          <View style={styles.ongBadge}>
-            <MaterialCommunityIcons name="check-decagram" size={11} color="#FFFFFF" />
-            <Text style={styles.ongBadgeText}>ONG Verificada</Text>
-          </View>
-        )}
-      </View>
-    </>
-  );
-
   function renderGoingOverlay() {
     const coords = getRouteCoords() ?? DEFAULT_MAP_COORDS;
     const mapLat = coords.latitude;
@@ -833,7 +804,6 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
           )}
         </View>
       ))}
-      {imageOverlay}
     </View>
   ) : (
     <View style={[styles.imageContainer, styles.inlineImageContainer]}>
@@ -843,7 +813,6 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
         contentFit="cover"
         transition={400}
       />
-      {imageOverlay}
     </View>
   );
 
@@ -924,8 +893,6 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                 <Text style={styles.rescueMomentumText}>{helpGoingLabel}</Text>
               </View>
             )}
-            {renderResponseTools()}
-
             {/* Tags */}
           {post.tags.length > 0 && (
             <View style={styles.tagsRow}>
@@ -1089,8 +1056,6 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
               <Text style={styles.rescueMomentumText}>{helpGoingLabel}</Text>
             </View>
           )}
-          {renderResponseTools()}
-
           {postImageMedia}
 
           {post.tags.length > 0 && (

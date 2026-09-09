@@ -1,5 +1,7 @@
 import { ZooHelpEngine, type AccountType, type PostContract, type PostType } from '@/services/zoohelpEngine';
 import type { Author, Post } from '@/constants/data';
+import Constants from 'expo-constants';
+import { File } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { ACCESS_TOKEN_KEY, getStoredAccessToken } from '@/services/secureSession';
 
@@ -14,7 +16,11 @@ function normalizeApiBaseUrl(value?: string) {
   return cleaned || DEFAULT_API_BASE_URL;
 }
 
-export const API_BASE_URL = normalizeApiBaseUrl(process.env?.EXPO_PUBLIC_API_BASE_URL);
+// The public variable is inlined by Expo at build time. The app-config value is
+// retained as a runtime fallback so the packaged APK has the same endpoint.
+export const API_BASE_URL = normalizeApiBaseUrl(
+  process.env?.EXPO_PUBLIC_API_BASE_URL ?? Constants.expoConfig?.extra?.apiBaseUrl,
+);
 const GOOGLE_MAPS_API_KEY = process.env?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 const AUTH_TOKEN_KEY = ACCESS_TOKEN_KEY;
 export const supportPaymentsEnabled = process.env?.EXPO_PUBLIC_SUPPORT_PAYMENTS_ENABLED === 'true';
@@ -543,15 +549,21 @@ export async function uploadLocalImageToCloudinary(
   api: NonNullable<ReturnType<typeof createZooHelpApi>>,
   uri: string,
   purpose: 'post' | 'ong-logo' | 'profile-avatar' | 'kyb-document' = 'post',
+  knownSizeBytes?: number,
 ) {
   const contentType = contentTypeFromUri(uri);
   const fileName = fileNameFromUri(uri);
-  const response = await fetch(uri);
-  const blob = await response.blob();
+  // React Native already knows how to stream a local URI into FormData. Reading
+  // it with Response.blob() first copies the image through the native blob store
+  // (and emits a warning on Android), so only create a Blob where the browser
+  // requires it.
+  const blob = Platform.OS === 'web' ? await (await fetch(uri)).blob() : null;
+  const sizeBytes = blob?.size ?? (knownSizeBytes && knownSizeBytes > 0 ? knownSizeBytes : new File(uri).size);
+  if (!sizeBytes) throw new Error('Could not read the selected image file');
   const uploadIntent = await api.createMediaUploadIntent({
     fileName,
     contentType,
-    sizeBytes: blob.size,
+    sizeBytes,
     purpose,
   });
 
@@ -562,6 +574,7 @@ export async function uploadLocalImageToCloudinary(
   form.append('folder', uploadIntent.cloudinary.folder);
   form.append('public_id', uploadIntent.cloudinary.publicId);
   if (Platform.OS === 'web') {
+    if (!blob) throw new Error('Could not read the selected image file');
     form.append('file', blob, fileName);
   } else {
     form.append('file', {
@@ -590,11 +603,12 @@ export async function uploadLocalImageToCloudinary(
   };
 
   return {
+    uploadId: uploadIntent.uploadId,
     objectKey: uploadIntent.objectKey,
     publicUrl: payload.secure_url ?? payload.url ?? uploadIntent.publicUrl,
     contentType,
     width: payload.width,
     height: payload.height,
-    sizeBytes: payload.bytes ?? blob.size,
+    sizeBytes: payload.bytes ?? sizeBytes,
   };
 }

@@ -2,8 +2,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { Redirect, useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { Redirect, useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -24,7 +24,9 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OperationalStatus } from '@/components/OperationalStatus';
+import type { Post } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
+import { createZooHelpApi, mapPost } from '@/services/zoohelpApi';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -72,13 +74,17 @@ export default function ProfileScreen() {
   const [profileCity, setProfileCity] = useState('');
   const [profileState, setProfileState] = useState('');
   const [addressFieldsVisible, setAddressFieldsVisible] = useState(false);
+  const [remoteMyPosts, setRemoteMyPosts] = useState<Post[] | null>(null);
   const lastCepLookupRef = useRef('');
 
   const topPad = Platform.OS === 'web' ? 16 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
   const displayName = user?.name || '';
   const accountLabel = user?.type === 'ong' ? 'ONG verificada' : user?.type === 'vet' ? 'Veterinario' : 'Protetor animal';
-  const myPosts = user?.id ? posts.filter((post) => post.author.id === user.id).slice(0, 3) : [];
+  const localMyPosts = user?.id
+    ? posts.filter((post) => post.author.id.trim().toLowerCase() === user.id.trim().toLowerCase())
+    : [];
+  const myPosts = (remoteMyPosts ?? localMyPosts).slice(0, 3);
   const unreadNotifications = chatUnreadCount + chatMessageNotifications.filter((item) => !item.isRead).length;
   const menuItems = MENU_ITEMS.filter((item) => item.label !== 'Verificação de conta' || user?.type === 'ong');
 
@@ -95,6 +101,31 @@ export default function ProfileScreen() {
       .join(', ');
     setLocationLabel(nextLocation || 'Localização nao definida');
   }, [user?.profileAddress]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) {
+        setRemoteMyPosts(null);
+        return;
+      }
+
+      let cancelled = false;
+      const api = createZooHelpApi();
+      if (!api) return;
+
+      api.publicUser(user.id)
+        .then((profile) => {
+          if (!cancelled) setRemoteMyPosts(profile.posts.map(mapPost));
+        })
+        .catch(() => {
+          if (!cancelled) setRemoteMyPosts(null);
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }, [user?.id]),
+  );
 
   if (isLoading) return null;
   if (!isAuthenticated || !user) return <Redirect href="/login" />;
@@ -256,8 +287,9 @@ export default function ProfileScreen() {
         quality: 0.82,
       });
 
-      if (result.canceled || !result.assets[0]?.uri) return;
-      await updateUserAvatar(result.assets[0].uri);
+      const asset = result.assets?.[0];
+      if (result.canceled || !asset?.uri) return;
+      await updateUserAvatar(asset.uri, asset.fileSize);
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
       Alert.alert('Foto de perfil', 'Nao foi possivel atualizar sua foto agora.');

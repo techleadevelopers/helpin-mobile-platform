@@ -584,7 +584,7 @@ export class ZooHelpEngine {
     });
   }
 
-  updateAvatar(input: { avatarUrl: string }) {
+  updateAvatar(input: { avatarUrl: string; uploadId?: string }) {
     return this.request<{ avatarUrl: string }>("/v1/me/avatar", {
       method: "PATCH",
       body: JSON.stringify(input),
