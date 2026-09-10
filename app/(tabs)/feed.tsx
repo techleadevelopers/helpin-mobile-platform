@@ -41,6 +41,10 @@ type FeedFilter = PostType | 'all' | 'ong' | 'needs_response';
 
 type MCIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
+// Keep the component ready for its future placement without showing it in
+// the main feed for now.
+const SHOW_RESOLVED_STORIES = false;
+
 const FILTERS: Array<{ label: string; value: FeedFilter; icon: MCIcon; color: string; activeBg: string }> = [
   { label: 'Todos',       value: 'all',       icon: 'paw',               color: '#4caf4f00', activeBg: '#586158' },
   { label: 'Emergência',  value: 'emergency', icon: 'alert-circle',      color: '#FF3B30', activeBg: '#586158' },
@@ -578,7 +582,7 @@ export default function FeedScreen() {
                 style={styles.logoIcon}
                 resizeMode="contain"
               />
-              <Text style={[styles.logoText, { color: colors.primary }]}>Helpin</Text>
+              <Text style={[styles.logoText, { color: colors.primary }]}>Helpers</Text>
             </View>
             <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
               Ajude animais perto de você
@@ -590,14 +594,14 @@ export default function FeedScreen() {
               onPress={() => router.push('/search')}
               activeOpacity={0.75}
             >
-              <MaterialCommunityIcons name="magnify" size={18} color={colors.foreground} />
+              <MaterialCommunityIcons name="magnify" size={19} color={colors.foreground} />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.iconBtn, { backgroundColor: colors.muted }]}
               onPress={() => router.push('/notifications')}
               activeOpacity={0.75}
             >
-              <MaterialCommunityIcons name="bell-outline" size={18} color={colors.foreground} />
+              <MaterialCommunityIcons name="bell-outline" size={19} color={colors.foreground} />
               {notificationBadgeCount > 0 && (
                 <View style={styles.notifBadge}>
                   <Text style={styles.notifBadgeText}>{notificationBadgeCount > 9 ? '9+' : notificationBadgeCount}</Text>
@@ -616,7 +620,7 @@ export default function FeedScreen() {
             >
               <Avatar
                 name={displayName}
-                size={38}
+                size={40}
                 imageUrl={user?.avatar}
                 uploadPlaceholder
               />
@@ -914,11 +918,11 @@ export default function FeedScreen() {
       </Modal>
 
       {/* ── Section heading ── */}
-      <ResolvedStoriesStrip posts={posts} />
+      {SHOW_RESOLVED_STORIES && <ResolvedStoriesStrip posts={posts} />}
 
       <View style={styles.sectionRow}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-          {activeFilter === 'all' ? 'Casos recentes' :
+          {activeFilter === 'all' ? 'Feed' :
            activeFilter === 'adoption' ? 'Para adoção' :
            activeFilter === 'needs_response' ? 'Urgentes sem resposta' :
            activeFilter === 'lost' ? 'Animais perdidos' :
@@ -1006,22 +1010,23 @@ export default function FeedScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    gap: 10,
+    marginTop: 4,
+    paddingHorizontal: 16.8,
+    paddingBottom: 8.4,
+    gap: 10.5,
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    minHeight: 58,
+    minHeight: 61,
   },
   headerLeft: {
-    gap: 1,
+    gap: 1.05,
     flex: 1,
   },
   greeting: {
-    fontSize: 11,
+    fontSize: 11.55,
     fontFamily: 'Montserrat_400Regular',
   },
   logoRow: {
@@ -1031,65 +1036,65 @@ const styles = StyleSheet.create({
     
   },
   logoIcon: {
-    width: 32.25,
-    height: 32.25,
-    borderRadius: 8,
-    paddingLeft: 8,
-    paddingRight: 8,
+    width: 33.86,
+    height: 33.86,
+    borderRadius: 8.4,
+    paddingLeft: 8.4,
+    paddingRight: 8.4,
   },
   logoText: {
-    fontSize: 23,
+    fontSize: 24.15,
     fontFamily: 'Montserrat_700Bold',
-    letterSpacing: -1,
-    lineHeight: 31,
+    letterSpacing: -1.05,
+    lineHeight: 32.55,
     textShadowColor: 'rgba(46,125,50,0.2)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   tagline: {
-    fontSize: 11,
+    fontSize: 11.55,
     fontFamily: 'Montserrat_400Regular',
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 10.5,
   },
   iconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 46.2,
+    height: 46.2,
+    borderRadius: 23.1,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   notifDot: {
     position: 'absolute',
-    top: 7,
-    right: 7,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    borderWidth: 1.5,
+    top: 7.35,
+    right: 7.35,
+    width: 7.35,
+    height: 7.35,
+    borderRadius: 3.675,
+    borderWidth: 1.575,
     borderColor: '#F8FAF8',
   },
   notifBadge: {
     position: 'absolute',
-    right: 5,
-    bottom: 4,
-    minWidth: 17,
-    height: 17,
-    borderRadius: 8.5,
-    paddingHorizontal: 4,
+    right: 5.25,
+    bottom: 4.2,
+    minWidth: 17.85,
+    height: 17.85,
+    borderRadius: 8.925,
+    paddingHorizontal: 4.2,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#606864',
-    borderWidth: 1.5,
+    borderWidth: 1.575,
     borderColor: '#FFFFFF',
   },
   notifBadgeText: {
-    fontSize: 9,
-    lineHeight: 11,
+    fontSize: 9.45,
+    lineHeight: 11.55,
     fontFamily: 'Montserrat_700Bold',
     color: '#FFFFFF',
   },
@@ -1160,7 +1165,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   quickImageMoreOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.55)',
@@ -1418,7 +1423,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   filterMenuTint: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(42, 87, 58, 0.27)',
   },
   filterMenuTitle: {

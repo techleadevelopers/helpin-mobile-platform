@@ -289,10 +289,11 @@ export default function ProfileScreen() {
 
       const asset = result.assets?.[0];
       if (result.canceled || !asset?.uri) return;
-      await updateUserAvatar(asset.uri, asset.fileSize);
+      await updateUserAvatar(asset.uri, asset.fileSize, asset.mimeType);
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      Alert.alert('Foto de perfil', 'Nao foi possivel atualizar sua foto agora.');
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'Erro inesperado';
+      Alert.alert('Foto de perfil', `Nao foi possivel atualizar sua foto agora.\n${detail}`);
     }
   }
 
@@ -333,7 +334,7 @@ export default function ProfileScreen() {
                 <Image source={{ uri: user.avatar }} style={styles.profilePhoto} contentFit="cover" />
               ) : (
                 <View style={styles.profilePhotoPlaceholder}>
-                  <MaterialCommunityIcons name="camera-plus" size={28} color="#FFFFFF" />
+                  <MaterialCommunityIcons name="camera-plus" size={28} color="#2D6A4F" />
                 </View>
               )}
               {user.verified && (
@@ -670,13 +671,13 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: '#2D6A4F',
+    backgroundColor: '#FFFFFF',
   },
   profilePhotoPlaceholder: {
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: '#2D6A4F',
+    backgroundColor: '#F1F3F1',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -808,7 +809,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   dataBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(18, 27, 20, 0.34)',
   },
   dataSheet: {

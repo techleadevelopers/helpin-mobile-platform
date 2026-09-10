@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { PostLocationMeta } from './PostLocationMeta';
 
@@ -34,6 +34,12 @@ export function PostPublicationCard({
   onPressMessage: () => void;
   onPressContact: () => void;
 }) {
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const normalizedDescription = String(description).normalize();
+  // Four lines at this size typically hold around 180 characters. Keeping the
+  // toggle for longer posts avoids adding visual noise to short descriptions.
+  const canExpandDescription = normalizedDescription.trim().length > 180;
+
   return (
     <View style={styles.publicationBlock}>
       <View style={styles.publicationHeader}>
@@ -55,9 +61,28 @@ export function PostPublicationCard({
                 style={styles.description}
                 allowFontScaling={false}
                 textBreakStrategy="simple"
+                numberOfLines={descriptionExpanded ? undefined : 4}
               >
-                {String(description).normalize()}
+                {normalizedDescription}
               </Text>
+              {canExpandDescription && (
+                <TouchableOpacity
+                  style={styles.descriptionToggle}
+                  onPress={() => setDescriptionExpanded((expanded) => !expanded)}
+                  activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel={descriptionExpanded ? 'Recolher descrição' : 'Ver descrição completa'}
+                >
+                  <Text style={styles.descriptionToggleText}>
+                    {descriptionExpanded ? 'Ver menos' : 'Ver mais'}
+                  </Text>
+                  <MaterialCommunityIcons
+                    name={descriptionExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={15}
+                    color="#2D6A4F"
+                  />
+                </TouchableOpacity>
+              )}
               {breedAgeParts.length > 0 && (
                 <View style={styles.breedAgeRow}>
                   <Text
@@ -162,6 +187,22 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: '#253029',
     textTransform: 'none',
+  },
+  descriptionToggle: {
+    alignSelf: 'flex-end',
+    minHeight: 26,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginTop: 1,
+    paddingHorizontal: 8,
+    borderRadius: 13,
+    backgroundColor: '#EEF7F0',
+  },
+  descriptionToggleText: {
+    fontSize: 10,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#2D6A4F',
   },
   breedAgeRow: {
     flexDirection: 'row',

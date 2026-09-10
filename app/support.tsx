@@ -53,7 +53,7 @@ export default function SupportScreen() {
           <MaterialCommunityIcons name="arrow-left" size={20} color={colors.foreground} />
         </TouchableOpacity>
         <View style={styles.headerText}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Suporte Helpin</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>Suporte Helpers</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Atendimento direto para operação e conta</Text>
         </View>
       </View>

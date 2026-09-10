@@ -4,7 +4,7 @@ import { AppState, Platform } from 'react-native';
 
 import { Post } from '@/constants/data';
 import { loadCachedFeed, saveCachedFeed } from '@/services/feedCache';
-import { enqueuePost, listPendingPosts, markPendingPostAttempt, removePendingPost } from '@/services/postOutbox';
+import { enqueuePost, listDuePendingPosts, listPendingPosts, markPendingPostAttempt, removePendingPost, retryPendingPost, savePendingPostUploads, type PendingPost } from '@/services/postOutbox';
 import { enqueueRescueOperation, flushRescueOutbox, listPendingRescueOperations } from '@/services/rescueOutbox';
 import { registerRescueAlerts } from '@/services/rescueNotifications';
 import { clearSessionTokens, getSecureItem, setSecureItem, REFRESH_TOKEN_KEY } from '@/services/secureSession';
@@ -171,7 +171,7 @@ interface AppContextType {
   addPost: (post: Post) => Promise<Post>;
   refreshPosts: () => Promise<void>;
   donateToOng: (ongId: string, amountCents?: number) => Promise<void>;
-  updateUserAvatar: (avatarUri: string, fileSize?: number) => Promise<void>;
+  updateUserAvatar: (avatarUri: string, fileSize?: number, contentType?: string | null) => Promise<void>;
   updateUserProfile: (input: {
     name: string;
     cep?: string;
@@ -186,6 +186,7 @@ interface AppContextType {
   refreshChatState: () => Promise<void>;
   pendingOutboxCount: number;
   syncPendingOperations: () => Promise<void>;
+  retryFailedPost: (postId: string) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -213,6 +214,9 @@ function likedPostCountsFromUsers(likedPostUsers: Record<string, string[]>) {
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  // State updates are asynchronous. Keep the restored identity available to
+  // the feed refresh that runs in the same async session-restoration flow.
+  const userRef = useRef<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(true);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -450,6 +454,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function persistUser(nextUser: User) {
+    userRef.current = nextUser;
     setIsAuthenticated(true);
     setUser(nextUser);
     await AsyncStorage.setItem('user', JSON.stringify(nextUser));
@@ -758,15 +763,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function publishPostToBackend(post: Post, idempotencyKey?: string) {
+  async function publishPostToBackend(pending: PendingPost) {
     if (!api) throw new Error('Backend unavailable');
+    const { post, idempotencyKey } = pending;
     const localImages = Array.from(new Set(
       (post.images?.length ? post.images : post.image ? [post.image] : [])
         .filter((uri): uri is string => Boolean(uri) && !uri.startsWith('http')),
     )).slice(0, 4);
-    const uploadedImages = await Promise.all(
-      localImages.map((uri) => uploadLocalImageToCloudinary(api, uri)),
-    );
+    const uploadedImages = pending.uploadedMedia.length
+      ? pending.uploadedMedia
+      : await Promise.all(localImages.map((uri) => uploadLocalImageToCloudinary(api, uri)));
+    if (!pending.uploadedMedia.length && uploadedImages.length) {
+      // The create request can time out after the uploads succeeded. Persisting
+      // their server-owned references prevents a retry from uploading again.
+      await savePendingPostUploads(pending.id, uploadedImages);
+    }
     const publicImage = uploadedImages[0]?.publicUrl ?? post.image;
     const response = await api.createPost({
       name: post.name,
@@ -808,15 +819,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   async function syncPendingOperations() {
     if (api) {
-      const pendingPosts = await listPendingPosts();
+      const pendingPosts = await listDuePendingPosts();
       for (const pending of pendingPosts) {
         if (hasVolatileWebMedia(pending.post)) {
-          await removePendingPost(pending.id);
-          setPosts((prev) => prev.filter((item) => item.id !== pending.post.id));
+          await markPendingPostAttempt(pending.id, 'A mídia temporária do navegador expirou; selecione os arquivos novamente para tentar publicar.');
           continue;
         }
         try {
-          const synced = await publishPostToBackend(pending.post, pending.idempotencyKey);
+          const synced = await publishPostToBackend(pending);
           const syncedWithImages = mergePostImages(synced, pending.post);
           await rememberPostImages(syncedWithImages);
           await removePendingPost(pending.id);
@@ -832,12 +842,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           await markPendingPostAttempt(
             pending.id,
             error instanceof Error ? error.message : 'Falha de rede',
+            error instanceof ZooHelpApiError ? error.retryAfterMs : undefined,
           );
         }
       }
       await flushRescueOutbox(api);
     }
     await refreshOutboxCount();
+  }
+
+  async function retryFailedPost(postId: string) {
+    await retryPendingPost(postId);
+    await syncPendingOperations();
   }
 
   async function addPost(post: Post) {
@@ -854,8 +870,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return sortPostsNewestFirst([optimisticPost, ...prev]);
     });
 
+    // Persist before the very first network side effect. Every timeout/retry
+    // now reuses this same key, including after an app restart.
+    const pending = await enqueuePost(post);
     try {
-      const synced = await publishPostToBackend(post);
+      const synced = await publishPostToBackend(pending);
       const syncedWithImages = mergePostImages(synced, post);
       await rememberPostImages(syncedWithImages);
       justPublishedRef.current = {
@@ -867,28 +886,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...prev.filter((item) => item.id !== post.id && item.id !== syncedWithImages.id),
       ]));
       await maybeTriggerRescueForSyncedPost(syncedWithImages);
+      await removePendingPost(pending.id);
+      await refreshOutboxCount();
       return syncedWithImages;
     } catch (error) {
+      await markPendingPostAttempt(
+        pending.id,
+        error instanceof Error ? error.message : 'Falha de rede',
+        error instanceof ZooHelpApiError ? error.retryAfterMs : undefined,
+      );
+      await refreshOutboxCount();
       if (error instanceof ZooHelpApiError && error.status === 401) {
         setPosts((prev) => prev.filter((item) => item.id !== post.id));
         await clearInvalidSession();
         throw error;
       }
-      if (
-        error instanceof ZooHelpApiError &&
-        error.status != null &&
-        error.status < 500 &&
-        error.status !== 429
-      ) {
-        setPosts((prev) => prev.filter((item) => item.id !== post.id));
-        throw error;
-      }
       if (hasVolatileWebMedia(post)) {
-        setPosts((prev) => prev.filter((item) => item.id !== post.id));
         throw error;
       }
-      await enqueuePost(post, error instanceof Error ? error.message : 'Falha de rede');
-      await refreshOutboxCount();
       const pendingPost = {
         ...post,
         tags: Array.from(new Set(['pendente', ...post.tags])),
@@ -909,10 +924,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   async function refreshPostsFromBackend() {
     if (!api) return;
     if (Date.now() < feedRetryAfterRef.current) return;
+    const activeUser = userRef.current ?? user;
     try {
       const [feed, ownProfile] = await Promise.all([
         api.feed(),
-        user?.id ? api.publicUser(user.id).catch(() => null) : Promise.resolve(null),
+        activeUser?.id ? api.publicUser(activeUser.id).catch(() => null) : Promise.resolve(null),
       ]);
       feedFailureCountRef.current = 0;
       feedRetryAfterRef.current = 0;
@@ -939,7 +955,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (deletedPostIdsRef.current.has(post.id)) return false;
           if (backendIds.has(post.id)) return false;
           if (post.createdAt === 'pendente' || post.createdAt === 'agora') return true;
-          if (post.author.id !== user?.id) return false;
+          if (post.author.id !== activeUser?.id) return false;
           const createdAtMs = Date.parse(post.createdAt);
           return Number.isFinite(createdAtMs) && now - createdAtMs < 5 * 60 * 1000;
         });
@@ -1008,7 +1024,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function updateUserAvatar(avatarUri: string, fileSize?: number) {
+  async function updateUserAvatar(avatarUri: string, fileSize?: number, contentType?: string | null) {
     if (!user) return;
 
     const uploadedImage =
@@ -1018,8 +1034,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             avatarUri,
             user.type === 'ong' ? 'ong-logo' : 'profile-avatar',
             fileSize,
+            contentType,
           )
         : null;
+    // Match the composer flow: persist Cloudinary's confirmed delivery URL.
+    // This is the URL of the asset that was actually stored and rendered.
     let avatar = uploadedImage?.publicUrl ?? avatarUri;
     if (api && avatar.startsWith('http')) {
       const savedAvatar = await api.updateAvatar({
@@ -1102,6 +1121,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         refreshChatState,
         pendingOutboxCount,
         syncPendingOperations,
+        retryFailedPost,
         isLoading,
       }}
     >

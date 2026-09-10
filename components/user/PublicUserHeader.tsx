@@ -21,6 +21,7 @@ type PublicUserHeaderProps = {
   followingCount: number;
   postsCount: number;
   onChangeSearch: (value: string) => void;
+  onBack?: () => void;
   onFocusSearch?: () => void;
   onFollow: () => void;
   onMessage: () => void;
@@ -48,6 +49,7 @@ export function PublicUserHeader({
   followingCount,
   postsCount,
   onChangeSearch,
+  onBack,
   onFocusSearch,
   onFollow,
   onMessage,
@@ -60,22 +62,27 @@ export function PublicUserHeader({
   formatCompactNumber,
 }: PublicUserHeaderProps) {
   return (
-    <LinearGradient colors={['#F5F7F2', '#FFFFFF']} style={styles.header}>
-      <View style={[styles.userSearchBox, styles.headerSearchBox]}>
-        <MaterialCommunityIcons name="account-search-outline" size={15} color="#7C867C" />
-        <TextInput
-          style={styles.userSearchInput}
-          value={userSearch}
-          onChangeText={onChangeSearch}
-          placeholder="Buscar usuario"
-          placeholderTextColor="#8A928B"
-          returnKeyType="search"
-          onFocus={onFocusSearch}
-        />
+    <LinearGradient colors={['#FFFFFF', '#FFFFFF']} style={styles.header}>
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.8} accessibilityLabel="Voltar">
+          <MaterialCommunityIcons name="arrow-left" size={21} color="#415047" />
+        </TouchableOpacity>
+        <View style={styles.userSearchBox}>
+          <MaterialCommunityIcons name="account-search-outline" size={15} color="#7C867C" />
+          <TextInput
+            style={styles.userSearchInput}
+            value={userSearch}
+            onChangeText={onChangeSearch}
+            placeholder="Buscar usuario"
+            placeholderTextColor="#8A928B"
+            returnKeyType="search"
+            onFocus={onFocusSearch}
+          />
+        </View>
       </View>
 
       <View style={styles.profileHead}>
-        <Avatar name={author.name} size={58} verified={author.verified} type={author.type} imageUrl={author.avatar} />
+        <Avatar name={author.name} size={42} verified={author.verified} type={author.type} imageUrl={author.avatar} />
         <View style={styles.profileIdentity}>
           <View style={styles.nameRow}>
             <Text style={styles.name} numberOfLines={2}>{author.name}</Text>
@@ -167,11 +174,13 @@ export function PublicUserHeader({
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: 18, paddingBottom: 12, marginBottom: 12 },
+  header: { paddingHorizontal: 14, paddingBottom: 0, marginBottom: 0 },
+  topBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 12, paddingHorizontal: 4 },
+  backButton: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F6F8F5' },
   iconButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.86)' },
-  profileHead: { position: 'relative', flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, marginTop: 18 },
+  profileHead: { position: 'relative', flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 17, marginTop: 18 },
   profileIdentity: { flex: 1, gap: 2, paddingRight: 42 },
-  profileShareButton: { position: 'absolute', right: 20, top: 8, width: 36, height: 36, borderRadius: 18 },
+  profileShareButton: { position: 'absolute', right: 10, top: 8, width: 36, height: 36, borderRadius: 18 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   name: { flex: 1, fontSize: 16, fontFamily: 'Montserrat_700Bold', color: '#162018', letterSpacing: 0 },
   role: { fontSize: 11, fontFamily: 'Montserrat_600SemiBold', color: '#2D6A4F' },
@@ -188,8 +197,8 @@ const styles = StyleSheet.create({
   messageButton: { flex: 1, height: 32, borderRadius: 18, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DCE4DD' },
   messageText: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#2D6A4F' },
   userSearchBox: {
+    flex: 1,
     minHeight: 34,
-    marginTop: 20,
     paddingHorizontal: 11,
     borderRadius: 17,
     flexDirection: 'row',
@@ -199,7 +208,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E4EAE5',
   },
-  headerSearchBox: { marginTop: 15, marginHorizontal: 15 },
   userSearchInput: {
     flex: 1,
     padding: 0,
@@ -227,9 +235,9 @@ const styles = StyleSheet.create({
   userSearchResultInfo: { flex: 1 },
   userSearchResultName: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#18231B' },
   userSearchResultRole: { fontSize: 10, fontFamily: 'Montserrat_500Medium', color: '#7C867C', marginTop: 1 },
-  statsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingVertical: 9, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#E4EAE5' },
+  statsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingVertical: 3, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#E4EAE5' },
   statItem: { flex: 1, alignItems: 'center', gap: 2 },
   statValue: { fontSize: 16, fontFamily: 'Montserrat_700Bold', color: '#172018' },
   statLabel: { fontSize: 9, fontFamily: 'Montserrat_500Medium', color: '#7C867C' },
-  bio: { marginTop: 10, fontSize: 12, fontFamily: 'Montserrat_500Medium', color: '#3D473F', lineHeight: 17 },
+  bio: { marginTop: 10, fontSize: 12, fontFamily: 'Montserrat_500Medium', color: '#3D473F', lineHeight: 14 },
 });

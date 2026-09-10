@@ -3,7 +3,6 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
-  Image,
   Platform,
   StyleSheet,
   Text,
@@ -19,12 +18,6 @@ import { formatRelativeTime } from '@/services/timeFormat';
 import { createZooHelpApi } from '@/services/zoohelpApi';
 import type { ChatConversationContract } from '@/services/zoohelpEngine';
 
-const FEED_TIME_ICON =
-  'https://res.cloudinary.com/limpeja/image/upload/v1779576484/pngtree-vector-clock-icon-png-image_4152707_bfoxlj.jpg';
-
-const ZOOHELP_HEADER_LOGO =
-  'https://res.cloudinary.com/limpeja/image/upload/v1779564981/Gemini_Generated_Image_isin7wisin7wisin-removebg-preview_yx0k5g.png';
-
 export default function ChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -32,7 +25,7 @@ export default function ChatScreen() {
   const { refreshChatState } = useApp();
   const [conversations, setConversations] = useState<ChatConversationContract[]>([]);
 
-  const topPad = (Platform.OS === 'web' ? 0 : insets.top) + 16;
+  const topPad = Platform.OS === 'web' ? 0 : insets.top;
 
   useEffect(() => {
     refreshConversations();
@@ -62,7 +55,7 @@ export default function ChatScreen() {
         <View style={{ position: 'relative' }}>
           <Avatar
             name={item.participant.name}
-            size={52}
+            size={42}
             verified={item.participant.verified}
             imageUrl={item.participant.avatar}
           />
@@ -85,7 +78,7 @@ export default function ChatScreen() {
               {item.participant.name}
             </Text>
             <View style={styles.feedTimeRow}>
-              <Image source={{ uri: FEED_TIME_ICON }} style={styles.feedTimeIcon} resizeMode="contain" />
+              <MaterialCommunityIcons name="clock-outline" size={12} color={colors.mutedForeground} />
               <Text style={[styles.feedTimeText, { color: colors.mutedForeground }]} numberOfLines={1}>
                 {formatRelativeTime(item.lastMessageTime)}
               </Text>
@@ -114,26 +107,18 @@ export default function ChatScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topPad }]}>
+        <Text style={styles.headerTitle}>Mensagens</Text>
         <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.back()}
+          style={styles.composeBtn}
+          onPress={() => router.push('/(tabs)/search')}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <MaterialCommunityIcons name="arrow-left" size={21} color={"#6a6767"} />
+          <MaterialCommunityIcons name="pencil-outline" size={16} color="#607066" />
         </TouchableOpacity>
-        <View pointerEvents="none" style={styles.logoCenter}>
-          <View style={styles.logoRow}>
-            <Image
-              source={{ uri: ZOOHELP_HEADER_LOGO }}
-              style={styles.logoIcon}
-              resizeMode="contain"
-            />
-            <Text style={[styles.logoText, { color: colors.primary }]}>Helpin</Text>
-          </View>
-        </View>
       </View>
 
       <FlatList
+        style={styles.conversationList}
         data={conversations}
         renderItem={renderConversation}
         keyExtractor={(item) => item.id}
@@ -160,55 +145,29 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: '#F5F7F2' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    position: 'relative',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    minHeight: 54,
+    paddingHorizontal: 14,
+    paddingBottom: 10,
+    backgroundColor: '#F4F6F3',
   },
-  backBtn: {
-    width: 40,
-    height: 40,
+  headerTitle: { fontSize: 20, fontFamily: 'Montserrat_700Bold', color: '#172018' },
+  composeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#F0F2F0',
+    borderWidth: 1,
+    borderColor: '#D5DCD6',
   },
-  logoCenter: {
-    position: 'absolute',
-    left: 0,
-    right: 6,
-    bottom: 12,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
-
-    
-  },
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 0,
-  },
-  logoIcon: {
-    width: 31.5,
-    height: 31.5,
-    borderRadius: 8,
-  },
-  logoText: {
-    marginLeft: 2,
-    top: 2,
-    fontSize: 25,
-    fontFamily: 'Montserrat_700Bold',
-    letterSpacing: -1,
-    lineHeight: 31,
-    textShadowColor: 'rgba(46,125,50,0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  listContent: { paddingTop: 4 },
+  conversationList: { backgroundColor: '#F5F7F2' },
+  listContent: { paddingTop: 0 },
   emptyListContent: {
     flexGrow: 1,
   },
@@ -236,13 +195,9 @@ const styles = StyleSheet.create({
   convRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
   },
   unreadBadge: {
     position: 'absolute',
@@ -260,18 +215,17 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   unreadText: { fontSize: 10, fontFamily: 'Inter_700Bold', color: '#FFFFFF' },
-  convInfo: { flex: 1, gap: 3 },
+  convInfo: { flex: 1, gap: 1 },
   convHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  convName: { fontSize: 15, flex: 1, marginRight: 8 },
+  convName: { fontSize: 13, flex: 1, marginRight: 8 },
   convTime: { fontSize: 12, fontFamily: 'Inter_400Regular' },
   feedTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  feedTimeIcon: { width: 13, height: 13, opacity: 0.72 },
   feedTimeText: { fontSize: 10, fontFamily: 'Montserrat_600SemiBold' },
-  postTitle: { fontSize: 11, fontFamily: 'Inter_500Medium' },
-  lastMessage: { fontSize: 13, lineHeight: 18 },
-  separator: { height: 1, marginLeft: 80 },
+  postTitle: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  lastMessage: { fontSize: 12, lineHeight: 17 },
+  separator: { height: 1, marginLeft: 0 },
 });

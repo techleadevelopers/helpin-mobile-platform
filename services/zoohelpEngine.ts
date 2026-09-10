@@ -3,6 +3,8 @@
 export interface ZooHelpEngineConfig {
   apiBaseUrl: string;
   getAccessToken?: () => Promise<string | null> | string | null;
+  /** Refreshes credentials once after a 401. It must not call this request method. */
+  refreshAccessToken?: () => Promise<boolean>;
   onUnauthorized?: (context: { path: string; status: number; requestId: string }) => Promise<void> | void;
   runtime?: ZooHelpRuntime;
 }
@@ -12,14 +14,16 @@ export class ZooHelpApiError extends Error {
   code?: string;
   requestId: string;
   payload?: unknown;
+  retryAfterMs?: number;
 
-  constructor(input: { message: string; status?: number; code?: string; requestId: string; payload?: unknown }) {
+  constructor(input: { message: string; status?: number; code?: string; requestId: string; payload?: unknown; retryAfterMs?: number }) {
     super(input.message);
     this.name = "ZooHelpApiError";
     this.status = input.status;
     this.code = input.code;
     this.requestId = input.requestId;
     this.payload = input.payload;
+    this.retryAfterMs = input.retryAfterMs;
   }
 }
 
@@ -405,15 +409,17 @@ export class ZooHelpEngine {
       headers.set("idempotency-key", createRequestId());
     }
 
-    const token = await this.config.getAccessToken?.();
-    if (token && !headers.has("authorization")) {
-      headers.set("authorization", `Bearer ${token}`);
-    }
-
-    const maxAttempts = method === "GET" ? 3 : 2;
+    const maxAttempts = method === "GET" ? 3 : 4;
     const timeoutMs = requestTimeoutMs(method);
     let lastError: unknown;
+    let refreshed = false;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      // Resolve the token per attempt: a successful refresh must be used by
+      // the replay rather than the expired token captured before the request.
+      if (!headers.has("authorization")) {
+        const token = await this.config.getAccessToken?.();
+        if (token) headers.set("authorization", `Bearer ${token}`);
+      }
       const controller = typeof AbortController !== "undefined" && !init.signal ? new AbortController() : null;
       const timeout = controller
         ? setTimeout(() => controller.abort(), timeoutMs)
@@ -426,6 +432,12 @@ export class ZooHelpEngine {
           signal: init.signal ?? controller?.signal,
         });
         if (response.status === 401) {
+          headers.delete("authorization");
+          if (!headers.has("x-auth-refresh") && !refreshed && this.config.refreshAccessToken && await this.config.refreshAccessToken()) {
+            refreshed = true;
+            attempt -= 1;
+            continue;
+          }
           await this.config.onUnauthorized?.({ path, status: response.status, requestId });
         }
         if (!response.ok) {
@@ -440,9 +452,10 @@ export class ZooHelpEngine {
             code: typeof payload?.code === "string" ? payload.code : undefined,
             requestId,
             payload,
+            retryAfterMs: retryAfterMs(response.headers.get("retry-after")),
           });
-          if (response.status >= 500 && attempt < maxAttempts) {
-            await sleep(250 * attempt);
+          if ((response.status === 429 || response.status >= 500) && attempt < maxAttempts) {
+            await sleep(retryDelayMs(attempt, error.retryAfterMs));
             continue;
           }
           throw error;
@@ -452,7 +465,7 @@ export class ZooHelpEngine {
       } catch (error) {
         lastError = error;
         if (error instanceof ZooHelpApiError || attempt === maxAttempts) break;
-        await sleep(250 * attempt);
+        await sleep(retryDelayMs(attempt));
       } finally {
         if (timeout) clearTimeout(timeout);
       }
@@ -494,6 +507,14 @@ export class ZooHelpEngine {
     return this.request<AuthResponseContract>("/v1/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
+    });
+  }
+
+  refresh(refreshToken: string) {
+    return this.request<AuthResponseContract>("/v1/auth/refresh", {
+      method: "POST",
+      headers: { "x-auth-refresh": "1" },
+      body: JSON.stringify({ refreshToken }),
     });
   }
 
@@ -832,32 +853,39 @@ export class ZooHelpEngine {
     });
   }
 
-  triggerRescue(input: { postId: string; lat: number; lng: number; accuracy?: number }) {
+  triggerRescue(input: { postId: string; lat: number; lng: number; accuracy?: number; idempotencyKey?: string }) {
+    const { idempotencyKey, ...body } = input;
     return this.request<{ rescue: RescueSessionContract }>("/v1/rescue/active", {
       method: "POST",
-      body: JSON.stringify(input),
+      headers: idempotencyKey ? { "idempotency-key": idempotencyKey } : undefined,
+      body: JSON.stringify(body),
     });
   }
 
-  updateRescueLocation(rescueId: string, input: { lat: number; lng: number; accuracy?: number }) {
+  updateRescueLocation(rescueId: string, input: { lat: number; lng: number; accuracy?: number; idempotencyKey?: string }) {
+    const { idempotencyKey, ...body } = input;
     return this.request<{ rescue: RescueSessionContract }>(`/v1/rescue/active/${encodeURIComponent(rescueId)}/location`, {
       method: "PATCH",
-      body: JSON.stringify(input),
+      headers: idempotencyKey ? { "idempotency-key": idempotencyKey } : undefined,
+      body: JSON.stringify(body),
     });
   }
 
-  endRescue(rescueId: string) {
+  endRescue(rescueId: string, idempotencyKey?: string) {
     return this.request<{ rescue: RescueSessionContract }>(`/v1/rescue/active/${encodeURIComponent(rescueId)}/end`, {
       method: "PATCH",
+      headers: idempotencyKey ? { "idempotency-key": idempotencyKey } : undefined,
     });
   }
 
-  createRescueIncident(rescueId: string, input: { description: string; attachments?: string[] }) {
+  createRescueIncident(rescueId: string, input: { description: string; attachments?: string[]; idempotencyKey?: string }) {
+    const { idempotencyKey, ...body } = input;
     return this.request<{ id: string; rescueId: string; status: string }>(
       `/v1/rescue/active/${encodeURIComponent(rescueId)}/incident`,
       {
         method: "POST",
-        body: JSON.stringify(input),
+        headers: idempotencyKey ? { "idempotency-key": idempotencyKey } : undefined,
+        body: JSON.stringify(body),
       },
     );
   }
@@ -910,11 +938,12 @@ export class ZooHelpEngine {
     return this.request<{ status: string }>("/v1/me", { method: "DELETE" });
   }
 
-  commentPost(postId: string, body: string) {
+  commentPost(postId: string, body: string, idempotencyKey?: string) {
     return this.request<{ id: string; postId: string; body: string; createdAt: string }>(
       `/v1/posts/${encodeURIComponent(postId)}/comments`,
       {
         method: "POST",
+        headers: idempotencyKey ? { "idempotency-key": idempotencyKey } : undefined,
         body: JSON.stringify({ body }),
       },
     );
@@ -964,6 +993,20 @@ function createRequestId() {
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function retryAfterMs(value: string | null) {
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(120000, seconds * 1000);
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.min(120000, Math.max(0, date - Date.now())) : undefined;
+}
+
+function retryDelayMs(attempt: number, serverDelayMs?: number) {
+  const exponential = Math.min(30000, 500 * 2 ** (attempt - 1));
+  const jittered = Math.round(exponential * (0.75 + Math.random() * 0.5));
+  return Math.max(serverDelayMs ?? 0, jittered);
 }
 
 function requestTimeoutMs(method: string) {

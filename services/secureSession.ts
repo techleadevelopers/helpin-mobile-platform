@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
 declare const require: any;
 
@@ -24,12 +25,17 @@ async function secureStoreAvailable() {
   }
 }
 
+function mustUseSecureStore() {
+  return !__DEV__ && Constants.expoConfig?.extra?.allowInsecureSessionStorage !== true;
+}
+
 export async function getSecureItem(key: string) {
   if (await secureStoreAvailable()) {
     const value = await SecureStore.getItemAsync(key);
     if (value) return value;
   }
 
+  if (mustUseSecureStore()) return null;
   const legacyValue = await AsyncStorage.getItem(key);
   if (legacyValue && (await secureStoreAvailable())) {
     await SecureStore.setItemAsync(key, legacyValue, {
@@ -49,6 +55,7 @@ export async function setSecureItem(key: string, value: string) {
     return;
   }
 
+  if (mustUseSecureStore()) throw new Error('Armazenamento seguro indisponível neste dispositivo');
   await AsyncStorage.setItem(key, value);
 }
 

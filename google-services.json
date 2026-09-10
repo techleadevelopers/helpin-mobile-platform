@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "441636031909",
+    "project_id": "helpin---rescur",
+    "storage_bucket": "helpin---rescur.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:441636031909:android:d147022a7cf485a96c6c4c",
+        "android_client_info": {
+          "package_name": "com.zoohelp.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAoyAMrlEddWRwLpSy1tvcW0ycvb5zTOQo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

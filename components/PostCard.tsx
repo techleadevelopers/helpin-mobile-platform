@@ -22,7 +22,8 @@ import { shareZooHelpItem } from '@/services/share';
 import { ZooHelpApiError, type PostCommentContract } from '@/services/zoohelpEngine';
 import { createZooHelpApi, geocodeAddress, geocodeStructuredAddress } from '@/services/zoohelpApi';
 
-const CARD_IMAGE_HEIGHT = 330;
+// 15% shorter than the original 330px, without changing card width.
+const CARD_IMAGE_HEIGHT = 281;
 const FEED_TIME_ICON =
   'https://res.cloudinary.com/limpeja/image/upload/v1779576484/pngtree-vector-clock-icon-png-image_4152707_bfoxlj.jpg';
 const DEFAULT_MAP_COORDS = { latitude: -23.5505, longitude: -46.6333 };
@@ -74,25 +75,11 @@ interface PostCardProps {
 }
 
 function formatPostTime(value: string) {
-  if (!value) return 'agora';
-  if (!value.includes('T')) return value.replace(/\b(\d+)\s+(min|h|d)\b/g, '$1$2');
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'agora';
-
-  const diffMs = Date.now() - date.getTime();
-  if (diffMs < 60_000) return 'agora';
-
-  const diffMinutes = Math.floor(diffMs / 60_000);
-  if (diffMinutes < 60) return `${diffMinutes} min`;
-
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}h`;
-
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays <= 7) return `${diffDays}d`;
-
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  const parsed = value?.includes('T') ? new Date(value) : null;
+  // Optimistic/offline posts use labels such as "agora" and "pendente".
+  // The feed header always represents a clock time, never that internal state.
+  const date = parsed && !Number.isNaN(parsed.getTime()) ? parsed : new Date();
+  return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 function limitWords(value: string, maxWords: number) {
@@ -655,7 +642,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
       ? [post.image]
       : [ANIMAL_PLACEHOLDERS[post.animalType] ?? ANIMAL_PLACEHOLDERS.other];
   const imageUri = imageUris[0];
-  const hasPhotoGrid = imageUris.length > 1;
+  const extraImageCount = Math.max(0, imageUris.length - 1);
   const distance = formatDistanceKm(post.distanceKm);
   const isResolved = post.rescueStatus === 'resolved';
   const displayUrgent = post.urgent || post.tags.includes('urgente');
@@ -665,6 +652,9 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
   const helpGoingLabel = helpGoingCount === 1 ? '1 pessoa a caminho' : `${helpGoingCount} pessoas a caminho`;
   const publicResolution = post.rescueFinalReport?.publicUpdate;
   const caseCycle = getCaseCycle(post, operationalSummary);
+  // The escalation continues in the background, but this intermediate status
+  // should not be shown as a badge in feed cards.
+  const showCaseCycle = caseCycle.label !== 'Sem resposta ainda';
   const showResponseTools = canJoinRescue && (post.urgent || post.type === 'emergency' || post.type === 'lost' || post.type === 'found');
   const ctaLabel = isResolved ? 'Ver resolu��o' : CTA_LABELS[post.type] ?? 'Ver mais';
   const accentColor = CTA_COLORS[post.type] ?? colors.primary;
@@ -739,7 +729,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     );
   }
 
-  function renderCaseCycle() {
+  function renderCaseCycle(overlay = false) {
     const toneStyle =
       caseCycle.tone === 'alert' ? styles.caseCycleAlert :
       caseCycle.tone === 'active' ? styles.caseCycleActive :
@@ -748,7 +738,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
     const iconColor = caseCycle.tone === 'alert' ? '#D84A3A' : caseCycle.tone === 'active' ? '#2D6A4F' : '#5F6861';
 
     return (
-      <View style={[styles.caseCycle, toneStyle]}>
+      <View style={[styles.caseCycle, toneStyle, overlay && styles.imageCaseCycleOverlay]}>
         <MaterialCommunityIcons name={caseCycle.icon} size={14} color={iconColor} />
         <Text style={styles.caseCycleLabel} numberOfLines={1}>{caseCycle.label}</Text>
         <Text style={styles.caseCycleDetail} numberOfLines={1}>{caseCycle.detail}</Text>
@@ -787,25 +777,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
       </View>
     );
   }
-  const postImageMedia = hasPhotoGrid ? (
-    <View style={[styles.imageContainer, styles.inlineImageContainer, styles.imageGrid]}>
-      {imageUris.slice(0, 2).map((uri, photoIndex) => (
-        <View key={`${uri}-${photoIndex}`} style={styles.imageGridItem}>
-          <Image
-            source={{ uri }}
-            style={styles.imageGridPhoto}
-            contentFit="cover"
-            transition={400}
-          />
-          {photoIndex === 1 && imageUris.length > 2 && (
-            <View style={styles.photoMoreOverlay}>
-              <Text style={styles.photoMoreText}>+{imageUris.length - 2}</Text>
-            </View>
-          )}
-        </View>
-      ))}
-    </View>
-  ) : (
+  const postImageMedia = (
     <View style={[styles.imageContainer, styles.inlineImageContainer]}>
       <Image
         source={{ uri: imageUri }}
@@ -813,6 +785,11 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
         contentFit="cover"
         transition={400}
       />
+      {extraImageCount > 0 && (
+        <View style={styles.coverPhotoCount}>
+          <Text style={styles.photoMoreText}>+{extraImageCount}</Text>
+        </View>
+      )}
     </View>
   );
 
@@ -880,7 +857,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
             </Text>
 
             <OperationalStatus post={post} variant="compact" />
-            {renderCaseCycle()}
+            {showCaseCycle && renderCaseCycle()}
             {publicResolution && (
               <View style={styles.resolutionCard}>
                 <MaterialCommunityIcons name="check-decagram-outline" size={14} color="#2E6B4F" />
@@ -1043,7 +1020,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
           </View>
 
           <OperationalStatus post={post} />
-          {renderCaseCycle()}
+          {showCaseCycle && renderCaseCycle()}
           {publicResolution && (
             <View style={styles.resolutionCard}>
               <MaterialCommunityIcons name="check-decagram-outline" size={14} color="#2E6B4F" />
@@ -1219,7 +1196,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   photoMoreOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -1228,6 +1205,18 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontFamily: 'Montserrat_700Bold',
+  },
+  coverPhotoCount: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    minWidth: 34,
+    height: 28,
+    paddingHorizontal: 9,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.62)',
   },
   imageGradient: {
     position: 'absolute',
@@ -1246,6 +1235,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   imageTopRight: { flexDirection: 'row', gap: 5 },
+  imageCaseCycleOverlay: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    right: 10,
+  },
   floatingBtn: {
     width: 40,
     height: 40,
@@ -1597,7 +1592,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   goingBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(20,28,22,0.34)',
   },
   goingSheet: {

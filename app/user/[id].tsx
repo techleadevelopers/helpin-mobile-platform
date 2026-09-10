@@ -23,7 +23,6 @@ import {
   type ProfileTab,
   type SocialOverlayType,
 } from '@/components/user';
-import { ZooHelpHeader } from '@/components/ZooHelpHeader';
 import { AUTHOR_TO_ONG, MOCK_AUTHORS, MOCK_ONGS, MOCK_POSTS, type Author, type Post } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { shareZooHelpItem } from '@/services/share';
@@ -380,7 +379,6 @@ export default function PublicUserProfileScreen() {
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} bounces>
-        <ZooHelpHeader />
         <PublicUserHeader
           author={author}
           location={location}
@@ -400,6 +398,7 @@ export default function PublicUserProfileScreen() {
             setUserSearchFocused(true);
             setRemoteUsersLoaded(false);
           }}
+          onBack={() => router.back()}
           onFocusSearch={() => {
             setUserSearchFocused(true);
             if (!remoteUsersLoaded) setRemoteUsersLoaded(false);

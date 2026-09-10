@@ -79,9 +79,9 @@ export function SocialOverlaySheet({
 
 const styles = StyleSheet.create({
   socialOverlayRoot: { flex: 1, justifyContent: 'flex-end' },
-  socialBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(20,28,22,0.28)' },
+  socialBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(20,28,22,0.28)' },
   socialSheet: { marginHorizontal: 10, marginBottom: 10, paddingTop: 8, paddingHorizontal: 14, borderRadius: 22, overflow: 'hidden', shadowColor: '#244C35', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.14, shadowRadius: 22, elevation: 8 },
-  socialSheetTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(42, 87, 58, 0.27)' },
+  socialSheetTint: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(42, 87, 58, 0.27)' },
   socialHandle: { alignSelf: 'center', width: 34, height: 4, borderRadius: 2, backgroundColor: 'rgba(239,247,241,0.68)', marginBottom: 12 },
   socialHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   socialTitle: { fontSize: 16, fontFamily: 'Montserrat_700Bold', color: '#F3F7F4' },
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   socialListContent: { gap: 6, paddingBottom: 8 },
   socialRowTap: { minHeight: 52, borderRadius: 16, overflow: 'hidden' },
   socialRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 9, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' },
-  socialRowTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(229,240,231,0.38)' },
+  socialRowTint: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(229,240,231,0.38)' },
   socialInfo: { flex: 1 },
   socialName: { fontSize: 12, fontFamily: 'Montserrat_700Bold', color: '#18231B' },
   socialRole: { marginTop: 1, fontSize: 9, fontFamily: 'Montserrat_600SemiBold', color: '#2D6A4F' },

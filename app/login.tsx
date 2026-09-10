@@ -88,7 +88,7 @@ export default function LoginScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.container,
-          { paddingTop: topPad + 24, paddingBottom: bottomPad + 24 },
+          { paddingTop: topPad + 22.8, paddingBottom: bottomPad + 22.8 },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -122,7 +122,7 @@ export default function LoginScreen() {
             ]}
           >
             <Animated.Image source={{ uri: ZOOHELP_LOGIN_LOGO }} resizeMode="contain" style={styles.logoImage} />
-            <Text style={[styles.logoText, { color: colors.primary }]}>Helpin</Text>
+            <Text style={[styles.logoText, { color: colors.primary }]}>Helpers</Text>
           </Animated.View>
           <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
             {t('common.tagline')}
@@ -134,7 +134,7 @@ export default function LoginScreen() {
 
           <View style={styles.inputWrapper}>
             <View style={styles.iconCircle}>
-              <MaterialCommunityIcons name="email-outline" size={18} color={colors.mutedForeground} />
+              <MaterialCommunityIcons name="email-outline" size={17} color={colors.mutedForeground} />
             </View>
             <TextInput
               style={[styles.input, styles.loginInput]}
@@ -149,7 +149,7 @@ export default function LoginScreen() {
 
           <View style={styles.inputWrapper}>
             <View style={styles.iconCircle}>
-              <MaterialCommunityIcons name="lock-outline" size={18} color={colors.mutedForeground} />
+              <MaterialCommunityIcons name="lock-outline" size={17} color={colors.mutedForeground} />
             </View>
             <TextInput
               style={[styles.input, styles.loginInput]}
@@ -166,7 +166,7 @@ export default function LoginScreen() {
             >
               <MaterialCommunityIcons
                 name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                size={18}
+                size={17}
                 color={colors.mutedForeground}
               />
             </TouchableOpacity>
@@ -215,91 +215,93 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, paddingHorizontal: 25, gap: 32, marginTop: 60, },
-  logoSection: { alignItems: 'center', gap: 12 },
+  container: { flexGrow: 1, paddingHorizontal: 23.75, gap: 30.4, marginTop: 138 },
+  logoSection: { alignItems: 'center', gap: 11.4, marginTop: 6 },
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 0,
-    left: -8,
+    bottom: 10,
+    left: -10.6,
     position: 'relative',
   },
   logoImage: {
-    width: 38.55,
-    height: 38.55,
-    borderRadius: 8,
+    width: 43.62,
+    height: 43.62,
+    borderRadius: 7.6,
+    opacity: 0.98,
   },
   logoText: {
-    marginLeft: -1,
-    top: 2,
-    fontSize: 29.75,
+    marginLeft: -0.95,
+    top: 1.9,
+    fontSize: 33.26,
     fontFamily: 'Montserrat_700Bold',
-    letterSpacing: -1,
-    lineHeight: 30.8,
+    letterSpacing: -0.95,
+    lineHeight: 29.26,
     textShadowColor: 'rgba(46,125,50,0.2)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
-  tagline: { fontSize: 14, fontFamily: 'Inter_400Regular', textAlign: 'center',  },
-  form: { gap: 14 },
-  title: { fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5, marginBottom: 4,  },
+  tagline: { fontSize: 13.3, fontFamily: 'Inter_400Regular', textAlign: 'center' },
+  form: { gap: 13.3 },
+  title: { fontSize: 24.7, fontFamily: 'Inter_700Bold', letterSpacing: -0.475, marginBottom: 3.8 },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 28,
-    height: 41.8,
-    marginHorizontal: 18,
-    marginBottom: 10,
+    borderRadius: 26.6,
+    height: 39.71,
+    marginHorizontal: 17.1,
+    marginBottom: 9.5,
     shadowColor: 'rgba(100, 100, 150, 0.15)',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 7.6 },
     shadowOpacity: 1,
-    shadowRadius: 15,
+    shadowRadius: 14.25,
     elevation: 0,
-    paddingLeft: 15,
-    paddingRight: 5,
+    paddingLeft: 14.25,
+    paddingRight: 4.75,
   },
   iconCircle: {
-    width: 50,
-    height: 30,
-    right: 8,
-    borderRadius: 40,
+    width: 47.5,
+    height: 28.5,
+    right: 7.6,
+    borderRadius: 38,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Platform.OS === 'android' ? '#16796300' : '#FFFFFF',
-    marginRight: 10,
+    marginRight: 9.5,
   },
   input: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14.25,
     color: '#2D3748',
     paddingVertical: 0,
-    height: 41,
+    height: 38.95,
   },
   loginInput: {
-    height: 34,
+    height: 32.3,
   },
   passwordToggle: {
-    left: -14,
+    left: -13.3,
   },
-  forgotBtn: { alignSelf: 'flex-end', left: -19, },
-  forgotText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
+  forgotBtn: { alignSelf: 'flex-end', left: -18.05 },
+  forgotText: { fontSize: 12.35, fontFamily: 'Inter_500Medium' },
   signInButton: {
     backgroundColor: '#606864',
-    borderRadius: 28,
-    paddingVertical: 8,
-    top: Platform.OS === 'ios' ? 0 : 2,
-    width: '75%',
-    left: 35,
+    borderRadius: 26.6,
+    paddingVertical: 7.6,
+    top: Platform.OS === 'ios' ? 0 : 1.9,
+    width: '71.25%',
+    left: 48.25,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 20,
-    bottom: 55,
-    marginBottom: 8,
+    marginTop: 19,
+    bottom: 52.25,
+    marginBottom: 7.6,
     shadowColor: '#606864',
-    shadowOffset: { width: 0, height: 5 },
+    shadowOffset: { width: 0, height: 4.75 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowRadius: 7.6,
     elevation: 0,
   },
   buttonDisabled: {
@@ -309,33 +311,33 @@ const styles = StyleSheet.create({
   },
   signInButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 14.25,
     fontWeight: '600',
   },
   loginBtn: {
-    paddingVertical: 16,
-    borderRadius: 14,
+    paddingVertical: 15.2,
+    borderRadius: 13.3,
     alignItems: 'center',
-    marginTop: 4,
-    shadowOffset: { width: 0, height: 4 },
+    marginTop: 3.8,
+    shadowOffset: { width: 0, height: 3.8 },
     shadowOpacity: 0.3,
-    shadowRadius: 12,
+    shadowRadius: 11.4,
     elevation: 6,
   },
-  loginBtnText: { fontSize: 17, fontFamily: 'Inter_600SemiBold' },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 42, left: -10, },
+  loginBtnText: { fontSize: 16.15, fontFamily: 'Inter_600SemiBold' },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 11.4, marginHorizontal: 39.9, left: -10.5 },
   dividerLine: { flex: 1, height: 1 },
-  dividerText: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  dividerText: { fontSize: 11.4, fontFamily: 'Inter_400Regular' },
   registerBtn: {
-    minHeight: 36,
-    borderRadius: 28,
-    paddingVertical: 8,
-    width: '75%',
-    left: 35,
-    marginTop: 8,
+    minHeight: 34.2,
+    borderRadius: 26.6,
+    paddingVertical: 7.6,
+    width: '71.25%',
+    left: 48.25,
+    marginTop: 7.6,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
-  registerBtnText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  registerBtnText: { fontSize: 13.3, fontFamily: 'Inter_600SemiBold' },
 });

@@ -49,7 +49,7 @@ export function PostContactSheet({
 
 const styles = StyleSheet.create({
   contactOverlayRoot: { flex: 1, justifyContent: 'flex-end', },
-  contactOverlayBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(20,28,22,0.28)',  },
+  contactOverlayBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(20,28,22,0.28)',  },
   contactSheet: {
     marginHorizontal: 10,
     marginBottom: 10,

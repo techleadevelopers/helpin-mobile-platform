@@ -6,7 +6,6 @@ import {
   Alert,
   AppState as NativeAppState,
   FlatList,
-  Image,
   Platform,
   StyleSheet,
   Text,
@@ -26,9 +25,6 @@ import { createZooHelpApi } from '@/services/zoohelpApi';
 import type { ChatConversationContract } from '@/services/zoohelpEngine';
 
 // Ícone do relógio (mesmo do feed)
-const FEED_TIME_ICON =
-  'https://res.cloudinary.com/limpeja/image/upload/v1779576484/pngtree-vector-clock-icon-png-image_4152707_bfoxlj.jpg';
-
 interface Message {
   id: string;
   text: string;
@@ -241,7 +237,7 @@ export default function ChatRoomScreen() {
 
           {/* Time row with icon - EXACTLY like PostCard feedTimeRow */}
           <View style={styles.feedTimeRow}>
-            <Image source={{ uri: FEED_TIME_ICON }} style={styles.feedTimeIcon}  />
+            <MaterialCommunityIcons name="clock-outline" size={12} color="#87918A" />
             <Text style={[styles.feedTimeText, { color: colors.mutedForeground }]} numberOfLines={1}>
               {item.status === 'sending' ? 'enviando' : item.status === 'failed' ? 'falhou' : displayTime}
             </Text>
@@ -266,14 +262,14 @@ export default function ChatRoomScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: '#F5F7F2' }]}
+      style={[styles.container, { backgroundColor: '#F7F9F7' }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
       <View
         style={[
           styles.header,
-          { backgroundColor: '#F5F7F2', borderBottomColor: '#E4EAE5', paddingTop: topPad },
+          { backgroundColor: '#FFFFFF', borderBottomColor: '#E6EBE7', paddingTop: topPad },
         ]}
       >
         <TouchableOpacity
@@ -286,7 +282,7 @@ export default function ChatRoomScreen() {
         {participant && (
           <Avatar
             name={participant.name}
-            size={36}
+            size={30}
             verified={participant.verified}
             imageUrl={'avatar' in participant ? participant.avatar : null}
           />
@@ -338,14 +334,6 @@ export default function ChatRoomScreen() {
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         scrollEnabled={!!messages.length}
-        ListEmptyComponent={
-          <View style={[styles.emptyChatWrap, { opacity: 0.62 }]}>
-            <MaterialCommunityIcons name="chat-outline" size={38} color={colors.mutedForeground} />
-            <Text style={[styles.emptyChatText, { color: colors.mutedForeground }]}>
-              Nenhuma mensagem ainda
-            </Text>
-          </View>
-        }
         ListFooterComponent={hasOlderMessages ? (
           <TouchableOpacity style={styles.loadOlderButton} onPress={loadOlderMessages} disabled={loadingOlderMessages}>
             <Text style={styles.loadOlderText}>{loadingOlderMessages ? 'Carregando...' : 'Carregar mensagens anteriores'}</Text>
@@ -356,7 +344,7 @@ export default function ChatRoomScreen() {
       <View
         style={[
           styles.inputBar,
-          { backgroundColor: '#F5F7F2', borderTopColor: '#E4EAE5', paddingBottom: bottomPad + 8 },
+          { backgroundColor: '#FFFFFF', borderTopColor: 'transparent', paddingBottom: bottomPad + 8 },
         ]}
       >
         <View style={styles.inputWrapper}>
@@ -374,9 +362,9 @@ export default function ChatRoomScreen() {
           style={[
             styles.sendBtn,
             {
-              backgroundColor: hasText ? colors.primary : colors.muted,
-              borderColor: hasText ? colors.primary + '40' : 'transparent',
-              shadowColor: hasText ? colors.primary : 'transparent',
+              backgroundColor: hasText ? '#60796A' : '#EDF2EE',
+              borderColor: 'transparent',
+              shadowColor: 'transparent',
             },
           ]}
           onPress={() => sendMessage()}
@@ -386,7 +374,7 @@ export default function ChatRoomScreen() {
           <MaterialCommunityIcons
             name="send"
             size={19}
-            color={hasText ? '#FFFFFF' : colors.mutedForeground}
+            color={hasText ? '#FFFFFF' : '#75907E'}
           />
         </TouchableOpacity>
       </View>
@@ -399,39 +387,36 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    gap: 9,
+    paddingHorizontal: 14,
+    paddingBottom: 8,
     borderBottomWidth: 1,
-    minHeight: 60,
+    minHeight: 51,
   },
-  backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 28, height: 36, alignItems: 'center', justifyContent: 'center' },
   headerInfo: { flex: 1 },
-  headerName: { fontSize: 15, fontFamily: 'Montserrat_700Bold' },
-  headerPost: { fontSize: 11, fontFamily: 'Montserrat_500Medium', marginTop: 1 },
-  connectionText: { fontSize: 10, fontFamily: 'Montserrat_700Bold', marginTop: 2 },
-  msgList: { paddingHorizontal: 16, paddingTop: 14, gap: 12 },
-  msgRow: { flexDirection: 'row', gap: 8, maxWidth: '85%' },
+  headerName: { fontSize: 12, fontFamily: 'Montserrat_700Bold' },
+  headerPost: { fontSize: 9, fontFamily: 'Montserrat_500Medium', marginTop: -1 },
+  connectionText: { fontSize: 8, fontFamily: 'Montserrat_700Bold', marginTop: 0 },
+  msgList: { paddingHorizontal: 10, paddingTop: 12, gap: 12 },
+  msgRow: { flexDirection: 'row', gap: 7, maxWidth: '85%' },
   msgRowMe: { alignSelf: 'flex-end', flexDirection: 'row-reverse' },
   msgRowOther: { alignSelf: 'flex-start' },
   bubble: {
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-    borderRadius: 20,
-    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    borderRadius: 14,
+    gap: 3,
     maxWidth: 260,
     borderWidth: 1,
-    shadowColor: '#244C35',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   bubbleMe: {
     borderBottomRightRadius: 7,
   },
   bubbleOther: { borderBottomLeftRadius: 7 },
-  bubbleText: { fontSize: 15, fontFamily: 'Montserrat_500Medium', lineHeight: 22 },
+  bubbleText: { fontSize: 12, fontFamily: 'Montserrat_600SemiBold', lineHeight: 17 },
 
   // Estilos do relógio (exatamente iguais ao PostCard)
   feedTimeRow: {
@@ -439,13 +424,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
   },
-  feedTimeIcon: {
-    width: 13,
-    height: 13,
-    opacity: 0.72
-  },
   feedTimeText: {
-    fontSize: 10,
+    fontSize: 8,
     fontFamily: 'Montserrat_600SemiBold'
   },
   retryText: { fontSize: 10, fontFamily: 'Montserrat_700Bold', color: '#2D6A4F', marginLeft: 7 },
@@ -491,31 +471,30 @@ const styles = StyleSheet.create({
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
+    gap: 8,
+    paddingHorizontal: 7,
+    paddingTop: 8,
+    borderTopWidth: 0,
   },
   inputWrapper: {
     flex: 1,
-    borderRadius: 22,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderRadius: 17,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
     minHeight: 44,
     maxHeight: 120,
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E4EAE5',
+    backgroundColor: '#EEF2EF',
+    borderWidth: 0,
   },
-  input: { fontSize: 15, fontFamily: 'Montserrat_500Medium' },
+  input: { fontSize: 11, fontFamily: 'Montserrat_500Medium' },
   sendBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+    borderWidth: 0,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.35,
     shadowRadius: 8,

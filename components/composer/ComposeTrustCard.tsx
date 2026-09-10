@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   },
 
   overlayBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(20,28,22,0.30)',
   },
 

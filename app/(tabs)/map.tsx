@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
     height: 320,
   },
   realMapImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 1,
   },
   gridLineH: {

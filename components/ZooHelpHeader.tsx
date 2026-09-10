@@ -40,7 +40,7 @@ export function ZooHelpHeader({ onBack }: ZooHelpHeaderProps = {}) {
       <View pointerEvents="none" style={styles.logoCenter}>
         <View style={styles.logoRow}>
           <Image source={{ uri: ZOOHELP_HEADER_LOGO }} style={styles.logoIcon} contentFit="contain" />
-          <Text style={[styles.logoText, { color: colors.primary }]}>Helpin</Text>
+          <Text style={[styles.logoText, { color: colors.primary }]}>Helpers</Text>
         </View>
       </View>
       <View style={styles.headerSideSpacer} />

@@ -27,14 +27,16 @@ export async function triggerRescue(postId: string) {
     await setActiveRescueId(response.rescue.id);
     return response.rescue;
   } catch {
-    await enqueueRescueOperation({
+    const operation = await enqueueRescueOperation({
       type: 'trigger',
       postId,
       lat: coords.latitude,
       lng: coords.longitude,
       accuracy: coords.accuracy ?? undefined,
     });
-    const pending = createPendingRescueSession(postId, coords.latitude, coords.longitude, coords.accuracy ?? undefined);
+    // The operation id is the durable local session reference. Dependent
+    // location/end commands use this exact id and are remapped on sync.
+    const pending = createPendingRescueSession(postId, coords.latitude, coords.longitude, coords.accuracy ?? undefined, operation.id);
     await setActiveRescueId(pending.id);
     return pending;
   }

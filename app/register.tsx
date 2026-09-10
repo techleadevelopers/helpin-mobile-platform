@@ -244,7 +244,10 @@ export default function RegisterScreen() {
         if (!api) throw new Error('Backend API unavailable for ONG media upload');
         if (ongLogoUri) {
           const uploadedLogo = await uploadLocalImageToCloudinary(api, ongLogoUri, 'ong-logo');
-          await api.updateAvatar({ avatarUrl: uploadedLogo.publicUrl });
+          await api.updateAvatar({
+            avatarUrl: uploadedLogo.publicUrl,
+            uploadId: uploadedLogo.uploadId,
+          });
         }
         for (const doc of KYB_DOCUMENTS) {
           const uri = kybDocuments[doc.type];
@@ -481,7 +484,7 @@ export default function RegisterScreen() {
 
     <View style={styles.bottomBrand}>
       <Image source={{ uri: ZOOHELP_REGISTER_LOGO }} style={styles.bottomBrandLogo} contentFit="contain" />
-      <Text style={styles.bottomBrandText}>Helpin</Text>
+      <Text style={styles.bottomBrandText}>Helpers</Text>
     </View>
   </View>
 )}
@@ -1588,6 +1591,7 @@ const styles = StyleSheet.create({
   logoPreviewImage: {
     width: 52,
     height: 52,
+  
     borderRadius: 18,
   },
   logoPickerBadge: {

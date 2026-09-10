@@ -87,7 +87,8 @@ export function UserBottomNav() {
     >
       {items.map((item) => {
         const isActive = item.activePaths.includes(pathname);
-        const itemColor = isActive || item.route === '/composer' ? colors.primary : colors.mutedForeground;
+        const isPrimaryAction = item.route === '/composer';
+        const itemColor = isPrimaryAction ? '#FFFFFF' : isActive ? colors.primary : colors.mutedForeground;
 
         return (
           <TouchableOpacity
@@ -96,17 +97,14 @@ export function UserBottomNav() {
             onPress={() => router.push(item.route as any)}
             activeOpacity={0.82}
           >
-            <View style={styles.iconWrap}>
-              <MaterialCommunityIcons name={item.icon} size={21} color={itemColor} />
+            <View style={[styles.iconWrap, isPrimaryAction && styles.primaryActionIcon]}>
+              <MaterialCommunityIcons name={isPrimaryAction ? 'plus' : item.icon} size={isPrimaryAction ? 29 : 22} color={itemColor} />
               {item.route === '/(tabs)/chat' && chatBadgeCount > 0 && (
                 <View style={styles.chatBadge}>
                   <Text style={styles.chatBadgeText}>{chatBadgeCount > 9 ? '9+' : chatBadgeCount}</Text>
                 </View>
               )}
             </View>
-            <Text style={[styles.bottomNavText, { color: itemColor }]} numberOfLines={1}>
-              {item.label}
-            </Text>
           </TouchableOpacity>
         );
       })}
@@ -116,9 +114,9 @@ export function UserBottomNav() {
 
 const styles = StyleSheet.create({
   bottomNav: {
-    minHeight: 64,
-    paddingTop: 8,
-    paddingHorizontal: 4,
+    minHeight: 57,
+    paddingTop: 6.3,
+    paddingHorizontal: 4.2,
     borderTopWidth: 1,
     flexDirection: 'row',
     shadowColor: '#14261B',
@@ -131,37 +129,43 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 2.1,
     minWidth: 0,
-  },
-  bottomNavText: {
-    fontSize: 10,
-    fontFamily: 'Inter_500Medium',
   },
   iconWrap: {
     position: 'relative',
-    width: 28,
-    height: 24,
+    width: 29.4,
+    height: 25.2,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  primaryActionIcon: {
+    width: 48.3,
+    height: 48.3,
+    marginTop: -26.25,
+    marginBottom: 1.05,
+    borderRadius: 24.15,
+    backgroundColor: '#5F6B63',
+    borderWidth: 4.2,
+    borderColor: '#FFFFFF',
   },
   chatBadge: {
     position: 'absolute',
-    top: -3,
+    top: -3.15,
     right: 0,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    paddingHorizontal: 4,
+    minWidth: 16.8,
+    height: 16.8,
+    borderRadius: 8.4,
+    paddingHorizontal: 4.2,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#606864',
-    borderWidth: 1.5,
+    borderWidth: 1.575,
     borderColor: '#FFFFFF',
   },
   chatBadgeText: {
-    fontSize: 9,
-    lineHeight: 11,
+    fontSize: 9.45,
+    lineHeight: 11.55,
     fontFamily: 'Montserrat_700Bold',
     color: '#FFFFFF',
   },

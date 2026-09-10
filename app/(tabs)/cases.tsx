@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 16, fontFamily: 'Montserrat_700Bold', color: INK },
   emptyText: { maxWidth: 250, textAlign: 'center', fontSize: 12, fontFamily: 'Montserrat_500Medium', color: MUTED, lineHeight: 18 },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(20,28,22,0.28)' },
+  modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(20,28,22,0.28)' },
   sheet: {
     margin: 10,
     padding: 16,

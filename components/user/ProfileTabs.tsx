@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
-    minHeight: 46,
+    minHeight: 34,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',

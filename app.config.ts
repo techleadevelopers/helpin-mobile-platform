@@ -1,8 +1,8 @@
 import type { ExpoConfig, ConfigContext } from "expo/config";
 
-const APP_VERSION = "1.0.11";
+const APP_VERSION = "1.0.12";
 const IOS_BUILD_NUMBER = "1";
-const ANDROID_VERSION_CODE = 11;
+const ANDROID_VERSION_CODE = 12;
 const DEFAULT_API_BASE_URL = "https://helpin-platform-core-production.up.railway.app";
 
 export default ({ config }: ConfigContext): ExpoConfig => {
@@ -77,6 +77,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     plugins: [
       "./plugins/withPhoneOnlyAndroid",
+      "expo-secure-store",
+      ["expo-notifications", { icon: "./assets/images/icon.png", color: "#4F46E5" }],
+      ["expo-location", { locationWhenInUsePermission: "O Helpin usa sua localização para alertas de resgate próximos." }],
       // "expo-router",  // REMOVIDO
       // "expo-font",   // REMOVIDO
       // "expo-web-browser",  // REMOVIDO

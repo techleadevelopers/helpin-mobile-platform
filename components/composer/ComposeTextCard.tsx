@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView, StyleProp, StyleSheet, Text, TextInput, TouchableOpacity, View, ViewStyle } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { type AnimatedStyle } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 
@@ -13,7 +13,7 @@ type ComposeTextCardProps = {
   images: string[];
   colors: ComposerColors;
   currentType: ComposerPostType;
-  animatedStyle: StyleProp<ViewStyle>;
+  animatedStyle: AnimatedStyle<ViewStyle>;
   onChangeText: (value: string) => void;
   onFocus: () => void;
   onBlur: () => void;

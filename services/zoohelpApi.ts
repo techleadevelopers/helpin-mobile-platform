@@ -3,7 +3,7 @@ import type { Author, Post } from '@/constants/data';
 import Constants from 'expo-constants';
 import { File } from 'expo-file-system';
 import { Platform } from 'react-native';
-import { ACCESS_TOKEN_KEY, getStoredAccessToken } from '@/services/secureSession';
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, clearSessionTokens, getSecureItem, getStoredAccessToken, setSecureItem } from '@/services/secureSession';
 
 declare const process: { env?: Record<string, string | undefined> };
 
@@ -27,6 +27,42 @@ export const supportPaymentsEnabled = process.env?.EXPO_PUBLIC_SUPPORT_PAYMENTS_
 
 export const backendEnabled = Boolean(API_BASE_URL);
 
+let refreshInFlight: Promise<boolean> | null = null;
+
+/** One shared refresh prevents a burst of expired requests from rotating the
+ * same single-use token concurrently. This deliberately uses fetch directly
+ * to avoid the engine's 401 interceptor recursing into itself. */
+async function refreshStoredSession() {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    const refreshToken = await getSecureItem(REFRESH_TOKEN_KEY);
+    if (!refreshToken) return false;
+    try {
+      const response = await fetch(`${API_BASE_URL}/v1/auth/refresh`, {
+        method: 'POST',
+        headers: { accept: 'application/json', 'content-type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!response.ok) {
+        await clearSessionTokens();
+        return false;
+      }
+      const payload = await response.json() as { accessToken?: string; refreshToken?: string };
+      if (!payload.accessToken || !payload.refreshToken) throw new Error('Resposta de renovação inválida');
+      await setSecureItem(ACCESS_TOKEN_KEY, payload.accessToken);
+      await setSecureItem(REFRESH_TOKEN_KEY, payload.refreshToken);
+      return true;
+    } catch {
+      // Preserve credentials on a transient outage so a later foreground retry
+      // can still renew; only an explicit non-2xx revokes the local session.
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
+}
+
 async function authenticatedMapFetch(url: string) {
   const token = await getStoredAccessToken();
   return fetch(url, token ? { headers: { authorization: `Bearer ${token}` } } : undefined);
@@ -37,6 +73,7 @@ export function createZooHelpApi(getAccessToken: () => Promise<string | null> | 
   return new ZooHelpEngine({
     apiBaseUrl: API_BASE_URL,
     getAccessToken,
+    refreshAccessToken: refreshStoredSession,
     runtime: 'expo',
   });
 }
@@ -138,56 +175,20 @@ export async function geocodeStructuredAddress(input: {
   city: string;
   state: string;
 }) {
-  const street = [input.number.trim(), input.street.trim()].filter(Boolean).join(' ');
   const state = input.state.trim().toUpperCase();
-  const attempts = [
-    new URLSearchParams({
-      street,
-      city: input.city.trim(),
-      state,
-      country: 'Brazil',
-      format: 'json',
-      limit: '1',
-      countrycodes: 'br',
-      addressdetails: '1',
-    }),
-    new URLSearchParams({
-      q: [input.street.trim(), input.number.trim(), input.neighborhood?.trim(), input.city.trim(), state, 'Brasil']
-        .filter(Boolean)
-        .join(', '),
-      format: 'json',
-      limit: '1',
-      countrycodes: 'br',
-      addressdetails: '1',
-    }),
-  ];
+  const address = [
+    input.street.trim(),
+    input.number.trim(),
+    input.neighborhood?.trim(),
+    input.city.trim(),
+    state,
+    'Brasil',
+  ].filter(Boolean).join(', ');
 
-  for (const params of attempts) {
-    try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
-        headers: { 'Accept-Language': 'pt-BR,pt;q=0.9' },
-      });
-      if (!response.ok) {
-        console.warn('Structured OpenStreetMap geocode HTTP error', response.status);
-        continue;
-      }
-      const payload = (await response.json()) as Array<{ display_name?: string; lat?: string; lon?: string }>;
-      const result = payload[0];
-      const latitude = Number(result?.lat);
-      const longitude = Number(result?.lon);
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
-      return {
-        latitude,
-        longitude,
-        label: result.display_name || [input.street, input.number, input.neighborhood, input.city, state].filter(Boolean).join(', '),
-      };
-    } catch (error) {
-      console.warn('Structured OpenStreetMap geocode failed', error);
-      // Try the next structured query shape.
-    }
-  }
-
-  return null;
+  // Native clients are blocked by Nominatim's public endpoint (HTTP 403).
+  // Route structured addresses through the same backend/Google flow used by
+  // the rest of the app, which also keeps the provider key out of the client.
+  return geocodeAddress(address);
 }
 
 async function placeDetailsWithWebSdk(placeId: string) {
@@ -540,6 +541,12 @@ export function contentTypeFromUri(uri: string) {
   return 'image/jpeg';
 }
 
+function supportedImageContentType(contentType?: string | null) {
+  return contentType === 'image/jpeg' || contentType === 'image/png' || contentType === 'image/webp'
+    ? contentType
+    : null;
+}
+
 export function fileNameFromUri(uri: string) {
   const fileName = uri.split('/').pop()?.split('?')[0];
   return fileName && fileName.includes('.') ? fileName : `zoohelp-${Date.now()}.jpg`;
@@ -550,15 +557,20 @@ export async function uploadLocalImageToCloudinary(
   uri: string,
   purpose: 'post' | 'ong-logo' | 'profile-avatar' | 'kyb-document' = 'post',
   knownSizeBytes?: number,
+  knownContentType?: string | null,
 ) {
-  const contentType = contentTypeFromUri(uri);
+  // ImagePicker can return content URIs without an extension. Prefer its MIME
+  // metadata in that case, but keep the URI inference for older Android/iOS
+  // picker implementations that do not provide it.
+  const contentType = supportedImageContentType(knownContentType) ?? contentTypeFromUri(uri);
   const fileName = fileNameFromUri(uri);
-  // React Native already knows how to stream a local URI into FormData. Reading
-  // it with Response.blob() first copies the image through the native blob store
-  // (and emits a warning on Android), so only create a Blob where the browser
-  // requires it.
+  // Expo SDK 57 implements a native File as a Blob. Passing the older
+  // `{ uri, name, type }` React-Native object is no longer accepted by the
+  // Android FormData implementation and throws "Unsupported FormDataPart".
+  // Keep the browser Blob path, and use Expo File on native.
   const blob = Platform.OS === 'web' ? await (await fetch(uri)).blob() : null;
-  const sizeBytes = blob?.size ?? (knownSizeBytes && knownSizeBytes > 0 ? knownSizeBytes : new File(uri).size);
+  const nativeFile = Platform.OS === 'web' ? null : new File(uri);
+  const sizeBytes = blob?.size ?? (knownSizeBytes && knownSizeBytes > 0 ? knownSizeBytes : nativeFile?.size);
   if (!sizeBytes) throw new Error('Could not read the selected image file');
   const uploadIntent = await api.createMediaUploadIntent({
     fileName,
@@ -577,11 +589,8 @@ export async function uploadLocalImageToCloudinary(
     if (!blob) throw new Error('Could not read the selected image file');
     form.append('file', blob, fileName);
   } else {
-    form.append('file', {
-      uri,
-      name: fileName,
-      type: contentType,
-    } as unknown as Blob);
+    if (!nativeFile) throw new Error('Could not read the selected image file');
+    form.append('file', nativeFile, fileName);
   }
 
   const cloudinaryResponse = await fetch(uploadIntent.uploadUrl, {
@@ -605,7 +614,15 @@ export async function uploadLocalImageToCloudinary(
   return {
     uploadId: uploadIntent.uploadId,
     objectKey: uploadIntent.objectKey,
+    // Use the CDN URL returned after Cloudinary has actually stored the file.
+    // It includes the definitive version/public ID and avoids rendering a
+    // precomputed URL that can differ in cloud-name casing or transformation.
+    // The backend still verifies this against the owned upload intent.
     publicUrl: payload.secure_url ?? payload.url ?? uploadIntent.publicUrl,
+    // The upload intent URL is deterministic and is the canonical URL used
+    // by the avatar endpoint to prove ownership. Cloudinary's response URL
+    // is still kept above for normal media rendering.
+    intentPublicUrl: uploadIntent.publicUrl,
     contentType,
     width: payload.width,
     height: payload.height,

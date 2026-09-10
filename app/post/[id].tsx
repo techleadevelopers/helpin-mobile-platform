@@ -24,7 +24,7 @@ import type { Post } from '@/constants/data';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { getStoredAccessToken } from '@/services/secureSession';
-import { createZooHelpApi, mapPost } from '@/services/zoohelpApi';
+import { createZooHelpApi, geocodeAddress, geocodeStructuredAddress, mapPost } from '@/services/zoohelpApi';
 
 function formatPhoneNumber(value: string) {
   const digits = value.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
@@ -156,6 +156,7 @@ export default function PostDetailScreen() {
   const [followingAuthor, setFollowingAuthor] = useState(false);
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   const [contactOverlayOpen, setContactOverlayOpen] = useState(false);
+  const [resolvedMapCoords, setResolvedMapCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const cachedPost = posts.find((item) => item.id === id) ?? null;
   const post = remotePost ?? cachedPost;
@@ -168,6 +169,60 @@ export default function PostDetailScreen() {
       .then((item) => setRemotePost(mapPost(item)))
       .catch(() => setRemotePost(null));
   }, [id]);
+
+  // This map exists only on the post-detail screen. Prefer the complete
+  // address supplied at publication time so its pin is useful even when the
+  // saved post coordinates are approximate.
+  useEffect(() => {
+    let cancelled = false;
+    const address = post?.locationAddress;
+
+    async function resolveDetailMapLocation() {
+      let result: { latitude: number; longitude: number } | null = null;
+      if (address?.street && address.number && address.city && address.state) {
+        result = await geocodeStructuredAddress({
+          street: address.street,
+          number: address.number,
+          neighborhood: address.neighborhood,
+          city: address.city,
+          state: address.state,
+        });
+      }
+
+      if (!result) {
+        const fallbackAddress = [
+          address?.street,
+          address?.number,
+          address?.neighborhood,
+          address?.city,
+          address?.state,
+        ].filter(Boolean).join(', ') || post?.location || post?.neighborhood;
+        result = fallbackAddress ? await geocodeAddress(fallbackAddress) : null;
+      }
+
+      if (!result && post?.latitude != null && post.longitude != null) {
+        result = { latitude: post.latitude, longitude: post.longitude };
+      }
+
+      if (!cancelled) {
+        setResolvedMapCoords(result ? { lat: result.latitude, lng: result.longitude } : null);
+      }
+    }
+
+    void resolveDetailMapLocation();
+    return () => { cancelled = true; };
+  }, [
+    post?.id,
+    post?.location,
+    post?.neighborhood,
+    post?.latitude,
+    post?.longitude,
+    post?.locationAddress?.street,
+    post?.locationAddress?.number,
+    post?.locationAddress?.neighborhood,
+    post?.locationAddress?.city,
+    post?.locationAddress?.state,
+  ]);
 
   if (!post) {
     return (
@@ -191,7 +246,7 @@ export default function PostDetailScreen() {
   const locationDisplay = formatLocationLine(post.neighborhood, post.location);
   const timeDisplay = formatPostTime(post.createdAt);
   const breedAgeParts = [post.breed, post.age].filter(Boolean);
-  const mapCoords = {
+  const mapCoords = resolvedMapCoords ?? {
     lat: activePost.latitude ?? -23.5505,
     lng: activePost.longitude ?? -46.6333,
   };
@@ -249,9 +304,8 @@ export default function PostDetailScreen() {
   function handleRoute() {
     tapFeedback();
     const label = encodeURIComponent(activePost.name || 'Caso Helpin');
-    const hasCoords = activePost.latitude != null && activePost.longitude != null;
-    const destination = hasCoords
-      ? `${activePost.latitude},${activePost.longitude}`
+    const destination = mapCoords
+      ? `${mapCoords.lat},${mapCoords.lng}`
       : encodeURIComponent(locationDisplay || activePost.location || activePost.neighborhood || activePost.name);
     const url =
       Platform.OS === 'ios'

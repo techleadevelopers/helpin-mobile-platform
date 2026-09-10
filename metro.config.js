@@ -2,25 +2,20 @@
 
 const config = getDefaultConfig(__dirname);
 
-// Força a resolução de módulos problemáticos
+// Metro on Node 24 can fail to resolve this package through Expo Router even
+// though it is installed. Resolve its entry point explicitly as a fallback.
+const defaultResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  // Resolve expo-web-browser
-  if (moduleName === 'expo-web-browser') {
+  if (moduleName === 'react-native-safe-area-context') {
     return {
-      filePath: require.resolve('expo-web-browser'),
+      filePath: require.resolve('react-native-safe-area-context'),
       type: 'sourceFile',
     };
   }
-  
-  // Resolve @expo/vector-icons
-  if (moduleName === '@expo/vector-icons') {
-    return {
-      filePath: require.resolve('@expo/vector-icons'),
-      type: 'sourceFile',
-    };
-  }
-  
-  return context.resolveRequest(context, moduleName, platform);
+
+  return defaultResolveRequest
+    ? defaultResolveRequest(context, moduleName, platform)
+    : context.resolveRequest(context, moduleName, platform);
 };
 
 module.exports = config;
